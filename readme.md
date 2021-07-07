@@ -14,6 +14,8 @@ librosa==0.8.1
 
 * [YouTube: PyTorch for Audio and Music Processing](https://www.youtube.com/playlist?list=PL-wATfeyAMNoirN4idjev6aRu8ISZYVWm)
 
+* [Code: Robust audio-based vehicle counting in low-to-moderate traffic flow](http://cmp.felk.cvut.cz/data/audio_vc/)
+
 #### Papers
 
 * [Robust Audio-Based Vehicle Counting in Low-to-Moderate Traffic Flow](https://arxiv.org/pdf/2010.11716.pdf)

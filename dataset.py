@@ -41,11 +41,21 @@ class VehicleDataset(Dataset):
         self.hop_length = 128
         self.n_mels = 64
 
-        self.transform = torchaudio.transforms.MelSpectrogram(
+        melkwargs = {
+            "n_fft" : self.n_fft, 
+            "n_mels" : self.n_mels, 
+            "hop_length": self.hop_length
+        }
+
+        self.mel_transform = torchaudio.transforms.MelSpectrogram(
             sample_rate=self.sr,
-            n_fft=self.n_fft,
-            hop_length=self.hop_length,
-            n_mels=self.n_mels
+            **melkwargs
+        )
+
+        self.mfcc_transform = torchaudio.transforms.MFCC(
+            sample_rate=self.sr,
+            n_mfcc=8,
+            melkwargs=melkwargs
         )
 
     
@@ -135,6 +145,8 @@ class VehicleDataset(Dataset):
                 n_mels=self.n_mels
             )[np.newaxis]
         else:
-            features = self.transform(signal).unsqueeze(0)
+            mel_features = self.mel_transform(signal).unsqueeze(0)
+            mfcc_features = self.mfcc_transform(signal).unsqueeze(0)
+            features = torch.cat((mel_features, mfcc_features), dim=1)
 
         return features, self.labels[index]

@@ -3,7 +3,9 @@
 #### Packages
 
 ```
-librosa==0.8.1
+torch==1.9.0+cu111
+torchaudio==0.9.0
+torchvision==0.10.0+cu111
 ```
 
 #### Resources

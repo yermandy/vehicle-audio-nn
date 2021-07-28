@@ -1,9 +1,6 @@
-
-
 import torch
 import numpy as np
 import random
-
 
 def get_offset(to: int):
     return random.uniform(0, to)
@@ -38,3 +35,34 @@ def get_binary_labels(events: np.array, n_labels: int, n_samples_per_frame: int)
         counts = counts.sum()
         labels.append(int(counts > 0))
     return np.array(labels)
+
+
+def get_counts_labels(events: np.array, n_labels: int, n_samples_per_frame: int):
+    labels = []
+    for i in range(n_labels):
+        t = i * n_samples_per_frame
+        counts = (t <= events) & (events < t + n_samples_per_frame)
+        counts = counts.sum()
+        labels.append(counts)
+    return np.array(labels)
+
+
+def under_sampling(signals, labels, seed=0):
+    mask = labels != 0
+
+    pos_labels = labels[mask]
+    pos_signals = signals[mask]
+
+    neg_labels = labels[~mask]
+    neg_signals = signals[~mask]
+
+    np.random.seed(seed)
+
+    neg_random_idx = np.random.choice(range(len(neg_signals)), len(pos_labels))
+    neg_labels = neg_labels[neg_random_idx]
+    neg_signals = neg_signals[neg_random_idx]
+
+    labels = np.concatenate((pos_labels, neg_labels))
+    signals = np.concatenate((pos_signals, neg_signals))
+
+    return signals, labels

@@ -2,6 +2,7 @@ import torch
 import torchaudio
 import numpy as np
 from torch.utils.data import Dataset
+from ..utils import *
 
 
 class VehicleDataset(Dataset):
@@ -11,23 +12,19 @@ class VehicleDataset(Dataset):
                  labels_file,
                  start_time=0,
                  end_time=int(1e8),
-                 window_len=3.0,
+                 frame_length=3.0,
                  seed=np.random.randint(0, int(1e8)),
                  use_offset=False):
 
-        # window_len, start_time, end_time in seconds
-        self.window_len = window_len
+        self.frame_length = frame_length
         self.start_time = start_time
         self.end_time = end_time
         self.use_offset = use_offset
         self.seed = seed
 
-        # load and convert to mono
         self.signal, self.sr = torchaudio.load(audio_file)
         self.signal = self.signal.mean(0)
-        # signal = signal.numpy()
 
-        # load labels
         self.events = np.loadtxt(labels_file)
 
         self.split_signal()
@@ -59,59 +56,27 @@ class VehicleDataset(Dataset):
 
     def split_signal(self):
         signal = self.signal
-        events = self.events.copy()
+        events = self.events
 
-        window_len = self.window_len
+        frame_length = self.frame_length
         start_time = self.start_time
         end_time = self.end_time
 
         sr = self.sr
 
-        # crop signal
-        offset = np.random.uniform(0, window_len, 1)[0] if self.use_offset else 0
-        signal = signal[int((start_time + offset) * sr): end_time * sr + 1]
+        n_samples_per_frame = int(sr * frame_length)
 
-        n_samples_per_window = int(sr * window_len)
+        offset = get_offset(frame_length) if self.use_offset else 0
 
-        # split signal to windows of size window_len [sec]
-        signals = signal.split(n_samples_per_window)
+        signal = transform_signal(signal, start_time, end_time, offset, sr)
 
-        # remove last window
-        signals = signals[:-1]
-        signals = np.array([s.numpy() for s in signals])
+        signals = split_signal(signal, n_samples_per_frame)
 
-        # load events in seconds, crop and convert to events in samples
-        events = events - start_time + offset
-        events = events[events < end_time - start_time]
-        events *= sr
+        events = transform_events(events, start_time, end_time, offset, sr)
 
-        labels = []
-        for i in range(len(signals)):
-            counts = (i * n_samples_per_window <= events) & \
-                (events < i * n_samples_per_window + n_samples_per_window)
-            counts = counts.sum()
-            labels.append(counts)
+        labels = get_counts_labels(events, len(signals), n_samples_per_frame)
 
-        labels = np.array(labels)
-        signals = np.array(signals)
-
-        mask = labels != 0
-
-        pos_labels = labels[mask]
-        pos_signals = signals[mask]
-
-        neg_labels = labels[~mask]
-        neg_signals = signals[~mask]
-
-        np.random.seed(self.seed)
-
-        neg_random_idx = np.random.choice(
-            range(len(neg_signals)), len(pos_labels))
-        neg_labels = neg_labels[neg_random_idx]
-        neg_signals = neg_signals[neg_random_idx]
-
-        labels = np.concatenate((pos_labels, neg_labels))
-        signals = np.concatenate((pos_signals, neg_signals))
+        signals, labels = under_sampling(signals, labels, self.seed)
 
         self.labels = labels
         self.signals = torch.tensor(signals)

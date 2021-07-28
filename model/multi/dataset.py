@@ -4,6 +4,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from ..utils import *
 
+
 class VehicleDataset(Dataset):
 
     def __init__(self,
@@ -11,7 +12,7 @@ class VehicleDataset(Dataset):
                  labels_file,
                  start_time=0,
                  end_time=int(1e8),
-                 frame_length=1.0,
+                 frame_length=5.0,
                  seed=np.random.randint(0, int(1e8)),
                  use_offset=False):
         
@@ -73,7 +74,7 @@ class VehicleDataset(Dataset):
         
         events = transform_events(events, start_time, end_time, offset, sr)
 
-        labels = get_binary_labels(events, len(signals), n_samples_per_frame)
+        labels = get_counts_labels(events, len(signals), n_samples_per_frame)
 
         signals, labels = under_sampling(signals, labels, self.seed)
 

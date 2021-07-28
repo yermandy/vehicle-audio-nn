@@ -1,6 +1,5 @@
-from model.binary import *
+from model.kullback import *
 
-import os
 import torch
 import torch.nn as nn
 
@@ -11,7 +10,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 
-def run(audio_file, labels_file, n_epochs=300, cuda=0):
+def run(audio_file, labels_file, n_epochs=150, cuda=0):
 
     device = torch.device(f'cuda:{cuda}' if torch.cuda.is_available() else 'cpu')
 
@@ -23,23 +22,24 @@ def run(audio_file, labels_file, n_epochs=300, cuda=0):
     val_dataset = VehicleDataset(audio_file, labels_file, start_time=25 * 60, seed=0)
     val_loader = DataLoader(val_dataset, batch_size=64)
 
-    model = ResNet18().to(device)
+    model = ResNet18(num_classes=100).to(device)
 
-    loss = nn.CrossEntropyLoss()
+    loss = nn.KLDivLoss(reduction='sum')
 
     optim = Adam(model.parameters(), lr=0.0001)
 
     loop = tqdm(range(n_epochs))
 
-    val_correct_best = 0
+    val_loss_best = float('inf')
 
     uuid = int(datetime.now().timestamp())
 
+    # '''
+
     for epoch in loop:
 
-        trn_correct = 0
-        val_correct = 0
         trn_loss = 0
+        val_loss = 0
 
         model.train()
         for tensor, target in trn_loader:
@@ -47,16 +47,17 @@ def run(audio_file, labels_file, n_epochs=300, cuda=0):
             tensor = tensor.to(device)
             target = target.to(device)
             
-            scores = model(tensor)
-            loss_value = loss(scores, target)
+            scores: torch.Tensor = model(tensor)
 
-            preds = scores.argmax(1)
+            loss_val = loss(scores.log_softmax(1), target.softmax(1))
 
-            trn_loss += loss_value.detach()
-            trn_correct += (target == preds).sum()
+            # preds = scores.argmax(1)
+
+            trn_loss += loss_val.detach().item()
+            # trn_correct += (target == preds).sum()
 
             optim.zero_grad()
-            loss_value.backward()
+            loss_val.backward()
             optim.step()
 
         trn_loader.dataset.split_signal()
@@ -68,19 +69,20 @@ def run(audio_file, labels_file, n_epochs=300, cuda=0):
                 target = target.to(device)
 
                 scores = model(tensor)
-                preds = scores.argmax(1)
-                val_correct += (target == preds).sum()
+                
+                loss_val = loss(scores.log_softmax(1), target.softmax(1))
+                val_loss += loss_val.detach().item()
 
-        if val_correct > val_correct_best:
-            val_correct_best = val_correct
-            torch.save(model.state_dict(), f'weights/binary/model_{uuid}.pth')
+        if val_loss < val_loss_best:
+            val_loss_best = val_loss
+            torch.save(model.state_dict(), f'weights/kullback/model_{uuid}.pth')
 
-        loop.set_description(f'loss {trn_loss.item():.4f} | trn acc {trn_correct / len(trn_dataset):.4f} | val acc {val_correct / len(val_dataset):.4f} | best acc {val_correct_best / len(val_dataset):.4f}')
+        loop.set_description(f'trn loss {trn_loss:.6f} | val loss {val_loss:.6f} | val best {val_loss_best:.6f}')
+        # loop.set_description(f'loss {trn_loss.item():.4f}')
 
+    # '''
 
 if __name__ == "__main__":
-
-    os.makedirs('weights/binary', exist_ok=True)
 
     audio_file = 'data/audio/20190819-Kutna Hora-L4-out-MVI_0040.wav'
     labels_file = 'data/labels/20190819-Kutna Hora-L4-out-MVI_0040.txt'

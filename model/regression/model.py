@@ -1,6 +1,5 @@
 from torchvision.models import resnet18
 from torch.nn import Conv2d, Module
-import torch.nn.functional as F
 
 
 class ResNet18(Module):
@@ -13,8 +12,7 @@ class ResNet18(Module):
         x = self.model(x).abs()
         return x
 
+
 if __name__ == "__main__":
     model = ResNet18()
     print(model)
-
-    n_epochs = 10

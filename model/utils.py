@@ -2,8 +2,9 @@ import torch
 import numpy as np
 import random
 
-def get_offset(to: int):
-    return random.uniform(0, to)
+
+def get_offset(max_offset: float):
+    return random.uniform(0, max_offset)
 
 
 def transform_signal(signal: torch.Tensor, start_time: float, end_time: float, offset: float, sr: int):

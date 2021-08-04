@@ -3,19 +3,20 @@ import torchaudio
 import numpy as np
 from torch.utils.data import Dataset
 from ..utils import *
+from copy import deepcopy
 
 from easydict import EasyDict
 
 class VehicleDataset(Dataset):
 
     def __init__(self,
-                 audio_file,
-                 labels_file,
-                 start_time=0,
-                 end_time=int(1e8),
-                 seed=np.random.randint(0, int(1e8)),
-                 use_offset=False,
-                 params=EasyDict()):
+            signal: torch.Tensor,
+            events: np.array,
+            start_time: float = 0,
+            end_time: float = int(1e8),
+            seed: int = np.random.randint(0, int(1e8)),
+            use_offset: bool = False,
+            params: EasyDict = EasyDict()):
 
         self.start_time = start_time
         self.end_time = end_time
@@ -23,14 +24,13 @@ class VehicleDataset(Dataset):
         self.seed = seed
         self.params = params
 
-        self.signal, self.sr = torchaudio.load(audio_file)
-        self.signal = self.signal.mean(0)
-
-        self.events = np.loadtxt(labels_file)
+        self.signal = deepcopy(signal)
+        self.events = deepcopy(events)
+        self.window_length = params.nn_hop_length * (params.n_frames - 1) + params.frame_length
 
         self.split_signal()
 
-        print(f'all: {len(self.labels)} | positive: {sum(self.labels)}')
+        # print(f'all: {len(self.labels)} | positive: {sum(self.labels)}')
 
         melkwargs = {
             "n_fft": params.n_fft,
@@ -55,7 +55,7 @@ class VehicleDataset(Dataset):
         signal = self.signal
         events = self.events
 
-        window_length = self.params.window_length
+        window_length = self.window_length
         start_time = self.start_time
         end_time = self.end_time
 

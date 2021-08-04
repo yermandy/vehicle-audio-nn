@@ -16,3 +16,5 @@ class ResNet18(Module):
 if __name__ == "__main__":
     model = ResNet18()
     print(model)
+    from torchsummary import summary
+    summary(model, (1, 224, 224))

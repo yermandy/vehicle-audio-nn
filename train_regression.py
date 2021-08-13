@@ -1,116 +1,10 @@
-import os
-import easydict
-import wandb
-import math
-import torch
-import torchaudio
-import numpy as np
-import torch.nn as nn
 from torch.optim import Adam, AdamW
 from torch.utils.data import DataLoader
-from tqdm import tqdm
-from datetime import datetime
-from easydict import EasyDict
+
 from model.regression import *
+from utils import *
 
-
-def load_audio(audio_file):
-    signal, _ = torchaudio.load(audio_file)
-    signal = signal.mean(0)
-    return signal
-
-
-def load_events(events_file):
-    return np.loadtxt(events_file)
-
-
-def get_split_indices(params):
-    n_features_in_sec = params.sr / params.hop_length
-    n_features_in_nn_hop = math.ceil(params.nn_hop_length * n_features_in_sec)
-    n_features_in_frame = math.ceil(params.frame_length * n_features_in_sec)
-
-    split_indices = []
-    for f in range(params.n_frames):
-        start = f * n_features_in_nn_hop
-        end = f * n_features_in_nn_hop + n_features_in_frame
-        split_indices.append([start, end])
-
-    return split_indices
-
-
-def get_cumstep(T, E):
-    def closest(array, value): return np.abs(array - value).argmin()
-    cumstep = np.zeros_like(T)
-    for e in E:
-        idx = closest(T, e)
-        cumstep[idx] += 1
-    return np.cumsum(cumstep)
-
-
-def get_diff(results, params):
-    cumsum = np.cumsum(results)
-    cumstep = get_cumstep(params.time, params.events)
-    return np.abs(cumsum - cumstep).mean()
-
-
-def get_additional_params(signal, events, params, start_time=0, end_time=0):
-    signal = signal[start_time * params.sr: end_time * params.sr]
-
-    interval = end_time - start_time
-
-    n_samples_in_nn_hop = int(params.sr * params.nn_hop_length)
-    n_samples_in_frame = int(params.sr * params.frame_length)
-    n_samples_in_interval = int(params.sr * interval)
-
-    n_features_in_sec = params.sr // params.hop_length
-    n_features_in_nn_hop = int(n_features_in_sec * params.nn_hop_length)
-    n_features_in_frame = int(n_features_in_sec * params.frame_length)
-    n_features_in_interval = int(n_features_in_sec * interval)
-
-    # number of hops
-    n_hops = (n_samples_in_interval - n_samples_in_frame) // n_samples_in_nn_hop
-    
-    # take events that are in interval
-    events = events[(events >= start_time) & (events < end_time)]
-    
-    # create time axis for prediction visualization
-    nn_hop_length_half = params.nn_hop_length // 2
-    time = np.linspace(start_time + nn_hop_length_half, end_time - nn_hop_length_half, n_hops)
-
-    additional = EasyDict()
-
-    additional.signal = signal
-    additional.n_hops = n_hops
-    additional.events = events
-    additional.time = time
-    additional.n_samples_in_nn_hop = n_samples_in_nn_hop
-    additional.n_samples_in_frame = n_samples_in_frame
-    additional.n_features_in_nn_hop = n_features_in_nn_hop
-    additional.n_features_in_frame = n_features_in_frame
-    additional.n_features_in_interval = n_features_in_interval
-
-    return additional
-
-
-def validate(model, dataset, params, tqdm=lambda x: x):
-    device = next(model.parameters()).device
-    results = []
-
-    loop = tqdm(range(params.n_hops))
-
-    model.eval()
-    with torch.no_grad():
-        for k in loop:
-            start = k * params.n_samples_in_nn_hop
-            end = start + params.n_samples_in_frame
-            x = params.signal[start:end]
-            x = dataset.transform(x).unsqueeze(0)
-            x = x.to(device)
-            y = model(x).item()
-            results.append(y)
-
-    results = np.array(results)
-    return results
+torch.backends.cudnn.benchmark = True
 
 
 def run(audio_file, labels_file, nn_hop_length=5.0, frame_length=2.0, n_frames=3):
@@ -121,9 +15,10 @@ def run(audio_file, labels_file, nn_hop_length=5.0, frame_length=2.0, n_frames=3
     VAL_FROM_TIME = 25 * 60
     VAL_TILL_TIME = 34 * 60
 
-    cuda = 0
+    cuda = 1
     n_epochs = 500
     batch_size = 64
+    lr = 0.0001
 
     # define parameters
     params = EasyDict()
@@ -176,8 +71,10 @@ def run(audio_file, labels_file, nn_hop_length=5.0, frame_length=2.0, n_frames=3
     val_loader = DataLoader(val_dataset, batch_size=batch_size)
 
     model = ResNet18().to(device)
+    # model = MobileNetV3S().to(device)
+    # model = MobileNetV3L().to(device)
 
-    optim = AdamW(model.parameters(), lr=0.0001)
+    optim = AdamW(model.parameters(), lr=lr)
 
     val_loss_best = float('inf')
     val_smallest_diff = float('inf')
@@ -186,18 +83,23 @@ def run(audio_file, labels_file, nn_hop_length=5.0, frame_length=2.0, n_frames=3
     config.update(params)
     config.uuid = uuid
     config.batch_size = batch_size
+    config.lr = lr
+    config.model = model.__class__.__name__
 
     wandb.run.name = str(uuid)
 
     split_indices = get_split_indices(params)
 
     params.trn = get_additional_params(
-        signal, events, params, start_time=TRN_FROM_TIME, end_time=TRN_TILL_TIME
+        params, signal, events, start_time=TRN_FROM_TIME, end_time=TRN_TILL_TIME
     )
     
     params.val = get_additional_params(
-        signal, events, params, start_time=VAL_FROM_TIME, end_time=VAL_TILL_TIME
+        params, signal, events, start_time=VAL_FROM_TIME, end_time=VAL_TILL_TIME
     )
+
+    # val_dataset_2 = VehicleValidationDataset(params.val.signal, params.val, val_dataset.transform)
+    # val_loader_2 = DataLoader(val_dataset_2, batch_size=batch_size)
 
     training_loop = tqdm(range(n_epochs))
     for _ in training_loop:
@@ -258,8 +160,9 @@ def run(audio_file, labels_file, nn_hop_length=5.0, frame_length=2.0, n_frames=3
 
         val_loss /= len(trn_dataset) * len(split_indices)
 
-        trn_results = validate(model, trn_dataset, params.trn)
-        trn_diff = get_diff(trn_results, params.trn)
+        # trn_results = validate(model, trn_dataset, params.trn)
+        # trn_results = validate(model, trn_dataset, params.trn)
+        # trn_diff = get_diff(trn_results, params.trn)
 
         val_results = validate(model, val_dataset, params.val)
         val_diff = get_diff(val_results, params.val)
@@ -275,7 +178,7 @@ def run(audio_file, labels_file, nn_hop_length=5.0, frame_length=2.0, n_frames=3
         wandb.log({
             "trn loss": trn_loss,
             "val loss": val_loss,
-            "trn diff": trn_diff,
+            # "trn diff": trn_diff,
             "val diff": val_diff,
             "val loss best": val_loss_best,
             "val smallest diff": val_smallest_diff
@@ -293,10 +196,9 @@ if __name__ == "__main__":
     labels_file = 'data/labels/20190819-Kutna Hora-L4-out-MVI_0040.txt'
 
     # '''
-    # for nn_hop_length in [1.0, 2.0, 3.0]:
-    for nn_hop_length in [2.0, 3.0]:
-        for frame_length in [1.0, 2.0, 3.0]:
-            for n_frames in [3, 5, 7]:
+    for nn_hop_length in [0.75, 1]:
+        for frame_length in [1, 1.5]:
+            for n_frames in [16]:
                 if nn_hop_length > frame_length:
                     continue
 
@@ -304,7 +206,8 @@ if __name__ == "__main__":
                 print('frame_length:', frame_length)
                 print('n_frames:', n_frames)
 
-                wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy', tags=['grid search'])
+                wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy')
+                # wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy', tags=['grid search'])
 
                 run(audio_file, labels_file, nn_hop_length=nn_hop_length,
                     frame_length=frame_length, n_frames=n_frames)
@@ -313,7 +216,9 @@ if __name__ == "__main__":
     # '''
 
     '''
-    wandb_run = wandb.init(project='test', entity='yermandy', tags=['test'])
-    run(audio_file, labels_file, nn_hop_length=2, frame_length=2, n_frames=3)
-    wandb_run.finish()
+    # wandb_run = wandb.init(project='test', entity='yermandy', tags=['test'])
+    for i in range(3):
+        wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy')
+        run(audio_file, labels_file, nn_hop_length=3, frame_length=3, n_frames=3)
+        wandb_run.finish()
     # '''

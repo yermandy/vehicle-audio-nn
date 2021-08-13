@@ -22,7 +22,7 @@ class VehicleDataset(Dataset):
         self.end_time = end_time
         self.use_offset = use_offset
         self.seed = seed
-        self.params = params
+        self.params = deepcopy(params)
 
         self.signal = deepcopy(signal)
         self.events = deepcopy(events)
@@ -86,3 +86,21 @@ class VehicleDataset(Dataset):
         label = self.labels[index]
         features = self.transform(signal)
         return features, label
+
+
+class VehicleValidationDataset(Dataset):
+    
+    def __init__(self, signal: torch.Tensor, params: EasyDict, transform):
+        self.signal = deepcopy(signal)
+        self.params = deepcopy(params)
+        self.transform = transform
+        
+    def __len__(self):
+        return self.params.n_hops
+
+    def __getitem__(self, index):
+        start = index * self.params.n_samples_in_nn_hop
+        end = start + self.params.n_samples_in_frame
+        x = self.params.signal[start: end]
+        x = self.transform(x)
+        return x

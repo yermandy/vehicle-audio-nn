@@ -12,9 +12,18 @@ from datetime import datetime
 
 
 def load_audio(audio_file):
-    signal, _ = torchaudio.load(audio_file)
+    signal, sr = torchaudio.load(audio_file)
     signal = signal.mean(0)
+    # round to the last second
+    seconds = len(signal) // sr
+    signal = signal[:seconds * sr]
     return signal
+
+
+def time_to_sec(time):
+    h, m, s = map(float, time.split(':'))
+    sec = h * 3600 + m * 60 + s
+    return sec
 
 
 def load_events(events_file):
@@ -24,16 +33,47 @@ def load_events(events_file):
 def load_direction_from_csv(csv):
     directions = {}
     for row in csv[1:]:
-        plate, direction = row[[0, 7]]
-        directions[plate] = direction
+        detection_id, direction = row[[0, 7]]
+        directions[detection_id] = direction
     return np.array(list(directions.values()))
+
+
+def load_event_start_time_from_csv(csv):
+    start_times = {}
+    for row in csv[1:]:
+        detection_id, time = row[[0, 8]]
+        start_times[detection_id] = time
+        
+    
+    start_times = {k: time_to_sec(v) for k, v in start_times.items()}
+    return np.array(list(start_times.values()))
+
+
+def load_event_time_from_csv(csv):
+    times = {}
+    for row in csv[1:]:
+        detection_id, start_time, end_time = row[[0, 8, 9]]
+        times[detection_id] = start_time, end_time
+    
+    start_times = []
+    end_times = []
+    for k, v in times.items():
+        start_time, end_time = v
+        start_time = time_to_sec(start_time)
+        try:
+            end_time = time_to_sec(end_time)
+        except:
+            end_time = start_time
+
+        start_times.append(start_time)
+        end_times.append(end_time)
+    return np.array(start_times), np.array(end_times)
 
 
 def load_events_from_csv(csv):
     events = []
-    for e in np.unique(csv[1:, 14]):
-        h, m, s = map(float, e.split(':'))
-        sec = h * 3600 + m * 60 + s
+    for time in np.unique(csv[1:, 14]):
+        sec = time_to_sec(time)
         events.append(sec)
     return np.array(events)
 

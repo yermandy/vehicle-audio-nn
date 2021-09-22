@@ -4,5 +4,7 @@
 
 data
 piano
+wandb
+weights
 
 __pycache__

@@ -11,12 +11,25 @@ from tqdm import tqdm
 from datetime import datetime
 
 
-def load_audio(audio_file):
+def load_csv(name, folder='data/csv/*.csv'):
+    import glob
+    batch = []
+    for file in glob.glob(folder):
+        if file.find(name) != -1:
+            table = np.genfromtxt(file, dtype=str, delimiter=';', skip_header=1)
+            batch.append(table)
+    batch = np.concatenate(batch)
+    return batch
+
+
+def load_audio(audio_file, return_sr=False):
     signal, sr = torchaudio.load(audio_file)
     signal = signal.mean(0)
     # round to the last second
     seconds = len(signal) // sr
     signal = signal[:seconds * sr]
+    if return_sr:
+        return signal, sr
     return signal
 
 
@@ -30,28 +43,37 @@ def load_events(events_file):
     return np.loadtxt(events_file)
 
 
-def load_direction_from_csv(csv):
-    directions = {}
-    for row in csv[1:]:
-        detection_id, direction = row[[0, 7]]
-        directions[detection_id] = direction
-    return np.array(list(directions.values()))
+def load_column(csv, column):
+    out = {}
+    for row in csv:
+        out[row[0]] = row[column]
+    return np.array(list(out.values()))
+
+
+def load_directions_from_csv(csv):
+    return load_column(csv, 7)
+
+
+def load_views_from_csv(csv):
+    return load_column(csv, 23)
+
+
+def load_events_from_csv(csv):
+    return np.array([time_to_sec(t) for t in load_column(csv, 14)])
 
 
 def load_event_start_time_from_csv(csv):
     start_times = {}
-    for row in csv[1:]:
+    for row in csv:
         detection_id, time = row[[0, 8]]
         start_times[detection_id] = time
-        
-    
     start_times = {k: time_to_sec(v) for k, v in start_times.items()}
     return np.array(list(start_times.values()))
 
 
 def load_event_time_from_csv(csv):
     times = {}
-    for row in csv[1:]:
+    for row in csv:
         detection_id, start_time, end_time = row[[0, 8, 9]]
         times[detection_id] = start_time, end_time
     
@@ -68,24 +90,6 @@ def load_event_time_from_csv(csv):
         start_times.append(start_time)
         end_times.append(end_time)
     return np.array(start_times), np.array(end_times)
-
-
-def load_events_from_csv(csv):
-    events = []
-    for time in np.unique(csv[1:, 14]):
-        sec = time_to_sec(time)
-        events.append(sec)
-    return np.array(events)
-
-
-def load_csv(csv_file):
-    import glob
-    for f in glob.glob('data/csv/*.csv'):
-        name = csv_file.split('/')[-1]
-        if f.find(name) != -1:
-            csv_file = f
-            break
-    return np.genfromtxt(csv_file, dtype=str, delimiter=';')
 
 
 def get_split_indices(params):
@@ -205,9 +209,12 @@ def validate(model, dataset, params, tqdm=lambda x: x, batch_size=32):
     return results
 
 
-def validate_multi(model, dataset, params, tqdm=lambda x: x):
+def validate_multi(model, dataset, params, tqdm=lambda x: x, batch_size=32, return_probs=False):
     device = next(model.parameters()).device
+
+    batch = []
     results = []
+    probs = []
 
     loop = tqdm(range(params.n_hops))
 
@@ -217,10 +224,27 @@ def validate_multi(model, dataset, params, tqdm=lambda x: x):
             start = k * params.n_samples_in_nn_hop
             end = start + params.n_samples_in_frame
             x = params.signal[start:end]
-            x = dataset.transform(x).unsqueeze(0)
-            x = x.to(device)
-            y = model(x).argmax(1).item()
-            results.append(y)
+            x = dataset.transform(x)
+            batch.append(x)
+            
+            if (k + 1) % batch_size == 0 or k + 1 == params.n_hops:
+                batch = torch.stack(batch, dim=0)
+                batch = batch.to(device)
+                # print((model(batch).softmax(1) * 100).round())
+                scores = model(batch)
+                
+                if return_probs:
+                    p = model(batch).softmax(1).tolist()
+                    probs.extend(p)
+
+                y = scores.argmax(1).squeeze().tolist()                
+                results.extend(y)
+                batch = []
 
     results = np.array(results)
+
+    if return_probs:
+        probs = np.array(probs)
+        return results, probs
+
     return results

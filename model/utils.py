@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import random
 import torchaudio
+from utils import *
 
 
 def get_offset(max_offset: float):
@@ -10,6 +11,7 @@ def get_offset(max_offset: float):
 
 def get_window_length(params):
     return params.nn_hop_length * (params.n_frames - 1) + params.frame_length
+
 
 def transform_signal(signal: torch.Tensor, start_time: float, end_time: float, offset: float, sr: int):
     return signal[int((start_time + offset) * sr): int(end_time * sr)]
@@ -73,43 +75,124 @@ def under_sampling(signals, labels, seed=0):
     return signals, labels
 
 
-def create_simple_dataset(signal, sr, manual_events, from_time, till_time, window_length=10, n_samples=100, seed=42, margin=1, return_timestamps=False):
+def create_dataset_from_files(files, window_length=6, n_samples=5000, seed=42, from_time=None, till_time=None):
+    """ if n_samples == -1, dataset is created sequentially from a sequence """
+
+    all_samples = []
+    all_labels = []
+
+    n_files = len(files)
+    n_samples_per_file = n_samples // n_files
+
+    for file in files:
+        signal, sr = load_audio(f'data/audio/{file}.MP4.wav', return_sr=True)
+        events = load_events(f'data/labels/{file}.MP4.txt')
+        
+        if n_samples == -1:
+            samples, labels = create_dataset_uniformly(signal, sr, events,
+                from_time=from_time, till_time=till_time, seed=seed,
+                window_length=window_length, n_samples=n_samples_per_file)
+        else:
+            samples, labels = create_dataset_sequentially(signal, sr, events,
+                from_time=from_time, till_time=till_time, window_length=window_length)
+
+        print(f'sampled {len(samples)} from {file}')
+        all_samples.extend(samples)
+        all_labels.extend(labels)
+
+    return all_samples, all_labels
+
+
+def create_dataset_uniformly(signal, sr, events, from_time=None, till_time=None, window_length=10, n_samples=100, seed=42, margin=0, return_timestamps=False):
+
+    if from_time is None:
+        from_time = 0
+
+    max_time = len(signal) // sr
+
+    if till_time is None or till_time > max_time:
+        till_time = max_time
+
     np.random.seed(seed)
 
     samples = []
     labels = []
     timestamps = []
-    
+
+    # _all_from = []
+    # _all_till = []
+
     while len(samples) < n_samples:
         sample_from = np.random.rand(1)[0] * (till_time - from_time - window_length) + from_time
         sample_till = sample_from + window_length
 
         events_timestamps = []
         skip = False
-        
-        for manual_event in manual_events:
-            if sample_from <= manual_event <= sample_till:
 
-                events_timestamps.append(manual_event)
-                
+        for event in events:
+            if sample_from <= event < sample_till:
+
+                events_timestamps.append(event)
+
                 # skip interval with event in margin
-                if manual_event < sample_from + margin or manual_event > sample_till - margin:
+                if event < sample_from + margin or event > sample_till - margin:
                     skip = True
-                    break        
+                    break
 
         if skip:
             continue
+
+        # _all_from.append(sample_from)
+        # _all_till.append(sample_till)
 
         sample = signal[int(sample_from * sr): int(sample_till * sr)]
 
         samples.append(sample)
         labels.append(len(events_timestamps))
         timestamps.append(events_timestamps)
-    
+
+    # print(np.min(_all_from), np.max(_all_from))
+    # print(np.min(_all_till), np.max(_all_till))
+
     if return_timestamps:
         return samples, labels, timestamps
-    
+
     return samples, labels
+
+
+def create_dataset_sequentially(signal, sr, events, from_time=None, till_time=None, window_length=10):
+
+    if from_time is None:
+        from_time = 0
+
+    max_time = len(signal) // sr
+
+    if till_time is None or till_time > max_time:
+        till_time = max_time
+
+    samples = []
+    labels = []
+
+    interval_time = till_time - from_time
+    n_samples = interval_time // window_length
+
+    for i in range(n_samples):
+        sample_from = from_time + i * window_length
+        sample_till = sample_from + window_length
+
+        events_timestamps = []
+
+        for event in events:
+            if sample_from <= event < sample_till:
+                events_timestamps.append(event)
+
+        sample = signal[int(sample_from * sr): int(sample_till * sr)]
+
+        samples.append(sample)
+        labels.append(len(events_timestamps))
+
+    return samples, labels
+
 
 def create_transformation(params):
     melkwargs = {
@@ -129,6 +212,7 @@ def create_transformation(params):
         melkwargs=melkwargs
     )
 
-    transform = lambda signal: torch.cat((mel_transform(signal), mfcc_transform(signal)), dim=0).unsqueeze(0)
+    def transform(signal): return torch.cat(
+        (mel_transform(signal), mfcc_transform(signal)), dim=0).unsqueeze(0)
 
     return transform

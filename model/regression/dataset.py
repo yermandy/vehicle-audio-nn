@@ -29,7 +29,7 @@ class VehicleDataset(Dataset):
         self.events = deepcopy(events)
         self.window_length = get_window_length(params)
 
-        self.samples, self.labels = create_simple_dataset(signal, params.sr, events, start_time, end_time, self.window_length, n_samples, seed)
+        self.samples, self.labels = create_dataset_uniformly(signal, params.sr, events, start_time, end_time, self.window_length, n_samples, seed)
         
         self.transform = create_transformation(params)
     

@@ -89,12 +89,13 @@ def create_dataset_from_files(files, window_length=6, n_samples=5000, seed=42, f
         events = load_events(f'data/labels/{file}.MP4.txt')
         
         if n_samples == -1:
+            samples, labels = create_dataset_sequentially(signal, sr, events,
+                from_time=from_time, till_time=till_time, window_length=window_length)
+        else:
             samples, labels = create_dataset_uniformly(signal, sr, events,
                 from_time=from_time, till_time=till_time, seed=seed,
                 window_length=window_length, n_samples=n_samples_per_file)
-        else:
-            samples, labels = create_dataset_sequentially(signal, sr, events,
-                from_time=from_time, till_time=till_time, window_length=window_length)
+
 
         print(f'sampled {len(samples)} from {file}')
         all_samples.extend(samples)

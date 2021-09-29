@@ -3,34 +3,29 @@ import torchaudio
 import numpy as np
 from torch.utils.data import Dataset
 from ..utils import *
-from copy import deepcopy
+from typing import List
 
 from easydict import EasyDict
 
 class VehicleDataset(Dataset):
 
     def __init__(self,
-            signal: torch.Tensor,
-            events: np.array,
-            start_time: float = 0,
-            end_time: float = int(1e8),
+            files: List[str], 
+            from_time: float = 0,
+            till_time: float = int(1e8),
             seed: int = 42,
-            use_offset: bool = False,
             params: EasyDict = EasyDict(),
             n_samples: int = 5000):
 
-        self.start_time = start_time
-        self.end_time = end_time
-        self.use_offset = use_offset
-        self.seed = seed
         self.params = params
-
-        self.signal = deepcopy(signal)
-        self.events = deepcopy(events)
         self.window_length = get_window_length(params)
-
-        self.samples, self.labels = create_simple_dataset(signal, params.sr, events, start_time, end_time, self.window_length, n_samples, seed)
-
+        self.samples, self.labels = create_dataset_from_files(
+            files, 
+            window_length=self.window_length,
+            n_samples=n_samples,
+            seed=seed,
+            from_time=from_time,
+            till_time=till_time)
         self.transform = create_transformation(params)
     
     def __len__(self):

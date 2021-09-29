@@ -234,7 +234,7 @@ def validate_multi(model, dataset, params, tqdm=lambda x: x, batch_size=32, retu
                 scores = model(batch)
                 
                 if return_probs:
-                    p = model(batch).softmax(1).tolist()
+                    p = scores.softmax(1).tolist()
                     probs.extend(p)
 
                 y = scores.argmax(1).squeeze().tolist()                

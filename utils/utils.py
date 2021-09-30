@@ -39,8 +39,14 @@ def time_to_sec(time):
     return sec
 
 
-def load_events(events_file):
-    return np.loadtxt(events_file)
+def load_events(file):
+    return np.loadtxt(file)
+
+
+def load_intervals(file):
+    arr = np.loadtxt(file)
+    intervals, events_in_interval = arr[:, 0], arr[:, 1]
+    return intervals, events_in_interval
 
 
 def load_column(csv, column):

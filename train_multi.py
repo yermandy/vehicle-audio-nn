@@ -104,13 +104,7 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
     signal = load_audio(audio_file)
     events = load_events(labels_file)
 
-    params.trn = get_additional_params(
-        params, signal, events, start_time=TRN_FROM_TIME, end_time=TRN_TILL_TIME
-    )
-    
-    params.val = get_additional_params(
-        params, signal, events, start_time=VAL_FROM_TIME, end_time=VAL_TILL_TIME
-    )
+    params = get_additional_params(params)
 
     training_loop = tqdm(range(n_epochs))
     for _ in training_loop:
@@ -159,11 +153,11 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
 
         val_mae /= len(val_dataset)
 
-        trn_results = validate_multi(model, trn_dataset, params.trn)
-        trn_diff = get_diff(trn_results, params.trn)
+        trn_results = validate_multi(signal, model, trn_dataset.transform, params, from_time=TRN_FROM_TIME, till_time=TRN_TILL_TIME)
+        trn_diff = get_diff(signal, events, trn_results, params, TRN_FROM_TIME, TRN_TILL_TIME)
 
-        val_results = validate_multi(model, val_dataset, params.val)
-        val_diff = get_diff(val_results, params.val)
+        val_results = validate_multi(signal, model, val_dataset.transform, params, from_time=VAL_FROM_TIME, till_time=VAL_TILL_TIME)
+        val_diff = get_diff(signal, events, val_results, params, VAL_FROM_TIME, VAL_TILL_TIME)
 
         if val_diff < val_diff_best:
             val_diff_best = val_diff
@@ -223,14 +217,14 @@ if __name__ == "__main__":
         '20190819-Ricany-L9-in-MVI_0008'
     ]
 
-    # files = ['20190819-Kutna Hora-L4-out-MVI_0040']
+    files = ['20190819-Kutna Hora-L4-out-MVI_0040']
     # files = ['20190819-Kutna Hora-L3-in-MVI_0005']
     
 
     # audio_file = f'data/audio/{file}.MP4.wav'
     # labels_file = f'data/labels/{file}.MP4.txt'
 
-    for n_trn_samples in [250, 500, 1000, 2000, 4000]:
+    for n_trn_samples in [-1]:
         
         wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy', tags=['multi'])
 

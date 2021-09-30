@@ -122,69 +122,91 @@ def get_cumstep(T, E):
     return np.cumsum(cumstep)
 
 
-def get_diff(results, params):
+def crop_signal_events(signal, events, sr, from_time, till_time):
+    if from_time is not None and till_time is not None:
+        signal = signal[from_time * sr: till_time * sr]
+        
+        if events is not None:
+            events = events[(events >= from_time) & (events < till_time)]
+
+    if events is None:
+        return signal
+
+    return signal, events
+
+
+def get_time(signal, params, from_time, till_time):
+    nn_hop_length_half = params.nn_hop_length // 2
+    n_hops = get_n_hops(signal, params)
+    time = np.linspace(from_time + nn_hop_length_half, till_time - nn_hop_length_half, n_hops)
+    return time
+
+
+def get_diff(signal, events, results, params, from_time=None, till_time=None):
+    if from_time == None:
+        from_time = 0
+    
+    if till_time == None:
+        till_time = len(signal) / params.sr
+
+    signal, events = crop_signal_events(signal, events, params.sr, from_time, till_time)
+
+    time = get_time(signal, params, from_time, till_time)
+
     cumsum = np.cumsum(results)
-    cumstep = get_cumstep(params.time, params.events)
+    cumstep = get_cumstep(time, events)
     return np.abs(cumsum - cumstep).mean()
 
 
-def get_additional_params(params, signal=None, events=None, start_time=0, end_time=0):
-    additional = EasyDict()
+def get_n_hops(signal, params):
+    
+    if 'n_samples_in_frame' not in params or 'n_samples_in_nn_hop' not in params:
+        params = get_additional_params(params)
 
-    if signal is not None:
+    n_samples = len(signal)
+
+    n_hops = (n_samples - params.n_samples_in_frame) // params.n_samples_in_nn_hop
+
+    return n_hops
+    
+
+def get_additional_params(params):
+
+    # if signal is not None:
         # crop signal to interval
-        additional.signal = signal[start_time * params.sr: end_time * params.sr]
+        # params.signal = signal[start_time * params.sr: end_time * params.sr]
 
-    if events is not None:
+    # if events is not None:
         # take events that are in interval
-        additional.events = events[(events >= start_time) & (events < end_time)]
+        # params.events = events[(events >= start_time) & (events < end_time)]
 
-    interval = end_time - start_time
+    # interval = end_time - start_time
 
     n_samples_in_nn_hop = int(params.sr * params.nn_hop_length)
     n_samples_in_frame = int(params.sr * params.frame_length)
-    n_samples_in_interval = int(params.sr * interval)
+    # n_samples_in_interval = int(params.sr * interval)
 
     n_features_in_sec = params.sr // params.hop_length
     n_features_in_nn_hop = int(n_features_in_sec * params.nn_hop_length)
     n_features_in_frame = int(n_features_in_sec * params.frame_length)
-    n_features_in_interval = int(n_features_in_sec * interval)
+    # n_features_in_interval = int(n_features_in_sec * interval)
 
     # number of hops
-    n_hops = (n_samples_in_interval - n_samples_in_frame) // n_samples_in_nn_hop
+    # n_hops = (n_samples_in_interval - n_samples_in_frame) // n_samples_in_nn_hop
         
     # create time axis for prediction visualization
-    nn_hop_length_half = params.nn_hop_length // 2
-    time = np.linspace(start_time + nn_hop_length_half, end_time - nn_hop_length_half, n_hops)
+    # nn_hop_length_half = params.nn_hop_length // 2
+    # time = np.linspace(start_time + nn_hop_length_half, end_time - nn_hop_length_half, n_hops)
 
-    additional.n_hops = n_hops
-    additional.time = time
-    additional.n_samples_in_nn_hop = n_samples_in_nn_hop
-    additional.n_samples_in_frame = n_samples_in_frame
-    additional.n_features_in_nn_hop = n_features_in_nn_hop
-    additional.n_features_in_frame = n_features_in_frame
-    additional.n_features_in_interval = n_features_in_interval
+    # params.n_hops = n_hops
+    # params.time = time
+    params.n_samples_in_nn_hop = n_samples_in_nn_hop
+    params.n_samples_in_frame = n_samples_in_frame
+    params.n_features_in_nn_hop = n_features_in_nn_hop
+    params.n_features_in_frame = n_features_in_frame
+    # params.n_features_in_interval = n_features_in_interval
 
-    return additional
-
-
-
-def validate_2(model, loader, tqdm=lambda x: x):
-    device = next(model.parameters()).device
-
-    results = []
-
-    loop = tqdm(loader)
-
-    model.eval()
-    with torch.no_grad():
-        for x in loop:
-            x = x.to(device)
-            y = model(x).squeeze().tolist()
-            results.extend(y)
-
-    results = np.array(results)
-    return results
+    return params
 
 
 def validate(model, dataset, params, tqdm=lambda x: x, batch_size=32):
@@ -215,25 +237,30 @@ def validate(model, dataset, params, tqdm=lambda x: x, batch_size=32):
     return results
 
 
-def validate_multi(model, dataset, params, tqdm=lambda x: x, batch_size=32, return_probs=False):
+def validate_multi(signal, model, transform, params, tqdm=lambda x: x, batch_size=32, return_probs=False, from_time=None, till_time=None):
+
+    signal = crop_signal_events(signal, None, params.sr, from_time, till_time)
+        
     device = next(model.parameters()).device
 
     batch = []
     results = []
     probs = []
 
-    loop = tqdm(range(params.n_hops))
+    n_hops = get_n_hops(signal, params) 
+
+    loop = tqdm(range(n_hops))
 
     model.eval()
     with torch.no_grad():
         for k in loop:
             start = k * params.n_samples_in_nn_hop
             end = start + params.n_samples_in_frame
-            x = params.signal[start:end]
-            x = dataset.transform(x)
+            x = signal[start: end]
+            x = transform(x)
             batch.append(x)
             
-            if (k + 1) % batch_size == 0 or k + 1 == params.n_hops:
+            if (k + 1) % batch_size == 0 or k + 1 == n_hops:
                 batch = torch.stack(batch, dim=0)
                 batch = batch.to(device)
                 # print((model(batch).softmax(1) * 100).round())

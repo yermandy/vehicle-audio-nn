@@ -122,6 +122,40 @@ def get_cumstep(T, E):
     return np.cumsum(cumstep)
 
 
+def get_intervals_from_files(files, from_time, till_time):
+    _intervals = []
+    _events_in_intervals = []
+    for file in files:
+        print(f'loading: {file}')
+        intervals_file = f'data/intervals/{file}.MP4.txt'
+        signal, sr = load_audio(f'data/audio/{file}.MP4.wav', return_sr=True)
+        intervals = load_intervals(intervals_file)
+        intervals, events_in_intervals = preprocess_intervals(intervals, from_time, till_time)
+        
+        for interval in intervals:
+            _intervals.append(signal[int(interval[0] * sr): int(interval[1] * sr)])
+        
+        _events_in_intervals.extend(events_in_intervals)
+
+    return _intervals, np.array(_events_in_intervals)
+
+
+def preprocess_intervals(intervals, from_time, till_time):
+    intervals, events_in_intervals = intervals[0], intervals[1]
+    if from_time is not None and till_time is not None:
+        mask = (intervals >= from_time) & (intervals < till_time)
+        intervals = intervals[mask]
+        events_in_intervals = events_in_intervals[mask]
+    
+    _intervals = []
+    _events_in_intervals = []
+    for i in range(1, len(intervals)):
+        _intervals.append([intervals[i - 1], intervals[i]])
+        _events_in_intervals.append(events_in_intervals[i])
+
+    return _intervals, np.array(_events_in_intervals)
+
+
 def crop_signal_events(signal, events, sr, from_time, till_time):
     if from_time is not None and till_time is not None:
         signal = signal[from_time * sr: till_time * sr]
@@ -165,7 +199,8 @@ def get_n_hops(signal, params):
 
     n_samples = len(signal)
 
-    n_hops = (n_samples - params.n_samples_in_frame) // params.n_samples_in_nn_hop
+    # n_hops = (n_samples - params.n_samples_in_frame) // params.n_samples_in_nn_hop
+    n_hops = int(np.ceil((n_samples - params.n_samples_in_frame) / params.n_samples_in_nn_hop))
 
     return n_hops
     
@@ -229,7 +264,7 @@ def validate(model, dataset, params, tqdm=lambda x: x, batch_size=32):
             if (k + 1) % batch_size == 0 or k + 1 == params.n_hops:
                 batch = torch.stack(batch, dim=0)
                 batch = batch.to(device)
-                y = model(batch).squeeze().tolist()
+                y = model(batch).view(-1).tolist()
                 results.extend(y)
                 batch = []
 
@@ -270,7 +305,7 @@ def validate_multi(signal, model, transform, params, tqdm=lambda x: x, batch_siz
                     p = scores.softmax(1).tolist()
                     probs.extend(p)
 
-                y = scores.argmax(1).squeeze().tolist()                
+                y = scores.argmax(1).view(-1).tolist()
                 results.extend(y)
                 batch = []
 
@@ -281,3 +316,12 @@ def validate_multi(signal, model, transform, params, tqdm=lambda x: x, batch_siz
         return results, probs
 
     return results
+
+
+def validate_intervals(intervals, events_in_intervals, model, transform, params):
+    error = 0
+    for signal, n_events in zip(intervals, events_in_intervals):
+        results = validate_multi(signal, model, transform, params)
+        pred = np.cumsum(results)[-1]
+        error += np.abs(pred - n_events)
+    return error / len(intervals)

@@ -5,7 +5,7 @@ from model.multi import *
 from utils import *
 
 
-def run(files, frame_length=2.0, n_trn_samples=1000):
+def run(files, frame_length=6.0, n_trn_samples=1000):
     uuid=int(datetime.now().timestamp())
 
     TRN_FROM_TIME = 1 * 60
@@ -18,7 +18,7 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
     batch_size = 64
     lr = 0.0001
     n_trn_samples = n_trn_samples
-    n_val_samples = 1000
+    n_val_samples = -1
     num_workers = 0
 
     # define parameters
@@ -54,6 +54,8 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
         n_samples=n_trn_samples
     )
 
+    trn_intervals, trn_events_in_intervals = get_intervals_from_files(files, TRN_FROM_TIME, TRN_TILL_TIME)
+
     # trn_dataset = SyntheticDataset(
     #     signal, events, from_time=TRN_FROM_TIME, till_time=TRN_TILL_TIME, params=params, n_samples=n_trn_samples
     # )
@@ -67,6 +69,8 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
         params=params,
         n_samples=n_val_samples
     )
+
+    val_intervals, val_events_in_intervals = get_intervals_from_files(files, VAL_FROM_TIME, VAL_TILL_TIME)
 
     # val_dataset = SyntheticDataset(
     #     signal, events, from_time=VAL_FROM_TIME, till_time=VAL_TILL_TIME, params=params, n_samples=n_val_samples
@@ -84,6 +88,7 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
     val_loss_best = float('inf')
     val_mae_best = float('inf')
     val_diff_best = float('inf')
+    val_interval_error_best = float('inf')
 
     config = wandb.config
     config.update(params)
@@ -98,11 +103,11 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
 
     wandb.run.name = str(uuid)
 
-    audio_file = f'data/audio/{files[0]}.MP4.wav'
-    labels_file = f'data/labels/{files[0]}.MP4.txt'
+    # audio_file = f'data/audio/{files[0]}.MP4.wav'
+    # labels_file = f'data/labels/{files[0]}.MP4.txt'
 
-    signal = load_audio(audio_file)
-    events = load_events(labels_file)
+    # signal = load_audio(audio_file)
+    # events = load_events(labels_file)
 
     params = get_additional_params(params)
 
@@ -132,7 +137,7 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
             optim.step()
 
         trn_mae /= len(trn_dataset)
-        
+
         # validation
         val_loss = 0
         val_mae = 0
@@ -153,15 +158,23 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
 
         val_mae /= len(val_dataset)
 
-        trn_results = validate_multi(signal, model, trn_dataset.transform, params, from_time=TRN_FROM_TIME, till_time=TRN_TILL_TIME)
-        trn_diff = get_diff(signal, events, trn_results, params, TRN_FROM_TIME, TRN_TILL_TIME)
+        trn_interval_error = validate_intervals(trn_intervals, trn_events_in_intervals, model, trn_dataset.transform, params)
+        
+        val_interval_error = validate_intervals(val_intervals, val_events_in_intervals, model, val_dataset.transform, params)
 
-        val_results = validate_multi(signal, model, val_dataset.transform, params, from_time=VAL_FROM_TIME, till_time=VAL_TILL_TIME)
-        val_diff = get_diff(signal, events, val_results, params, VAL_FROM_TIME, VAL_TILL_TIME)
+        if val_interval_error < val_interval_error_best:
+            val_interval_error_best = val_interval_error
+            torch.save(model.state_dict(), f'weights/multi/model_{uuid}_interval.pth')
 
-        if val_diff < val_diff_best:
-            val_diff_best = val_diff
-            torch.save(model.state_dict(), f'weights/multi/model_{uuid}_diff.pth')
+        # trn_results = validate_multi(signal, model, trn_dataset.transform, params, from_time=TRN_FROM_TIME, till_time=TRN_TILL_TIME)
+        # trn_diff = get_diff(signal, events, trn_results, params, TRN_FROM_TIME, TRN_TILL_TIME)
+
+        # val_results = validate_multi(signal, model, val_dataset.transform, params, from_time=VAL_FROM_TIME, till_time=VAL_TILL_TIME)
+        # val_diff = get_diff(signal, events, val_results, params, VAL_FROM_TIME, VAL_TILL_TIME)
+
+        # if val_diff < val_diff_best:
+        #     val_diff_best = val_diff
+        #     torch.save(model.state_dict(), f'weights/multi/model_{uuid}_diff.pth')
 
         if val_loss < val_loss_best:
             val_loss_best = val_loss
@@ -175,14 +188,18 @@ def run(files, frame_length=2.0, n_trn_samples=1000):
             "trn loss": trn_loss,
             "val loss": val_loss,
             "val loss best": val_loss_best,
-            
+
             "trn mae": trn_mae,
             "val mae": val_mae,
             "val mae best": val_mae_best,
 
-            "trn diff": trn_diff,
-            "val diff": val_diff,            
-            "val diff best": val_diff_best
+            "trn interval error": trn_interval_error,
+            "val interval error": val_interval_error,
+            "val interval error best": val_interval_error_best,
+
+            # "trn diff": trn_diff,
+            # "val diff": val_diff,            
+            # "val diff best": val_diff_best
         })
 
         training_loop.set_description(f'trn loss {trn_loss:.2f} | val loss {val_loss:.2f} | best loss {val_loss_best:.2f}')
@@ -224,10 +241,9 @@ if __name__ == "__main__":
     # audio_file = f'data/audio/{file}.MP4.wav'
     # labels_file = f'data/labels/{file}.MP4.txt'
 
-    for n_trn_samples in [-1]:
+    for n_trn_samples in [-1] * 5:
         
         wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy', tags=['multi'])
-
 
         wandb.config.files = files
 

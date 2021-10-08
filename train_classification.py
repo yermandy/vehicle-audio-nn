@@ -33,7 +33,7 @@ def forward(loader, model, loss):
 def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
     uuid=int(datetime.now().timestamp())
 
-    split_at = 25 * 60
+    split_ratio = 0.75
     cuda = 0
     n_epochs = 350
     batch_size = 64
@@ -67,7 +67,7 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
 
     print(f'Running on {device}')
 
-    datapool = DataPool(files, params.window_length, split_at)
+    datapool = DataPool(files, params.window_length, split_ratio)
 
     trn_dataset = VehicleDataset(
         datapool,

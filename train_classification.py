@@ -1,24 +1,45 @@
-from torch.optim import Adam, AdamW
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from model.multi import *
-from utils import *
+from model.classification import *
+from src import *
 
 
-def run(files, frame_length=6.0, n_trn_samples=1000):
+def forward(loader, model, loss):
+    device = next(model.parameters()).device
+    n_samples = len(loader.dataset)
+
+    loss_sum = 0
+    abs_error_sum = 0
+
+    model.eval()
+    with torch.no_grad():
+        for tensor, target in loader:
+            tensor = tensor.to(device)
+            target = target.to(device)
+
+            scores = model(tensor)
+            loss_value = loss(scores, target)
+
+            preds = scores.argmax(1)
+
+            loss_sum += loss_value.detach().item()
+            abs_error_sum += (target - preds).abs().sum().item()
+    
+    mae = abs_error_sum / n_samples
+    return mae, loss_sum
+
+
+def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
     uuid=int(datetime.now().timestamp())
 
-    TRN_FROM_TIME = 1 * 60
-    TRN_TILL_TIME = 25 * 60
-    VAL_FROM_TIME = 25 * 60
-    VAL_TILL_TIME = 34 * 60
-
+    split_at = 25 * 60
     cuda = 0
     n_epochs = 350
     batch_size = 64
     lr = 0.0001
     n_trn_samples = n_trn_samples
-    n_val_samples = -1
+    n_val_samples = n_val_samples
     num_workers = 0
 
     # define parameters
@@ -46,35 +67,23 @@ def run(files, frame_length=6.0, n_trn_samples=1000):
 
     print(f'Running on {device}')
 
+    datapool = DataPool(files, params.window_length, split_at)
+
     trn_dataset = VehicleDataset(
-        files,
-        from_time=TRN_FROM_TIME,
-        till_time=TRN_TILL_TIME,
+        datapool,
+        is_trn=True,
         params=params,
         n_samples=n_trn_samples
     )
 
-    trn_intervals, trn_events_in_intervals = get_intervals_from_files(files, TRN_FROM_TIME, TRN_TILL_TIME)
-
-    # trn_dataset = SyntheticDataset(
-    #     signal, events, from_time=TRN_FROM_TIME, till_time=TRN_TILL_TIME, params=params, n_samples=n_trn_samples
-    # )
-
     trn_loader = DataLoader(trn_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
     val_dataset = VehicleDataset(
-        files,
-        from_time=VAL_FROM_TIME,
-        till_time=VAL_TILL_TIME,
+        datapool,
+        is_trn=False,
         params=params,
         n_samples=n_val_samples
     )
-
-    val_intervals, val_events_in_intervals = get_intervals_from_files(files, VAL_FROM_TIME, VAL_TILL_TIME)
-
-    # val_dataset = SyntheticDataset(
-    #     signal, events, from_time=VAL_FROM_TIME, till_time=VAL_TILL_TIME, params=params, n_samples=n_val_samples
-    # )
 
     val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers)
 
@@ -82,13 +91,7 @@ def run(files, frame_length=6.0, n_trn_samples=1000):
 
     loss = nn.CrossEntropyLoss()
 
-    # optim = AdamW(model.parameters(), lr=lr)
     optim = Adam(model.parameters(), lr=lr)
-
-    val_loss_best = float('inf')
-    val_mae_best = float('inf')
-    val_diff_best = float('inf')
-    val_interval_error_best = float('inf')
 
     config = wandb.config
     config.update(params)
@@ -109,12 +112,24 @@ def run(files, frame_length=6.0, n_trn_samples=1000):
     # signal = load_audio(audio_file)
     # events = load_events(labels_file)
 
+    # trn_signal, trn_events = crop_signal_events(signal, events, params.sr, TRN_FROM_TIME, TRN_TILL_TIME)
+    # trn_signal, trn_events = [trn_signal], [len(trn_events)]
+    
+    # val_signal, val_events = crop_signal_events(signal, events, params.sr, VAL_FROM_TIME, VAL_TILL_TIME)
+    # val_signal, val_events = [val_signal], [len(val_events)]
+
     params = get_additional_params(params)
+
+    val_loss_best = float('inf')
+    val_mae_best = float('inf')
+    val_diff_best = float('inf')
+    val_interval_error_best = float('inf')
+
 
     training_loop = tqdm(range(n_epochs))
     for _ in training_loop:
 
-        # training
+        ## training
         trn_loss = 0
         trn_mae = 0
 
@@ -128,61 +143,43 @@ def run(files, frame_length=6.0, n_trn_samples=1000):
             loss_value = loss(scores, target)
 
             preds = scores.argmax(1)
-
             trn_loss += loss_value.detach().item()
             trn_mae += (target - preds).abs().sum().item()
 
             optim.zero_grad()
             loss_value.backward()
             optim.step()
+        trn_mae = trn_mae / len(trn_dataset)
 
-        trn_mae /= len(trn_dataset)
+        ## validation
+        trn_mae, trn_loss = forward(trn_loader, model, loss)
+        val_mae, val_loss = forward(val_loader, model, loss)
 
-        # validation
-        val_loss = 0
-        val_mae = 0
+        trn_interval_error = validate_intervals(datapool, True, model, trn_dataset.transform, params)
+        val_interval_error = validate_intervals(datapool, False, model, val_dataset.transform, params)
 
-        model.eval()
-        with torch.no_grad():
-            for tensor, target in val_loader:
-                tensor = tensor.to(device)
-                target = target.to(device)
-
-                scores = model(tensor)
-                loss_value = loss(scores, target)
-
-                preds = scores.argmax(1)
-
-                val_loss += loss_value.detach().item()
-                val_mae += (target - preds).abs().sum().item()
-
-        val_mae /= len(val_dataset)
-
-        trn_interval_error = validate_intervals(trn_intervals, trn_events_in_intervals, model, trn_dataset.transform, params)
-        
-        val_interval_error = validate_intervals(val_intervals, val_events_in_intervals, model, val_dataset.transform, params)
-
-        if val_interval_error < val_interval_error_best:
-            val_interval_error_best = val_interval_error
-            torch.save(model.state_dict(), f'weights/multi/model_{uuid}_interval.pth')
-
-        # trn_results = validate_multi(signal, model, trn_dataset.transform, params, from_time=TRN_FROM_TIME, till_time=TRN_TILL_TIME)
+        # trn_results = validate(signal, model, trn_dataset.transform, params, from_time=TRN_FROM_TIME, till_time=TRN_TILL_TIME, classification=True)
         # trn_diff = get_diff(signal, events, trn_results, params, TRN_FROM_TIME, TRN_TILL_TIME)
 
-        # val_results = validate_multi(signal, model, val_dataset.transform, params, from_time=VAL_FROM_TIME, till_time=VAL_TILL_TIME)
+        # val_results = validate(signal, model, val_dataset.transform, params, from_time=VAL_FROM_TIME, till_time=VAL_TILL_TIME, classification=True)
         # val_diff = get_diff(signal, events, val_results, params, VAL_FROM_TIME, VAL_TILL_TIME)
 
-        # if val_diff < val_diff_best:
+        # if val_diff <= val_diff_best:
         #     val_diff_best = val_diff
-        #     torch.save(model.state_dict(), f'weights/multi/model_{uuid}_diff.pth')
+        #     torch.save(model.state_dict(), f'weights/classification/model_{uuid}_diff.pth')
 
-        if val_loss < val_loss_best:
+        if val_loss <= val_loss_best:
             val_loss_best = val_loss
 
-        if val_mae < val_mae_best:
+        if val_mae <= val_mae_best:
             val_mae_best = val_mae
-            torch.save(model.state_dict(), f'weights/multi/model_{uuid}_mae.pth')
+            torch.save(model.state_dict(), f'weights/classification/model_{uuid}_mae.pth')
 
+        if val_interval_error <= val_interval_error_best:
+            val_interval_error_best = val_interval_error
+            torch.save(model.state_dict(), f'weights/classification/model_{uuid}_interval.pth')
+
+        # torch.save(model.state_dict(), f'weights/classification/model_{uuid}_last.pth')
 
         wandb.log({
             "trn loss": trn_loss,
@@ -210,7 +207,7 @@ def run(files, frame_length=6.0, n_trn_samples=1000):
 
 if __name__ == "__main__":
 
-    os.makedirs('weights/multi', exist_ok=True)
+    os.makedirs('weights/classification', exist_ok=True)
 
     files = [
         '20190819-Kutna Hora-L1-out-MVI_0007',
@@ -235,18 +232,13 @@ if __name__ == "__main__":
     ]
 
     files = ['20190819-Kutna Hora-L4-out-MVI_0040']
-    # files = ['20190819-Kutna Hora-L3-in-MVI_0005']
-    
 
-    # audio_file = f'data/audio/{file}.MP4.wav'
-    # labels_file = f'data/labels/{file}.MP4.txt'
-
-    for n_trn_samples in [-1] * 5:
+    for n_trn_samples in [-1]:
         
-        wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy', tags=['multi'])
+        wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy', tags=['classification'])
 
         wandb.config.files = files
 
-        run(files, frame_length=6, n_trn_samples=n_trn_samples)
+        run(files, frame_length=6, n_trn_samples=n_trn_samples, n_val_samples=-1)
 
         wandb_run.finish()

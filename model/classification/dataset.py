@@ -12,6 +12,7 @@ class VehicleDataset(Dataset):
             seed: int = 42,
             params: EasyDict = EasyDict(),
             n_samples: int = 100):
+            
         self.datapool = datapool
         self.params = params
         self.window_length = get_window_length(params)

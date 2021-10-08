@@ -16,6 +16,7 @@ from .video import Video
 from .datapool import DataPool
 from .loaders import *
 
+
 def get_split_indices(params):
     n_features_in_sec = params.sr / params.hop_length
     n_features_in_nn_hop = math.ceil(params.nn_hop_length * n_features_in_sec)

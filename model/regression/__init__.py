@@ -1,2 +1,2 @@
-from .model import ResNet18, MobileNetV3S, MobileNetV3L
-from .dataset import VehicleDataset, VehicleValidationDataset
+from .model import ResNet18
+from .dataset import VehicleDataset

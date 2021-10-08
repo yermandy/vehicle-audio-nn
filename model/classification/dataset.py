@@ -1,31 +1,26 @@
-import torch
-import torchaudio
-import numpy as np
 from torch.utils.data import Dataset
-from ..utils import *
-from typing import List
+# from utils import *
+from src import *
 
 from easydict import EasyDict
 
 class VehicleDataset(Dataset):
 
     def __init__(self,
-            files: List[str], 
-            from_time: float = 0,
-            till_time: float = int(1e8),
+            datapool: DataPool,
+            is_trn: bool = True,
             seed: int = 42,
             params: EasyDict = EasyDict(),
-            n_samples: int = 5000):
-
+            n_samples: int = 100):
+        self.datapool = datapool
         self.params = params
         self.window_length = get_window_length(params)
         self.samples, self.labels = create_dataset_from_files(
-            files, 
+            datapool, 
             window_length=self.window_length,
             n_samples=n_samples,
             seed=seed,
-            from_time=from_time,
-            till_time=till_time)
+            is_trn=is_trn)
         self.transform = create_transformation(params)
     
     def __len__(self):

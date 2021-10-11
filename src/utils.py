@@ -157,7 +157,7 @@ def validate(signal, model, transform, params, tqdm=lambda x: x, batch_size=32, 
     device = next(model.parameters()).device
 
     batch = []
-    results = []
+    predictions = []
     probs = []
 
     n_hops = get_n_hops(signal, params) 
@@ -187,35 +187,41 @@ def validate(signal, model, transform, params, tqdm=lambda x: x, batch_size=32, 
                 else:
                     y = scores.view(-1).tolist()
 
-                results.extend(y)
+                predictions.extend(y)
                 batch = []
 
-    results = np.array(results)
+    predictions = np.array(predictions)
 
     if return_probs:
         probs = np.array(probs)
-        return results, probs
+        return predictions, probs
 
-    return results
+    return predictions
 
 
-def validate_intervals(datapool, is_trn: bool, model, transform, params, classification=True):
-    error = 0
+def validate_intervals(datapool: DataPool, is_trn: bool, model, transform, params, classification=True):
+    interval_error = 0
+    difference_error = 0
+
     n_intervals = 0
     for video in datapool:
-        video = video
-        signal = video.signal
+        video: Video = video
         n_events = video.get_events_count(is_trn)
         from_time, till_time = video.get_from_till_time(is_trn)
 
-        results = validate(signal, model, transform, params, from_time=from_time, till_time=till_time, classification=classification)
+        predictions = validate(video.signal, model, transform, params, from_time=from_time, till_time=till_time, classification=classification)
         n_intervals += 1
 
         # calculate error at the end of interval
-        pred = np.cumsum(results)[-1]
-        error += np.abs(pred - n_events) / n_events
+        interval_error += np.abs(predictions.sum() - n_events) / n_events
 
-    return error / n_intervals
+        # calculate cumulative histogram difference
+        difference_error += get_diff(video.signal, video.events, predictions, params, from_time, till_time)
+
+    mean_interval_error = interval_error / n_intervals
+    mean_difference_error = difference_error / n_intervals
+
+    return mean_interval_error, mean_difference_error
 
 
 def get_window_length(params):

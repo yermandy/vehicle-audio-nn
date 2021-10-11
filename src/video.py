@@ -24,6 +24,12 @@ class Video():
 
         print(f' --> trn time {self.trn_from_time} : {self.trn_till_time}\n --> val time {self.val_from_time} : {self.val_till_time}')
 
+    def get_events(self, is_trn):
+        if is_trn:
+            return src.crop_events(self.events, self.trn_from_time, self.trn_till_time)
+        else:
+            return src.crop_events(self.events, self.val_from_time, self.val_till_time)
+
     def get_from_till_time(self, is_trn):
         if is_trn:
             return self.trn_from_time, self.trn_till_time

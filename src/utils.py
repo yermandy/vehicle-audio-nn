@@ -31,14 +31,13 @@ def get_split_indices(params):
     return split_indices
 
 
-def get_cumstep(T, E):
-    closest = lambda array, value: np.abs(array - value).argmin()
-
-    cumstep = np.zeros_like(T)
-    for e in E:
-        idx = closest(T, e)
-        cumstep[idx] += 1
-    return np.cumsum(cumstep)
+def get_cumsum(T, E):
+    hist = []
+    for i in range(1, len(T)):
+        N = np.sum((E >= T[i - 1]) & (E < T[i]))
+        hist.append(N)
+    cumstep = np.cumsum(hist)
+    return cumstep
 
 
 def get_intervals_from_files(files, from_time, till_time):
@@ -102,15 +101,12 @@ def crop_signal_events(signal, events, sr, from_time, till_time):
 
 
 def get_time(signal, params, from_time, till_time):
-    nn_hop_length_half = params.nn_hop_length // 2
     n_hops = get_n_hops(signal, params)
-    # TODO check this
-    # time = np.linspace(from_time + nn_hop_length_half, till_time - nn_hop_length_half, n_hops)
-    time = np.linspace(from_time, till_time, n_hops)
+    time = np.linspace(from_time, till_time, n_hops + 1)
     return time
 
 
-def get_diff(signal, events, results, params, from_time=None, till_time=None):
+def get_diff(signal, events, predictions, params, from_time=None, till_time=None):
     if from_time == None:
         from_time = 0
     
@@ -121,9 +117,9 @@ def get_diff(signal, events, results, params, from_time=None, till_time=None):
 
     time = get_time(signal, params, from_time, till_time)
 
-    cumsum = np.cumsum(results)
-    cumstep = get_cumstep(time, events)
-    return np.abs(cumsum - cumstep).mean()
+    cumsum_pred = np.cumsum(predictions)
+    cumsum_true = get_cumsum(time, events)
+    return np.abs(cumsum_pred - cumsum_true).mean()
 
 
 def get_n_hops(signal, params):
@@ -231,7 +227,7 @@ def get_window_length(params):
     return params.nn_hop_length * (params.n_frames - 1) + params.frame_length
 
 
-def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=5000, seed=42, is_trn=True):
+def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=5000, seed=42, is_trn=True, offset=0):
     """ if n_samples == -1, dataset is created sequentially from a sequence """
 
     all_samples = []
@@ -247,6 +243,7 @@ def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=500
         events = video.events
 
         from_time, till_time = video.get_from_till_time(is_trn)
+        from_time = from_time + offset
         
         if n_samples == -1:
             samples, labels = create_dataset_sequentially(signal, sr, events,
@@ -341,16 +338,13 @@ def create_dataset_sequentially(signal, sr, events, from_time=None, till_time=No
         sample_from = from_time + i * window_length
         sample_till = sample_from + window_length
 
-        events_timestamps = []
-
-        for event in events:
-            if sample_from <= event < sample_till:
-                events_timestamps.append(event)
+        mask = (events >= sample_from) & (events < sample_till)
+        label = mask.sum()
 
         sample = signal[int(sample_from * sr): int(sample_till * sr)]
 
         samples.append(sample)
-        labels.append(len(events_timestamps))
+        labels.append(label)
 
     return samples, labels
 

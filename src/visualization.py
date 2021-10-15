@@ -53,8 +53,8 @@ def show(params, signal, events=None,
     for ax in axes:
         ax.margins(0, 0.02)
         
-    x_axis = np.arange(from_time, till_time)
-    ax0.plot(x_axis, np.zeros(int(signal_length)), marker='o', markersize=3, color='black')
+    x_axis = np.arange(from_time, till_time + 1)
+    ax0.plot(x_axis, np.zeros(len(x_axis)), marker='o', markersize=3, color='black')
     
     def formatter(x, y):
         return f'{x // 60:02.0f}:{x % 60:02.0f}'
@@ -65,8 +65,7 @@ def show(params, signal, events=None,
     # show events from eyedea engine
     if events is not None:
         colors = 'violet'
-        mask = (events >= from_time) & (events <= till_time)
-        events = events[mask]
+        mask = (events >= from_time) & (events < till_time)
         
         # color code direction
         if directions is not None:
@@ -76,13 +75,12 @@ def show(params, signal, events=None,
         if views is not None:
             colors = ['red' if view == 'rear' else 'green' for view in views[mask]]
 
-        ax0.vlines(events, 0, 1, color=colors, linewidth=2.0)
+        ax0.vlines(events[mask], 0, 1, color=colors, linewidth=2.0)
                  
     # show manual annotations
     if manual_events is not None:
-        mask = (manual_events >= from_time) & (manual_events <= till_time)
-        manual_events = manual_events[mask]
-        ax0.vlines(manual_events, 0, 1, color='black', linestyle=':', linewidth=2.0)
+        mask = (manual_events >= from_time) & (manual_events < till_time)
+        ax0.vlines(manual_events[mask], 0, 1, color='black', linestyle=':', linewidth=2.0)
         
     # show start and end time of events
     if events_start_time is not None and events_end_time is not None:
@@ -107,18 +105,30 @@ def show(params, signal, events=None,
         ax3.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
         ax3.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, 10.0))
         from .utils import get_time
-        # TODO till_time - 1 ??
-        x_axis_time = get_time(signal, params, from_time, till_time - 1)
-        # x_axis = np.arange(from_time, from_time + signal_length)
-        # ax3.plot(x_axis, np.zeros(int(signal_length)), marker='o', markersize=3, color='black')
-        ax3.step(x_axis_time, predictions, where='post', linewidth=3.0)
+        x_axis_time = get_time(signal, params, from_time, till_time)
+        #! introduce dummy ending
+        predictions = np.append(predictions, 0)
+        ax3.step(x_axis_time, predictions, where='post', linewidth=3.0, c='tab:red')
+        
         max_output = int(np.max(predictions))
         ax3.hlines(np.arange(1, max_output + 1), x_axis_time[0], x_axis_time[-1], color='k', linestyle='dotted', linewidth=1.0)
+        max_output = max(max_output, 1)
         ax3.vlines(x_axis_time, 0, max_output, color='k', linestyle='dotted', linewidth=1, alpha=0.5)
         
         if probabilities is not None:
+            x_axis_time = get_time(signal, params, from_time, till_time)
             for x, p in zip(x_axis_time[:-1], probabilities):
                 ax3.text(x + 0.5, 0.25, f'{np.argmax(p)} : {np.max(p):.4f}', fontsize=13)
+
+        if events is not None:
+            events_in_windows = []
+            x_axis_time = get_time(signal, params, from_time, till_time)
+            for i in range(1, len(x_axis_time)):
+                events_in_window = (manual_events >= x_axis_time[i - 1]) & (manual_events < x_axis_time[i])
+                events_in_windows.append(events_in_window.sum())
+            #! introduce dummy ending
+            events_in_windows.append(0)
+            ax3.step(x_axis_time, events_in_windows, where='post', linewidth=3.0, linestyle='dotted', c='black')
 
     # plot signal amplitude
     each = 16

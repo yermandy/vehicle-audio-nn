@@ -36,7 +36,7 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
     split_ratio = 0.75
     cuda = 0
     n_epochs = 350
-    batch_size = 64
+    batch_size = 128
     lr = 0.0001
     n_trn_samples = n_trn_samples
     n_val_samples = n_val_samples
@@ -106,18 +106,6 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
 
     wandb.run.name = str(uuid)
 
-    # audio_file = f'data/audio/{files[0]}.MP4.wav'
-    # labels_file = f'data/labels/{files[0]}.MP4.txt'
-
-    # signal = load_audio(audio_file)
-    # events = load_events(labels_file)
-
-    # trn_signal, trn_events = crop_signal_events(signal, events, params.sr, TRN_FROM_TIME, TRN_TILL_TIME)
-    # trn_signal, trn_events = [trn_signal], [len(trn_events)]
-    
-    # val_signal, val_events = crop_signal_events(signal, events, params.sr, VAL_FROM_TIME, VAL_TILL_TIME)
-    # val_signal, val_events = [val_signal], [len(val_events)]
-
     params = get_additional_params(params)
 
     val_loss_best = float('inf')
@@ -127,11 +115,11 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
 
 
     training_loop = tqdm(range(n_epochs))
-    for _ in training_loop:
+    for iteration in training_loop:
 
         ## training
         trn_loss = 0
-        trn_mae = 0
+        # trn_mae = 0
 
         model.train()
         for tensor, target in trn_loader:
@@ -142,34 +130,31 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
             scores = model(tensor)
             loss_value = loss(scores, target)
 
-            preds = scores.argmax(1)
+            # preds = scores.argmax(1)
             trn_loss += loss_value.detach().item()
-            trn_mae += (target - preds).abs().sum().item()
+            # trn_mae += (target - preds).abs().sum().item()
 
             optim.zero_grad()
             loss_value.backward()
             optim.step()
-        trn_mae = trn_mae / len(trn_dataset)
+        # trn_mae = trn_mae / len(trn_dataset)
+
+        offset = iteration % params.window_length
+        trn_dataset.set_offset(offset)
 
         ## validation
         trn_mae, trn_loss = forward(trn_loader, model, loss)
         val_mae, val_loss = forward(val_loader, model, loss)
 
-        trn_interval_error = validate_intervals(datapool, True, model, trn_dataset.transform, params)
-        val_interval_error = validate_intervals(datapool, False, model, val_dataset.transform, params)
-
-        # trn_results = validate(signal, model, trn_dataset.transform, params, from_time=TRN_FROM_TIME, till_time=TRN_TILL_TIME, classification=True)
-        # trn_diff = get_diff(signal, events, trn_results, params, TRN_FROM_TIME, TRN_TILL_TIME)
-
-        # val_results = validate(signal, model, val_dataset.transform, params, from_time=VAL_FROM_TIME, till_time=VAL_TILL_TIME, classification=True)
-        # val_diff = get_diff(signal, events, val_results, params, VAL_FROM_TIME, VAL_TILL_TIME)
-
-        # if val_diff <= val_diff_best:
-        #     val_diff_best = val_diff
-        #     torch.save(model.state_dict(), f'weights/classification/model_{uuid}_diff.pth')
+        trn_interval_error, trn_diff = validate_intervals(datapool, True, model, trn_dataset.transform, params)
+        val_interval_error, val_diff = validate_intervals(datapool, False, model, val_dataset.transform, params)
 
         if val_loss <= val_loss_best:
             val_loss_best = val_loss
+
+        if val_diff <= val_diff_best:
+            val_diff_best = val_diff
+            torch.save(model.state_dict(), f'weights/classification/model_{uuid}_diff.pth')
 
         if val_mae <= val_mae_best:
             val_mae_best = val_mae
@@ -179,7 +164,7 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
             val_interval_error_best = val_interval_error
             torch.save(model.state_dict(), f'weights/classification/model_{uuid}_interval.pth')
 
-        # torch.save(model.state_dict(), f'weights/classification/model_{uuid}_last.pth')
+        torch.save(model.state_dict(), f'weights/classification/model_{uuid}_last.pth')
 
         wandb.log({
             "trn loss": trn_loss,
@@ -194,9 +179,9 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
             "val interval error": val_interval_error,
             "val interval error best": val_interval_error_best,
 
-            # "trn diff": trn_diff,
-            # "val diff": val_diff,            
-            # "val diff best": val_diff_best
+            "trn diff": trn_diff,
+            "val diff": val_diff,            
+            "val diff best": val_diff_best
         })
 
         training_loop.set_description(f'trn loss {trn_loss:.2f} | val loss {val_loss:.2f} | best loss {val_loss_best:.2f}')
@@ -211,8 +196,8 @@ if __name__ == "__main__":
 
     files = [
         '20190819-Kutna Hora-L1-out-MVI_0007',
-        '20190819-Kutna Hora-L2-in-MVI_0030',
         '20190819-Kutna Hora-L3-in-MVI_0005',
+        '20190819-Kutna Hora-L3-out-MVI_0008',
         '20190819-Kutna Hora-L4-in-MVI_0013',
         '20190819-Kutna Hora-L5-in-MVI_0003',
         '20190819-Kutna Hora-L6-out-MVI_0017',
@@ -221,14 +206,23 @@ if __name__ == "__main__":
         '20190819-Kutna Hora-L9-in-MVI_0043',
         '20190819-Kutna Hora-L10-in-MVI_0029',
         '20190819-Kutna Hora-L10-out-SDV_1888',
+        '20190819-Kutna Hora-L13-in-MVI_0006',
+        '20190819-Kutna Hora-L13-out-MVI_0018',
+        '20190819-Kutna Hora-L14-out-MVI_0005',
+        '20190819-Kutna Hora-L15-out-MVI_0012',
         '20190819-Kutna Hora-L16-out-MVI_0003',
         '20190819-Kutna Hora-L18-in-MVI_0030',
         '20190819-Ricany-L2-in-MVI_0006',
         '20190819-Ricany-L2-out-MVI_0005',
+        '20190819-Ricany-L3-in-MVI_0006',
+        '20190819-Ricany-L6-in-MVI_0008',
         '20190819-Ricany-L6-out-MVI_0011',
+        '20190819-Ricany-L7-in-MVI_0008',
         '20190819-Ricany-L7-out-MVI_0013',
         '20190819-Ricany-L8-in-MVI_0009',
-        '20190819-Ricany-L9-in-MVI_0008'
+        '20190819-Ricany-L8-out-MVI_0013',
+        '20190819-Ricany-L9-in-MVI_0008',
+        '20190819-Ricany-L9-out-MVI_0011'
     ]
 
     files = ['20190819-Kutna Hora-L4-out-MVI_0040']

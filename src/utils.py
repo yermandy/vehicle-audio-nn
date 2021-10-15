@@ -84,6 +84,7 @@ def crop_signal(signal, sr, from_time, till_time):
     signal = deepcopy(signal)
     return signal[int(from_time * sr): int(till_time * sr)]
 
+
 def crop_signal_events(signal, events, sr, from_time, till_time):
     signal = deepcopy(signal)
     events = deepcopy(events)
@@ -103,7 +104,9 @@ def crop_signal_events(signal, events, sr, from_time, till_time):
 def get_time(signal, params, from_time, till_time):
     nn_hop_length_half = params.nn_hop_length // 2
     n_hops = get_n_hops(signal, params)
-    time = np.linspace(from_time + nn_hop_length_half, till_time - nn_hop_length_half, n_hops)
+    # TODO check this
+    # time = np.linspace(from_time + nn_hop_length_half, till_time - nn_hop_length_half, n_hops)
+    time = np.linspace(from_time, till_time, n_hops)
     return time
 
 

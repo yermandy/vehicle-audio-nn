@@ -25,6 +25,8 @@ def conv(array):
     return array
 
 def show(params, signal, events=None, 
+         predictions=None,
+         probabilities=None,
          events_start_time=None, events_end_time=None, 
          manual_events=None, directions=None, views=None,
          from_time=0, till_time=86400,
@@ -37,16 +39,21 @@ def show(params, signal, events=None,
     signal_length = len(signal) / params.sr
 
     nrows = 3
+    if predictions is not None:
+        nrows += 1 
     width = (till_time - from_time) // 4
     height = 4 * nrows
     fig, axes = plt.subplots(nrows=nrows, figsize=(width, height))
     
-    ax0, ax1, ax2 = axes
+    if predictions is not None:
+        ax0, ax3, ax1, ax2 = axes        
+    else:
+        ax0, ax1, ax2 = axes
     
     for ax in axes:
         ax.margins(0, 0.02)
         
-    x_axis = np.arange(from_time, from_time + signal_length)
+    x_axis = np.arange(from_time, till_time)
     ax0.plot(x_axis, np.zeros(int(signal_length)), marker='o', markersize=3, color='black')
     
     def formatter(x, y):
@@ -92,7 +99,27 @@ def show(params, signal, events=None,
         for event_start_time, event_end_time, color in zip(events_start_time, events_end_time, colors):
             if from_time <= event_start_time <= till_time and from_time <= event_end_time <= till_time:
                 ax0.fill_between([event_start_time, event_end_time], [0], [1], color=color, alpha=0.25);                
-    
+
+    # plot predictions
+    if predictions is not None:
+        if signal_length % params.window_length != 0:
+            print(f'interval is not divisible by {params.window_length}')
+        ax3.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
+        ax3.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, 10.0))
+        from .utils import get_time
+        # TODO till_time - 1 ??
+        x_axis_time = get_time(signal, params, from_time, till_time - 1)
+        # x_axis = np.arange(from_time, from_time + signal_length)
+        # ax3.plot(x_axis, np.zeros(int(signal_length)), marker='o', markersize=3, color='black')
+        ax3.step(x_axis_time, predictions, where='post', linewidth=3.0)
+        max_output = int(np.max(predictions))
+        ax3.hlines(np.arange(1, max_output + 1), x_axis_time[0], x_axis_time[-1], color='k', linestyle='dotted', linewidth=1.0)
+        ax3.vlines(x_axis_time, 0, max_output, color='k', linestyle='dotted', linewidth=1, alpha=0.5)
+        
+        if probabilities is not None:
+            for x, p in zip(x_axis_time[:-1], probabilities):
+                ax3.text(x + 0.5, 0.25, f'{np.argmax(p)} : {np.max(p):.4f}', fontsize=13)
+
     # plot signal amplitude
     each = 16
     ax1.plot(signal[::each], alpha=0.5)

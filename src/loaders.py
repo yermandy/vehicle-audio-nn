@@ -88,3 +88,25 @@ def load_event_time_from_csv(csv):
         start_times.append(start_time)
         end_times.append(end_time)
     return np.array(start_times), np.array(end_times)
+
+def load_model(uuid, suffix='diff', classification=True):
+    import wandb
+    from easydict import EasyDict
+    if classification:
+        from model.classification import ResNet18
+    else:
+        from model.regression import ResNet18
+
+    api = wandb.Api()
+    runs = api.runs('yermandy/vehicle-audio-nn', per_page=5000, order='config.uuid')
+
+    for run in runs: 
+        if run.name == str(uuid):
+            params = EasyDict(run.config)
+            break
+
+    device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
+    model = ResNet18(num_classes=10).to(device)
+    weights = torch.load(f'weights/classification/model_{uuid}_{suffix}.pth', device)
+    model.load_state_dict(weights)
+    return model, params

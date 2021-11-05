@@ -35,12 +35,13 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
 
     split_ratio = 0.75
     cuda = 0
-    n_epochs = 350
+    n_epochs = 1000
     batch_size = 128
     lr = 0.0001
     n_trn_samples = n_trn_samples
     n_val_samples = n_val_samples
     num_workers = 0
+    use_offset = True
 
     # define parameters
     params = EasyDict()
@@ -87,7 +88,7 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
 
     val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers)
 
-    model = ResNet18(num_classes=10).to(device)
+    model = ResNet18(num_classes=50).to(device)
 
     loss = nn.CrossEntropyLoss()
 
@@ -103,6 +104,7 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
     config.uniform_sampling = False if n_trn_samples == -1 else True
     config.n_trn_samples = len(trn_dataset)
     config.n_val_samples = len(val_dataset)
+    config.use_offset = use_offset
 
     wandb.run.name = str(uuid)
 
@@ -139,14 +141,11 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
             optim.step()
         # trn_mae = trn_mae / len(trn_dataset)
 
-        offset = iteration % params.window_length
-        trn_dataset.set_offset(offset)
-
         ## validation
         trn_mae, trn_loss = forward(trn_loader, model, loss)
         val_mae, val_loss = forward(val_loader, model, loss)
 
-        trn_interval_error, trn_diff = validate_intervals(datapool, True, model, trn_dataset.transform, params)
+        # trn_interval_error, trn_diff = validate_intervals(datapool, True, model, trn_dataset.transform, params)
         val_interval_error, val_diff = validate_intervals(datapool, False, model, val_dataset.transform, params)
 
         if val_loss <= val_loss_best:
@@ -175,11 +174,11 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
             "val mae": val_mae,
             "val mae best": val_mae_best,
 
-            "trn interval error": trn_interval_error,
+            # "trn interval error": trn_interval_error,
             "val interval error": val_interval_error,
             "val interval error best": val_interval_error_best,
 
-            "trn diff": trn_diff,
+            # "trn diff": trn_diff,
             "val diff": val_diff,            
             "val diff best": val_diff_best
         })
@@ -188,6 +187,10 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
 
         if trn_loss <= 1e-8 or trn_mae <= 1e-8:
             break
+
+        if use_offset:
+            offset = (0.25 * iteration) % params.window_length
+            trn_dataset.set_offset(offset)
 
 
 if __name__ == "__main__":
@@ -199,18 +202,15 @@ if __name__ == "__main__":
         '20190819-Kutna Hora-L3-in-MVI_0005',
         '20190819-Kutna Hora-L3-out-MVI_0008',
         '20190819-Kutna Hora-L4-in-MVI_0013',
-        '20190819-Kutna Hora-L5-in-MVI_0003',
         '20190819-Kutna Hora-L6-out-MVI_0017',
         '20190819-Kutna Hora-L7-out-MVI_0032',
         '20190819-Kutna Hora-L8-in-MVI_0045',
         '20190819-Kutna Hora-L9-in-MVI_0043',
-        '20190819-Kutna Hora-L10-in-MVI_0029',
         '20190819-Kutna Hora-L10-out-SDV_1888',
         '20190819-Kutna Hora-L13-in-MVI_0006',
         '20190819-Kutna Hora-L13-out-MVI_0018',
         '20190819-Kutna Hora-L14-out-MVI_0005',
         '20190819-Kutna Hora-L15-out-MVI_0012',
-        '20190819-Kutna Hora-L16-out-MVI_0003',
         '20190819-Kutna Hora-L18-in-MVI_0030',
         '20190819-Ricany-L2-in-MVI_0006',
         '20190819-Ricany-L2-out-MVI_0005',
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         '20190819-Ricany-L9-out-MVI_0011'
     ]
 
-    files = ['20190819-Kutna Hora-L4-out-MVI_0040']
+    # files = ['20190819-Kutna Hora-L4-out-MVI_0040_manual']
 
     for n_trn_samples in [-1]:
         

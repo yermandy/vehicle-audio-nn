@@ -30,7 +30,7 @@ def show(params, signal, events=None,
          events_start_time=None, events_end_time=None, 
          manual_events=None, directions=None, views=None,
          from_time=0, till_time=86400,
-         save=False):
+         save=None):
     
     print(f'{from_time // 60:02.0f}:{from_time % 60:02.0f} - {till_time // 60:02.0f}:{till_time % 60:02.0f}')
     
@@ -118,7 +118,10 @@ def show(params, signal, events=None,
         if probabilities is not None:
             x_axis_time = get_time(signal, params, from_time, till_time)
             for x, p in zip(x_axis_time[:-1], probabilities):
-                ax3.text(x + 0.5, 0.25, f'{np.argmax(p)} : {np.max(p):.4f}', fontsize=13)
+                predicted_class = np.argmax(p)
+                for i, p_i in zip(range(predicted_class + 1), p):
+                    ax3.text(x + 0.5, i + 0.25, f'{i} : {p_i:.4f}', fontsize=13)    
+                # ax3.text(x + 0.5, 0.25, f'{np.argmax(p)} : {np.max(p):.4f}', fontsize=13)
 
         if events is not None:
             events_in_windows = []
@@ -170,8 +173,9 @@ def show(params, signal, events=None,
 
 #         ax0.vlines(lines, 0, 1, color='magenta', linestyle=':', linewidth=2.0)
     
-    if save:
-        plt.savefig('vis.png', dpi=300)
+    if save is not None and save is not False:
+        plt.tight_layout()
+        plt.savefig(save, dpi=100)
         
     plt.show()
 

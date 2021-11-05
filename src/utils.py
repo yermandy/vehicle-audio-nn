@@ -4,6 +4,7 @@ import wandb
 import math
 import torch
 import torchaudio
+import torchvision.transforms as transforms
 import torch.nn as nn
 import numpy as np
 
@@ -254,7 +255,7 @@ def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=500
                 window_length=window_length, n_samples=n_samples_per_file)
 
 
-        print(f'sampled {len(samples)} from {video.file}')
+        # print(f'sampled {len(samples)} from {video.file}')
         all_samples.extend(samples)
         all_labels.extend(labels)
 
@@ -349,7 +350,7 @@ def create_dataset_sequentially(signal, sr, events, from_time=None, till_time=No
     return samples, labels
 
 
-def create_transformation(params):
+def create_transformation(params, normalization=True):
     melkwargs = {
         "n_fft": params.n_fft,
         "n_mels": params.n_mels,
@@ -366,8 +367,25 @@ def create_transformation(params):
         n_mfcc=params.n_mfcc,
         melkwargs=melkwargs
     )
+    
+    def transform(signal):
+        mel_features = mel_transform(signal)
+        mfcc_features = mfcc_transform(signal)
+        if normalization:
+            # normalize globally
+            # features = (features - features.mean()) / features.std()
+            
+            # normalize per feature
+            # features = torch.cat((mel_features, mfcc_features), dim=0).unsqueeze(0)
+            # features = (features - features.mean(2).view(-1, 1)) / features.std(2).view(-1, 1)
 
-    def transform(signal): return torch.cat(
-        (mel_transform(signal), mfcc_transform(signal)), dim=0).unsqueeze(0)
+            # normalize column wise mfcc and mel features
+            normalize = lambda x: (x - x.mean(0)) / (x.std(0) + 1e-8)
+            mfcc_features_normalized = normalize(mfcc_features)
+            mel_features_normalized = normalize(mel_features)
+            features = torch.cat((mel_features_normalized, mfcc_features_normalized), dim=0).unsqueeze(0)
+        else:
+            features = torch.cat((mel_features, mfcc_features), dim=0).unsqueeze(0)
+        return features
 
     return transform

@@ -25,7 +25,7 @@ def load_audio(audio_file, return_sr=False):
     signal = signal.mean(0)
     # round to the last second
     seconds = len(signal) // sr
-    signal = signal[:seconds * sr]
+    signal = signal[:seconds * sr]        
     if return_sr:
         return signal, sr
     return signal
@@ -89,7 +89,7 @@ def load_event_time_from_csv(csv):
         end_times.append(end_time)
     return np.array(start_times), np.array(end_times)
 
-def load_model(uuid, suffix='diff', classification=True):
+def load_model(uuid, suffix='mae', classification=True):
     import wandb
     from easydict import EasyDict
     if classification:
@@ -104,9 +104,10 @@ def load_model(uuid, suffix='diff', classification=True):
         if run.name == str(uuid):
             params = EasyDict(run.config)
             break
-
+    
     device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
-    model = ResNet18(num_classes=10).to(device)
     weights = torch.load(f'weights/classification/model_{uuid}_{suffix}.pth', device)
+    num_classes = len(weights['model.fc.bias'])
+    model = ResNet18(num_classes=num_classes).to(device)
     model.load_state_dict(weights)
     return model, params

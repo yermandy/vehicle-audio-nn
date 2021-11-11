@@ -1,6 +1,7 @@
 import torch
 import torchaudio
 import numpy as np
+from collections import defaultdict, Counter
 
 
 def time_to_sec(time):
@@ -9,7 +10,7 @@ def time_to_sec(time):
     return sec
 
 
-def load_csv(name, folder='data/csv/*.csv'):
+def load_csv(name, folder='data/csv/*.csv', preprocess=True):
     import glob
     batch = []
     for file in glob.glob(folder):
@@ -17,7 +18,90 @@ def load_csv(name, folder='data/csv/*.csv'):
             table = np.genfromtxt(file, dtype=str, delimiter=';', skip_header=1)
             batch.append(table)
     batch = np.concatenate(batch)
+    if preprocess:
+        batch = preprocess_csv(batch)
     return batch
+
+
+def find_clusters(X, delta=1*60):
+    # X is a sorted array
+    X = np.array(X)
+    clusters = defaultdict(set)
+
+    for x in X:
+        mask = np.abs(X - x) < delta
+        if mask[0]:
+            cluster_id = 0
+        else:
+            cluster_id = mask.searchsorted(True)
+        for i, m in enumerate(mask):
+            if m:
+                clusters[cluster_id].add(i)
+
+    clusters = {k: list(v) for k, v in clusters.items()}
+    return clusters
+
+
+def preprocess_csv(csv):
+    licence_plates = defaultdict(list)
+
+    start_time_column_id = 8
+    end_time_column_id = 9
+    best_detection_frame_time_column_id = 14
+    views_column_id = 23
+    
+    for row in csv:
+        plate_id = row[1]
+        start_time = row[start_time_column_id]
+        end_time = row[end_time_column_id]
+        if start_time != '':
+            licence_plates[plate_id].append(
+                [time_to_sec(start_time), row]
+            )
+        if end_time != '':
+            licence_plates[plate_id].append(
+                [time_to_sec(end_time), row]
+            )
+    
+    tracking_uuid = 0
+    rows = []
+    for key, values in licence_plates.items():
+        car_times = np.array([t[0] for t in values])
+        car_rows = np.array([t[1] for t in values])
+
+        indices = np.argsort(car_times)
+        car_times = car_times[indices]
+        car_rows = car_rows[indices]
+        
+        clusters = find_clusters(car_times)
+    
+        for cluster_id, cluster_objects in clusters.items():
+            traking_rows = np.array(car_rows[cluster_objects])
+            
+            most_common_view = Counter(item for item in traking_rows[:, views_column_id]).most_common(1)[0][0]
+            
+            modified_row = np.full_like(traking_rows[0], '')
+            
+            start_times = traking_rows[:, start_time_column_id]
+            end_times = traking_rows[:, end_time_column_id]
+            best_detection_frame_times = traking_rows[:, best_detection_frame_time_column_id]
+            
+            times = np.concatenate([start_times, end_times])
+            times = np.sort(times)
+            times = [t for t in times if t != '']
+            
+            modified_row[0] = tracking_uuid
+            modified_row[1] = key
+            tracking_uuid += 1
+            modified_row[best_detection_frame_time_column_id] = best_detection_frame_times[-1]
+            modified_row[start_time_column_id] = times[0]
+            modified_row[end_time_column_id] = times[-1]
+            modified_row[views_column_id] = most_common_view
+            rows.append(modified_row)
+    rows = np.array(rows)
+    indices = np.argsort(rows[:, start_time_column_id])
+    rows = rows[indices]
+    return rows
 
 
 def load_audio(audio_file, return_sr=False):
@@ -48,25 +132,12 @@ def load_column(csv, column):
     return np.array(list(out.values()))
 
 
-def load_directions_from_csv(csv):
-    return load_column(csv, 7)
-
-
 def load_views_from_csv(csv):
     return load_column(csv, 23)
 
 
-def load_events_from_csv(csv):
+def load_best_detection_frame_time_from_csv(csv):
     return np.array([time_to_sec(t) for t in load_column(csv, 14)])
-
-
-def load_event_start_time_from_csv(csv):
-    start_times = {}
-    for row in csv:
-        detection_id, time = row[[0, 8]]
-        start_times[detection_id] = time
-    start_times = {k: time_to_sec(v) for k, v in start_times.items()}
-    return np.array(list(start_times.values()))
 
 
 def load_event_time_from_csv(csv):
@@ -89,6 +160,7 @@ def load_event_time_from_csv(csv):
         end_times.append(end_time)
     return np.array(start_times), np.array(end_times)
 
+
 def load_model(uuid, suffix='mae', classification=True):
     import wandb
     from easydict import EasyDict
@@ -110,4 +182,26 @@ def load_model(uuid, suffix='mae', classification=True):
     num_classes = len(weights['model.fc.bias'])
     model = ResNet18(num_classes=num_classes).to(device)
     model.load_state_dict(weights)
+    return model, params
+
+
+def load_model_locally(uuid, suffix='mae', classification=True):
+    import pickle
+
+    if classification:
+        from model.classification import ResNet18
+        folder = 'classification'
+    else:
+        from model.regression import ResNet18
+        folder = 'regression'
+
+    device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
+    weights = torch.load(f'weights/{folder}/model_{uuid}_{suffix}.pth', device)
+    num_classes = len(weights['model.fc.bias'])
+    model = ResNet18(num_classes=num_classes).to(device)
+    model.load_state_dict(weights)
+
+    with open(f'weights/{folder}/model_{uuid}_params.pickle', 'rb') as handle:
+        params = pickle.load(handle)
+
     return model, params

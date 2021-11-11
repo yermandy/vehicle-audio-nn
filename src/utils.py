@@ -375,12 +375,12 @@ def create_transformation(params, normalization=True):
             # normalize globally
             # features = (features - features.mean()) / features.std()
             
-            # normalize per feature
+            # normalize features row wise
             # features = torch.cat((mel_features, mfcc_features), dim=0).unsqueeze(0)
             # features = (features - features.mean(2).view(-1, 1)) / features.std(2).view(-1, 1)
 
-            # normalize column wise mfcc and mel features
-            normalize = lambda x: (x - x.mean(0)) / (x.std(0) + 1e-8)
+            # normalize mfcc and mel features separately column wise
+            normalize = lambda x: (x - x.mean(0)) / torch.maximum(x.std(0), torch.tensor(1e-8))
             mfcc_features_normalized = normalize(mfcc_features)
             mel_features_normalized = normalize(mel_features)
             features = torch.cat((mel_features_normalized, mfcc_features_normalized), dim=0).unsqueeze(0)

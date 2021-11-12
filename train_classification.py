@@ -28,9 +28,9 @@ def forward(loader, model, loss):
     
     mae = abs_error_sum / n_samples
     return mae, loss_sum
+        
 
-
-def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
+def run(files, n_trn_samples=-1, n_val_samples=-1):
     uuid=int(datetime.now().timestamp())
 
     split_ratio = 0.75
@@ -41,28 +41,11 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
     n_trn_samples = n_trn_samples
     n_val_samples = n_val_samples
     num_workers = 0
-    use_offset = True
+    use_offset = False
+    normalization = Normalization.ROW_WISE
+    num_classes = 50
 
-    # define parameters
-    params = EasyDict()
-    # hop length between nn inputs in features
-    params.nn_hop_length = frame_length
-    # length of one frame in seconds
-    params.frame_length = frame_length
-    # number of frames in one window
-    params.n_frames = 1
-    # length of one feature in samples
-    params.n_fft = 1024
-    # number of mel features
-    params.n_mels = 64
-    # number of mfcc features
-    params.n_mfcc = 8
-    # sampling rate
-    params.sr = 44100
-    # hop length between samples for feature extractor
-    params.hop_length = 128
-    # length of one window in seconds
-    params.window_length = params.nn_hop_length * (params.n_frames - 1) + params.frame_length
+    params = get_params(normalization=normalization)
 
     device = torch.device(f'cuda:{cuda}' if torch.cuda.is_available() else 'cpu')
 
@@ -88,7 +71,7 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
 
     val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers)
 
-    model = ResNet18(num_classes=50).to(device)
+    model = ResNet18(num_classes=num_classes).to(device)
 
     loss = nn.CrossEntropyLoss()
 
@@ -97,6 +80,7 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
     config = wandb.config
     config.update(params)
     config.uuid = uuid
+    config.num_classes = num_classes
     config.batch_size = batch_size
     config.lr = lr
     config.model = model.__class__.__name__
@@ -107,8 +91,6 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
     config.use_offset = use_offset
 
     wandb.run.name = str(uuid)
-
-    params = get_additional_params(params)
 
     val_loss_best = float('inf')
     val_mae_best = float('inf')
@@ -132,8 +114,8 @@ def run(files, frame_length=6.0, n_trn_samples=-1, n_val_samples=-1):
             scores = model(tensor)
             loss_value = loss(scores, target)
 
-            # preds = scores.argmax(1)
             trn_loss += loss_value.detach().item()
+            # preds = scores.argmax(1)
             # trn_mae += (target - preds).abs().sum().item()
 
             optim.zero_grad()
@@ -225,7 +207,7 @@ if __name__ == "__main__":
         '20190819-Ricany-L9-out-MVI_0011'
     ]
 
-    # files = ['20190819-Kutna Hora-L4-out-MVI_0040_manual']
+    files = ['20190819-Kutna Hora-L4-out-MVI_0040_manual']
 
     for n_trn_samples in [-1]:
         
@@ -233,6 +215,6 @@ if __name__ == "__main__":
 
         wandb.config.files = files
 
-        run(files, frame_length=6, n_trn_samples=n_trn_samples, n_val_samples=-1)
+        run(files, n_trn_samples=n_trn_samples, n_val_samples=-1)
 
         wandb_run.finish()

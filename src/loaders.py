@@ -120,9 +120,20 @@ def load_events(file):
 
 
 def load_intervals(file):
-    arr = np.loadtxt(file)
-    intervals, events_in_interval = arr[:, 0], arr[:, 1]
-    return intervals, events_in_interval
+    return np.loadtxt(file)
+
+
+def load_intervals_and_n_events(file):
+    events = load_events(f'data/labels/{file}.MP4.txt')
+    intervals = load_intervals(f'data/intervals/{file}.MP4.txt')
+
+    n_events_array = []
+    for interval_from_time, interval_till_time in intervals:
+        n_events = np.sum((events >= interval_from_time) & (events < interval_till_time))
+        n_events_array.append(n_events)
+    
+    combined = np.hstack([intervals, n_events_array])
+    return combined
 
 
 def load_column(csv, column):

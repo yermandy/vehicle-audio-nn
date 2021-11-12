@@ -16,7 +16,17 @@ from copy import deepcopy
 from .video import Video
 from .datapool import DataPool
 from .loaders import *
+from .constants import *
+from .constants import *
 
+
+def show_video(file, scale=0.3):
+    from IPython.display import HTML
+    return HTML(f"""
+        <video width="{1920 * scale}" height="{1080 * scale}" controls>
+            <source src="data/video/{file}.MP4" type="video/mp4">
+        </video>
+    """)
 
 def get_split_indices(params):
     n_features_in_sec = params.sr / params.hop_length
@@ -124,10 +134,6 @@ def get_diff(signal, events, predictions, params, from_time=None, till_time=None
 
 
 def get_n_hops(signal, params):
-    
-    if 'n_samples_in_frame' not in params or 'n_samples_in_nn_hop' not in params:
-        params = get_additional_params(params)
-
     n_samples = len(signal)
 
     # TODO double check this
@@ -135,19 +141,6 @@ def get_n_hops(signal, params):
 
     return n_hops
     
-
-def get_additional_params(params):
-    n_samples_in_nn_hop = int(params.sr * params.nn_hop_length)
-    n_samples_in_frame = int(params.sr * params.frame_length)
-    n_features_in_sec = params.sr // params.hop_length
-    n_features_in_nn_hop = int(n_features_in_sec * params.nn_hop_length)
-    n_features_in_frame = int(n_features_in_sec * params.frame_length)
-    params.n_samples_in_nn_hop = n_samples_in_nn_hop
-    params.n_samples_in_frame = n_samples_in_frame
-    params.n_features_in_nn_hop = n_features_in_nn_hop
-    params.n_features_in_frame = n_features_in_frame
-    return params
-
 
 def validate(signal, model, transform, params, tqdm=lambda x: x, batch_size=32, return_probs=False, from_time=None, till_time=None, classification=True):
 
@@ -350,7 +343,7 @@ def create_dataset_sequentially(signal, sr, events, from_time=None, till_time=No
     return samples, labels
 
 
-def create_transformation(params, normalization=True):
+def create_transformation(params):
     melkwargs = {
         "n_fft": params.n_fft,
         "n_mels": params.n_mels,
@@ -368,24 +361,32 @@ def create_transformation(params, normalization=True):
         melkwargs=melkwargs
     )
     
+    normalization = params.normalization
+
     def transform(signal):
         mel_features = mel_transform(signal)
         mfcc_features = mfcc_transform(signal)
-        if normalization:
+        
+        if normalization == Normalization.NONE:
+            features = torch.cat((mel_features, mfcc_features), dim=0).unsqueeze(0)
+        elif normalization == Normalization.GLOBAL:
             # normalize globally
-            # features = (features - features.mean()) / features.std()
-            
+            normalize = lambda x: (x - x.mean()) / x.std()
+            mfcc_features_normalized = normalize(mfcc_features)
+            mel_features_normalized = normalize(mel_features)
+            features = torch.cat((mel_features_normalized, mfcc_features_normalized), dim=0).unsqueeze(0)
+        elif normalization == Normalization.ROW_WISE:
             # normalize features row wise
-            # features = torch.cat((mel_features, mfcc_features), dim=0).unsqueeze(0)
-            # features = (features - features.mean(2).view(-1, 1)) / features.std(2).view(-1, 1)
-
+            features = torch.cat((mel_features, mfcc_features), dim=0).unsqueeze(0)
+            features = (features - features.mean(2).view(-1, 1)) / features.std(2).view(-1, 1)
+        elif normalization == Normalization.COLUMN_WISE:
             # normalize mfcc and mel features separately column wise
             normalize = lambda x: (x - x.mean(0)) / torch.maximum(x.std(0), torch.tensor(1e-8))
             mfcc_features_normalized = normalize(mfcc_features)
             mel_features_normalized = normalize(mel_features)
             features = torch.cat((mel_features_normalized, mfcc_features_normalized), dim=0).unsqueeze(0)
         else:
-            features = torch.cat((mel_features, mfcc_features), dim=0).unsqueeze(0)
+            raise Exception('unknown normalization')
         return features
 
     return transform

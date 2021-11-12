@@ -10,7 +10,7 @@ class Video():
         self.file = file
         self.signal, self.sr = src.load_audio(f'data/audio/{file}.MP4.wav', return_sr=True)
         self.events = src.load_events(f'data/labels/{file}.MP4.txt')
-        self.intervals, self.events_in_interval = src.load_intervals(f'data/intervals/{file}.MP4.txt')
+        self.intervals = src.load_intervals(f'data/intervals/{file}.MP4.txt')[:, 1]
         self.signal_length = len(self.signal) / self.sr
         self._split(window_length, split_ratio)
 

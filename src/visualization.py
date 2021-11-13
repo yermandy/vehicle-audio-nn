@@ -24,6 +24,14 @@ def conv(array):
     array = array.squeeze()
     return array
 
+def show_video(file, scale=0.3):
+    from IPython.display import HTML
+    return HTML(f"""
+        <video width="{1920 * scale}" height="{1080 * scale}" controls>
+            <source src="data/video/{file}.MP4" type="video/mp4">
+        </video>
+    """)
+    
 def show(params, signal, events=None, 
          predictions=None,
          probabilities=None,
@@ -31,8 +39,11 @@ def show(params, signal, events=None,
          manual_events=None, directions=None, views=None,
          from_time=0, till_time=86400,
          save=None):
+
+    def formatter(x, y):
+        return f'{x // 60:02.0f}:{x % 60:02.0f}'
     
-    print(f'{from_time // 60:02.0f}:{from_time % 60:02.0f} - {till_time // 60:02.0f}:{till_time % 60:02.0f}')
+    print(f'{formatter(from_time, None)} - {formatter(till_time, None)}')
     
     signal = signal[from_time * params.sr: till_time * params.sr]
     
@@ -55,12 +66,9 @@ def show(params, signal, events=None,
         
     x_axis = np.arange(from_time, till_time + 1)
     ax0.plot(x_axis, np.zeros(len(x_axis)), marker='o', markersize=3, color='black')
-    
-    def formatter(x, y):
-        return f'{x // 60:02.0f}:{x % 60:02.0f}'
 
     ax0.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
-    ax0.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, 10.0))
+    ax0.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, params.window_length))
     
     # show events from eyedea engine
     if events is not None:
@@ -103,7 +111,7 @@ def show(params, signal, events=None,
         if signal_length % params.window_length != 0:
             print(f'interval is not divisible by {params.window_length}')
         ax3.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
-        ax3.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, 10.0))
+        ax3.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, params.window_length))
         from .utils import get_time
         x_axis_time = get_time(signal, params, from_time, till_time)
         #! introduce dummy ending

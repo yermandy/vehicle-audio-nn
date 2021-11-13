@@ -18,15 +18,8 @@ from .datapool import DataPool
 from .loaders import *
 from .constants import *
 from .constants import *
+from .params import *
 
-
-def show_video(file, scale=0.3):
-    from IPython.display import HTML
-    return HTML(f"""
-        <video width="{1920 * scale}" height="{1080 * scale}" controls>
-            <source src="data/video/{file}.MP4" type="video/mp4">
-        </video>
-    """)
 
 def get_split_indices(params):
     n_features_in_sec = params.sr / params.hop_length
@@ -135,6 +128,9 @@ def get_diff(signal, events, predictions, params, from_time=None, till_time=None
 
 def get_n_hops(signal, params):
     n_samples = len(signal)
+
+    if 'n_samples_in_frame' not in params or 'n_samples_in_nn_hop' not in params:
+        params = get_additional_params(params)
 
     # TODO double check this
     n_hops = n_samples // params.n_samples_in_nn_hop

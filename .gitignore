@@ -7,5 +7,7 @@ piano
 wandb
 weights
 plots
+outputs
+multirun
 
 __pycache__

@@ -172,7 +172,7 @@ def load_event_time_from_csv(csv):
     return np.array(start_times), np.array(end_times)
 
 
-def load_model(uuid, suffix='mae', classification=True):
+def load_model(uuid, model_name='mae', classification=True):
     import wandb
     from easydict import EasyDict
     if classification:
@@ -185,15 +185,15 @@ def load_model(uuid, suffix='mae', classification=True):
 
     for run in runs: 
         if run.name == str(uuid):
-            params = EasyDict(run.config)
+            config = EasyDict(run.config)
             break
     
     device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
-    weights = torch.load(f'weights/classification/model_{uuid}_{suffix}.pth', device)
+    weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
     num_classes = len(weights['model.fc.bias'])
     model = ResNet18(num_classes=num_classes).to(device)
     model.load_state_dict(weights)
-    return model, params
+    return model, config
 
 
 def load_model_locally(uuid, suffix='mae', classification=True):

@@ -1,6 +1,5 @@
 import torch
 import torchaudio
-import librosa
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -158,40 +157,15 @@ def show(params, signal, events=None,
     ax1_1.plot(x_axis, energy, c='black')
 
     # plot spectrogram
-    transform = torchaudio.transforms.MelSpectrogram(sample_rate=params.sr, **get_melkwargs(params))
-    features = transform(signal).numpy()
-    features = librosa.power_to_db(features, ref=np.max)
+    transform_signal = torchaudio.transforms.MelSpectrogram(sample_rate=params.sr, **get_melkwargs(params))
+    transform_power = torchaudio.transforms.AmplitudeToDB(top_db=70)
+
+    features = transform_signal(signal)
+    features = transform_power(features)
     ax2.pcolormesh(features)
-    
-    # plot approximate position of highest energy
-#     if events_start_time is not None and events_end_time is not None and views is not None:
-#         lines = []
-#         for event_start_time, event_end_time, view in zip(events_start_time, events_end_time, views):
-
-#             # rear
-#             event_start_time = event_start_time - 2.9
-#             # front
-#             event_end_time = event_end_time + 1.4
-
-#             if from_time <= event_start_time <= till_time and from_time <= event_end_time <= till_time:
-#                 if view == 'rear':
-#                     lines.append(event_start_time)
-#                 else:
-#                     lines.append(event_end_time)
-
-#         ax0.vlines(lines, 0, 1, color='magenta', linestyle=':', linewidth=2.0)
-    
+        
     if save is not None and save is not False:
         plt.tight_layout()
         plt.savefig(save, dpi=100)
         
     plt.show()
-
-# params = EasyDict()
-# params.n_fft = 1024
-# params.n_mels = 64
-# params.hop_length = 128
-# params.sr = 44100
-
-# params.nn_hop_length = 1
-# params.frame_length = 1

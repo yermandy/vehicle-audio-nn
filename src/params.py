@@ -32,14 +32,14 @@ def get_params(**kwargs):
     return params
 
 
-def get_additional_params(params):
-    n_samples_in_nn_hop = int(params.sr * params.nn_hop_length)
-    n_samples_in_frame = int(params.sr * params.frame_length)
-    n_features_in_sec = params.sr // params.hop_length
-    n_features_in_nn_hop = int(n_features_in_sec * params.nn_hop_length)
-    n_features_in_frame = int(n_features_in_sec * params.frame_length)
-    params.n_samples_in_nn_hop = n_samples_in_nn_hop
-    params.n_samples_in_frame = n_samples_in_frame
-    params.n_features_in_nn_hop = n_features_in_nn_hop
-    params.n_features_in_frame = n_features_in_frame
-    return params
+def get_additional_params(config):
+    n_samples_in_nn_hop = int(config.sr * config.nn_hop_length)
+    n_samples_in_frame = int(config.sr * config.frame_length)
+    n_features_in_sec = config.sr // config.hop_length
+    n_features_in_nn_hop = int(n_features_in_sec * config.nn_hop_length)
+    n_features_in_frame = int(n_features_in_sec * config.frame_length)
+    config.n_samples_in_nn_hop = n_samples_in_nn_hop
+    config.n_samples_in_frame = n_samples_in_frame
+    config.n_features_in_nn_hop = n_features_in_nn_hop
+    config.n_features_in_frame = n_features_in_frame
+    return config

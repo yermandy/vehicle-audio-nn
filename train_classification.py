@@ -1,8 +1,13 @@
+from torch._C import dtype
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from model.classification import *
 from src import *
+from omegaconf import DictConfig, OmegaConf
+
+import hydra
+import sys
 
 
 def forward(loader, model, loss):
@@ -28,77 +33,73 @@ def forward(loader, model, loss):
     
     mae = abs_error_sum / n_samples
     return mae, loss_sum
-        
 
-def run(files, n_trn_samples=-1, n_val_samples=-1):
-    uuid=int(datetime.now().timestamp())
 
-    split_ratio = 0.75
-    cuda = 0
-    n_epochs = 1000
-    batch_size = 128
-    lr = 0.0001
-    n_trn_samples = n_trn_samples
-    n_val_samples = n_val_samples
-    num_workers = 0
-    use_offset = False
-    normalization = Normalization.ROW_WISE
-    num_classes = 50
+@hydra.main(config_path='config', config_name='config')
+def run(config: DictConfig):
+    wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
 
-    params = get_params(normalization=normalization)
+    # replace DictConfig with EasyDict
+    config = OmegaConf.to_container(config)
+    config = EasyDict(config)
 
-    device = torch.device(f'cuda:{cuda}' if torch.cuda.is_available() else 'cpu')
+    # get uuid and change wandb run name
+    uuid = os.getcwd().split('/')[-1]
+    wandb.run.name = str(uuid)
+    os.makedirs(f'weights')
 
+    # set original root
+    root = hydra.utils.get_original_cwd()
+    os.chdir(root)
+
+    config = get_additional_params(config)
+
+    device = torch.device(f'cuda:{config.cuda}' if torch.cuda.is_available() else 'cpu')
     print(f'Running on {device}')
 
-    datapool = DataPool(files, params.window_length, split_ratio)
+    datapool = DataPool(config.training_files, config.window_length, config.split_ratio)
 
     trn_dataset = VehicleDataset(
         datapool,
         is_trn=True,
-        params=params,
-        n_samples=n_trn_samples
+        config=config,
+        n_samples=config.n_trn_samples
     )
 
-    trn_loader = DataLoader(trn_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
 
     val_dataset = VehicleDataset(
         datapool,
         is_trn=False,
-        params=params,
-        n_samples=n_val_samples
+        config=config,
+        n_samples=config.n_val_samples
     )
 
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=config.batch_size, num_workers=config.num_workers)
 
-    model = ResNet18(num_classes=num_classes).to(device)
+    model = ResNet18(num_classes=config.num_classes).to(device)
 
     loss = nn.CrossEntropyLoss()
 
-    optim = Adam(model.parameters(), lr=lr)
+    optim = Adam(model.parameters(), lr=config.lr)
 
-    config = wandb.config
-    config.update(params)
-    config.uuid = uuid
-    config.num_classes = num_classes
-    config.batch_size = batch_size
-    config.lr = lr
-    config.model = model.__class__.__name__
-    config.optim = optim.__class__.__name__
-    config.uniform_sampling = False if n_trn_samples == -1 else True
-    config.n_trn_samples = len(trn_dataset)
-    config.n_val_samples = len(val_dataset)
-    config.use_offset = use_offset
+    wandb_config = wandb.config
+    wandb_config.update(config)
+    wandb_config.uuid = uuid
+    wandb_config.model = model.__class__.__name__
+    wandb_config.optim = optim.__class__.__name__
+    wandb_config.uniform_sampling = False if config.n_trn_samples == -1 else True
+    wandb_config.update({'n_trn_samples': len(trn_dataset)}, allow_val_change=True)
+    wandb_config.update({'n_val_samples': len(val_dataset)}, allow_val_change=True)
 
-    wandb.run.name = str(uuid)
 
     val_loss_best = float('inf')
     val_mae_best = float('inf')
     val_diff_best = float('inf')
-    val_interval_error_best = float('inf')
+    val_rvce_best = float('inf')
 
 
-    training_loop = tqdm(range(n_epochs))
+    training_loop = tqdm(range(config.n_epochs))
     for iteration in training_loop:
 
         ## training
@@ -127,25 +128,25 @@ def run(files, n_trn_samples=-1, n_val_samples=-1):
         trn_mae, trn_loss = forward(trn_loader, model, loss)
         val_mae, val_loss = forward(val_loader, model, loss)
 
-        # trn_interval_error, trn_diff = validate_intervals(datapool, True, model, trn_dataset.transform, params)
-        val_interval_error, val_diff = validate_intervals(datapool, False, model, val_dataset.transform, params)
+        # trn_interval_error, trn_diff = validate_intervals(datapool, True, model, trn_dataset.transform, config)
+        val_rvce, val_diff = validate_intervals(datapool, False, model, val_dataset.transform, config)
 
         if val_loss <= val_loss_best:
             val_loss_best = val_loss
 
         if val_diff <= val_diff_best:
             val_diff_best = val_diff
-            torch.save(model.state_dict(), f'weights/classification/model_{uuid}_diff.pth')
+            torch.save(model.state_dict(), f'outputs/{uuid}/weights/chd.pth')
 
         if val_mae <= val_mae_best:
             val_mae_best = val_mae
-            torch.save(model.state_dict(), f'weights/classification/model_{uuid}_mae.pth')
+            torch.save(model.state_dict(), f'outputs/{uuid}/weights/mae.pth')
 
-        if val_interval_error <= val_interval_error_best:
-            val_interval_error_best = val_interval_error
-            torch.save(model.state_dict(), f'weights/classification/model_{uuid}_interval.pth')
+        if val_rvce <= val_rvce_best:
+            val_rvce_best = val_rvce
+            torch.save(model.state_dict(), f'outputs/{uuid}/weights/rvce.pth')
 
-        torch.save(model.state_dict(), f'weights/classification/model_{uuid}_last.pth')
+        torch.save(model.state_dict(), f'outputs/{uuid}/weights/last.pth')
 
         wandb.log({
             "trn loss": trn_loss,
@@ -156,9 +157,9 @@ def run(files, n_trn_samples=-1, n_val_samples=-1):
             "val mae": val_mae,
             "val mae best": val_mae_best,
 
-            # "trn interval error": trn_interval_error,
-            "val interval error": val_interval_error,
-            "val interval error best": val_interval_error_best,
+            # "trn rvce": trn_rvce,
+            "val rvce": val_rvce,
+            "val rvce best": val_rvce_best,
 
             # "trn diff": trn_diff,
             "val diff": val_diff,            
@@ -170,51 +171,41 @@ def run(files, n_trn_samples=-1, n_val_samples=-1):
         if trn_loss <= 1e-8 or trn_mae <= 1e-8:
             break
 
-        if use_offset:
-            offset = (0.25 * iteration) % params.window_length
+        if config.use_offset:
+            offset = (config.offset_length * iteration) % config.window_length
             trn_dataset.set_offset(offset)
+
+    if len(config.testing_files) > 0:
+        datapool = DataPool(config.testing_files, config.window_length, config.split_ratio)
+        model_name = 'rvce'
+        model, run_config = load_model(uuid, model_name)
+        outputs = validate_datapool(datapool, model, run_config)
+        print_validation_outputs(outputs)
+
+        pass
+
+    wandb_run.finish()
 
 
 if __name__ == "__main__":
 
-    os.makedirs('weights/classification', exist_ok=True)
+    sys.argv.append(f'hydra.output_subdir=config')
+    sys.argv.append(f'hydra/job_logging=disabled')
+    sys.argv.append(f'hydra/hydra_logging=none')
 
-    files = [
-        '20190819-Kutna Hora-L1-out-MVI_0007',
-        '20190819-Kutna Hora-L3-in-MVI_0005',
-        '20190819-Kutna Hora-L3-out-MVI_0008',
-        '20190819-Kutna Hora-L4-in-MVI_0013',
-        '20190819-Kutna Hora-L6-out-MVI_0017',
-        '20190819-Kutna Hora-L7-out-MVI_0032',
-        '20190819-Kutna Hora-L8-in-MVI_0045',
-        '20190819-Kutna Hora-L9-in-MVI_0043',
-        '20190819-Kutna Hora-L10-out-SDV_1888',
-        '20190819-Kutna Hora-L13-in-MVI_0006',
-        '20190819-Kutna Hora-L13-out-MVI_0018',
-        '20190819-Kutna Hora-L14-out-MVI_0005',
-        '20190819-Kutna Hora-L15-out-MVI_0012',
-        '20190819-Kutna Hora-L18-in-MVI_0030',
-        '20190819-Ricany-L2-in-MVI_0006',
-        '20190819-Ricany-L2-out-MVI_0005',
-        '20190819-Ricany-L3-in-MVI_0006',
-        '20190819-Ricany-L6-in-MVI_0008',
-        '20190819-Ricany-L6-out-MVI_0011',
-        '20190819-Ricany-L7-in-MVI_0008',
-        '20190819-Ricany-L7-out-MVI_0013',
-        '20190819-Ricany-L8-in-MVI_0009',
-        '20190819-Ricany-L8-out-MVI_0013',
-        '20190819-Ricany-L9-in-MVI_0008',
-        '20190819-Ricany-L9-out-MVI_0011'
-    ]
+    '''
+    for split in range(5):
+        # files = np.loadtxt(f'data/folds/trn/{fold}.txt', dtype=str, delimiter='\n')
+        uuid = int(datetime.now().timestamp())
+        sys.argv.append(f'training_files=splits_26.11.2021/{split}')
+        sys.argv.append(f'hydra.run.dir=outputs/{uuid}')
+        # wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy', tags=['classification', 'cross-validation'])
+        run()
+        # wandb_run.finish()
+    '''
 
-    files = ['20190819-Kutna Hora-L4-out-MVI_0040_manual']
-
-    for n_trn_samples in [-1]:
-        
-        wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy', tags=['classification'])
-
-        wandb.config.files = files
-
-        run(files, n_trn_samples=n_trn_samples, n_val_samples=-1)
-
-        wandb_run.finish()
+    # sys.argv.append(f'training_files=dataset_26.11.2021')
+    uuid = int(datetime.now().timestamp())
+    sys.argv.append(f'hydra.run.dir=outputs/{uuid}')
+    sys.argv.append(f'training_files=manual')
+    run()

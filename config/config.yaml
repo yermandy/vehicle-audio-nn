@@ -1,0 +1,43 @@
+
+
+wandb_project: vehicle-audio-nn
+wandb_entity: yermandy
+wandb_tags: [classification]
+
+lr: 0.0001
+cuda: 0
+n_epochs: 5
+batch_size: 128
+num_workers: 4
+
+split_ratio: 0.75
+n_trn_samples: -1
+n_val_samples: -1
+
+nn_hop_length: 6.0
+# length of one frame in seconds
+frame_length: 6.0
+# number of frames in one window
+n_frames: 1
+# length of one feature in samples
+n_fft: 1024
+# number of mel features
+n_mels: 64
+# sampling rate
+sr: 44100
+# hop length between samples for feature extractor
+hop_length: 128
+# length of one window in seconds
+window_length: 6.0
+
+use_offset: True
+offset_length: 0.25
+normalization: global
+num_classes: 50
+
+testing_files:
+  - 20190819-Kutna Hora-L4-out-MVI_0040_manual
+
+defaults:
+  - _self_
+  - training_files: dataset_26.11.2021

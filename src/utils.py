@@ -339,48 +339,46 @@ def create_dataset_sequentially(signal, sr, events, from_time=None, till_time=No
     return samples, labels
 
 
-def create_transformation(params):
+def create_transformation(config):
     melkwargs = {
-        "n_fft": params.n_fft,
-        "n_mels": params.n_mels,
-        "hop_length": params.hop_length
+        "n_fft": config.n_fft,
+        "n_mels": config.n_mels,
+        "hop_length": config.hop_length
     }
 
     mel_transform = torchaudio.transforms.MelSpectrogram(
-        sample_rate=params.sr,
-        **melkwargs
+        sample_rate=config.sr, **melkwargs
     )
 
-    mfcc_transform = torchaudio.transforms.MFCC(
-        sample_rate=params.sr,
-        n_mfcc=params.n_mfcc,
-        melkwargs=melkwargs
-    )
+    # TODO: Test if MFCC features are suitable for the problem
+    # mfcc_transform = torchaudio.transforms.MFCC(
+    #     sample_rate=params.sr, n_mfcc=params.n_mfcc, melkwargs=melkwargs
+    # )
+
+    amplitude_to_DB = torchaudio.transforms.AmplitudeToDB(top_db=80)
     
-    normalization = params.normalization
+    normalization = config.normalization
 
     def transform(signal):
         mel_features = mel_transform(signal)
-        mfcc_features = mfcc_transform(signal)
+        mel_features = amplitude_to_DB(mel_features)
         
         if normalization == Normalization.NONE:
-            features = torch.cat((mel_features, mfcc_features), dim=0).unsqueeze(0)
+            features = mel_features.unsqueeze(0)
         elif normalization == Normalization.GLOBAL:
             # normalize globally
-            normalize = lambda x: (x - x.mean()) / x.std()
-            mfcc_features_normalized = normalize(mfcc_features)
-            mel_features_normalized = normalize(mel_features)
-            features = torch.cat((mel_features_normalized, mfcc_features_normalized), dim=0).unsqueeze(0)
+            normalize = lambda x: (x - x.mean()) / torch.maximum(x.std(), torch.tensor(1e-8))
+            mel_features = normalize(mel_features)
+            features = mel_features.unsqueeze(0)
         elif normalization == Normalization.ROW_WISE:
             # normalize features row wise
-            features = torch.cat((mel_features, mfcc_features), dim=0).unsqueeze(0)
-            features = (features - features.mean(2).view(-1, 1)) / features.std(2).view(-1, 1)
+            features = mel_features.unsqueeze(0)
+            features = (features - features.mean(2).view(-1, 1)) / torch.maximum(features.std(2).view(-1, 1), torch.tensor(1e-8))
         elif normalization == Normalization.COLUMN_WISE:
-            # normalize mfcc and mel features separately column wise
+            # normalize features column wise
             normalize = lambda x: (x - x.mean(0)) / torch.maximum(x.std(0), torch.tensor(1e-8))
-            mfcc_features_normalized = normalize(mfcc_features)
-            mel_features_normalized = normalize(mel_features)
-            features = torch.cat((mel_features_normalized, mfcc_features_normalized), dim=0).unsqueeze(0)
+            mel_features = normalize(mel_features)
+            features = mel_features.unsqueeze(0)
         else:
             raise Exception('unknown normalization')
         return features

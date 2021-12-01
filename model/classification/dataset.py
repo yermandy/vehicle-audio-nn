@@ -9,13 +9,13 @@ class VehicleDataset(Dataset):
             datapool: DataPool,
             is_trn: bool = True,
             seed: int = 42,
-            params: EasyDict = EasyDict(),
+            config: EasyDict = EasyDict(),
             n_samples: int = 100,
             offset: int = 0):
             
         self.datapool = datapool
-        self.params = params
-        self.window_length = get_window_length(params)
+        self.config = config
+        self.window_length = get_window_length(config)
         self.n_samples = n_samples
         self.seed = seed
         self.is_trn = is_trn
@@ -26,7 +26,7 @@ class VehicleDataset(Dataset):
             seed=seed,
             is_trn=is_trn,
             offset=offset)
-        self.transform = create_transformation(params)
+        self.transform = create_transformation(config)
     
     def set_offset(self, offset):
         self.samples, self.labels = create_dataset_from_files(

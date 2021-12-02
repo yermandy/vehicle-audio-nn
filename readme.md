@@ -2,11 +2,24 @@
 
 #### Packages
 
+Unstall with pip
 ```
+hydra-core==1.1.1
+wandb==0.12.7
 librosa==0.8.1
 torch==1.9.0+cu111
 torchaudio==0.9.0
 torchvision==0.10.0+cu111
+```
+
+#### Project structure
+
+Create and populate `video` and `csv` folders
+```
+mkdir -p data/video
+mkdir -p data/csv
+ln -s ~/data/MultiDo/CVUTFD/copy/* data/video/
+ln -s ~/data/MultiDo/CVUTFD/result/* data/csv/
 ```
 
 #### Resources

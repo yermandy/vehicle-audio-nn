@@ -2,7 +2,7 @@
 
 #### Packages
 
-Unstall with pip
+Install with pip
 ```
 hydra-core==1.1.1
 wandb==0.12.7

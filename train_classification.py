@@ -1,4 +1,3 @@
-from torch._C import dtype
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 

@@ -128,3 +128,4 @@ def print_validation_outputs(outputs):
     table.append(table_summary)
     for x in table:
         print(x)
+    return table

@@ -180,9 +180,8 @@ def run(config: DictConfig):
         model_name = 'rvce'
         model, run_config = load_model(uuid, model_name)
         outputs = validate_datapool(datapool, model, run_config)
-        print_validation_outputs(outputs)
-
-        pass
+        table = print_validation_outputs(outputs)
+        np.savetxt(f'outputs/{uuid}/test_output.txt', table, fmt='%s')
 
     wandb_run.finish()
 
@@ -204,8 +203,8 @@ if __name__ == "__main__":
         # wandb_run.finish()
     '''
 
-    # sys.argv.append(f'training_files=dataset_26.11.2021')
     uuid = int(datetime.now().timestamp())
     sys.argv.append(f'hydra.run.dir=outputs/{uuid}')
-    sys.argv.append(f'training_files=manual')
+    # sys.argv.append(f'training_files=dataset_26.11.2021')
+    # sys.argv.append(f'training_files=manual')
     run()

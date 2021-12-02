@@ -1,6 +1,8 @@
 import os
+import sys
 import numpy as np
 import torch
+import hydra
 from src import *
 
 
@@ -12,7 +14,7 @@ os.makedirs('data/intervals', exist_ok=True)
 def extract_audio(file):
     import moviepy.editor as mp
     video = mp.VideoFileClip(f"data/video/{file}.MP4")
-    video.audio.write_audiofile(f"data/audio/{file}.wav")
+    video.audio.write_audiofile(f"data/audio/{file}.MP4.wav")
 
 
 def optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=True, window_len=0.5):
@@ -118,12 +120,24 @@ def extract_intevals(file, empty_interval_in_s=10):
     print(labels_file, len(intervals))
 
 
-def preprocess(files):
+@hydra.main(config_path='config', config_name='config')
+def preprocess(config):
+    files = config.dataset
     for file in files:
-        print('File: ', file, '\n')
-        print('Extracting audio')
+        print('File: ', file)
+        print('\nExtracting audio')
         extract_audio(file)
-        print('Extracting labels')
+        print('\nExtracting labels')
         extract_labels(file)
-        print('Extracting intervals')
+        print('\nExtracting intervals')
         extract_intevals(file)
+
+
+if __name__ == '__main__':
+    
+    sys.argv.append(f'hydra.run.dir=.')
+    sys.argv.append(f'hydra.output_subdir=null')
+    sys.argv.append(f'hydra/job_logging=disabled')
+    sys.argv.append(f'hydra/hydra_logging=none')
+
+    preprocess()

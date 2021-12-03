@@ -2,7 +2,7 @@
 
 #### Packages
 
-Unstall with pip
+Install with pip
 ```
 hydra-core==1.1.1
 wandb==0.12.7
@@ -11,6 +11,22 @@ torch==1.9.0+cu111
 torchaudio==0.9.0
 torchvision==0.10.0+cu111
 ```
+
+Updated install with pip
+```
+hydra-core==1.1.1
+wandb==0.12.7
+librosa==0.8.1
+torch==1.10.0+cu113 
+torchvision==0.11.1+cu113 
+torchaudio==0.10.0+cu113 
+tqdm
+easydict
+moviepy
+```
+
+pip install torch==1.10.0+cu113 torchvision==0.11.1+cu113 torchaudio==0.10.0+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+
 
 #### Project structure
 

@@ -64,7 +64,7 @@ if __name__ == "__main__":
     sys.argv.append(f'hydra/job_logging=disabled')
     sys.argv.append(f'hydra/hydra_logging=none')
 
-    with open('config/config_cross_validation.yaml', 'r') as stream:
+    with open(f'config/{args.config_name}.yaml', 'r') as stream:
         config = yaml.safe_load(stream)
         cross_validate(config)
     

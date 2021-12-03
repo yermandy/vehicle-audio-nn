@@ -1,14 +1,12 @@
-
-
 wandb_project: vehicle-audio-nn
 wandb_entity: yermandy
 wandb_tags: [classification]
 
-output_name: single
+output_name: cross_validation
 
 lr: 0.0001
 cuda: 0
-n_epochs: 5
+n_epochs: 1
 batch_size: 128
 num_workers: 4
 
@@ -19,6 +17,8 @@ n_val_samples: -1
 nn_hop_length: 6.0
 # length of one frame in seconds
 frame_length: 6.0
+# length of one window in seconds
+window_length: 6.0
 # number of frames in one window
 n_frames: 1
 # length of one feature in samples
@@ -29,8 +29,7 @@ n_mels: 64
 sr: 44100
 # hop length between samples for feature extractor
 hop_length: 128
-# length of one window in seconds
-window_length: 6.0
+
 
 use_offset: True
 offset_length: 0.25
@@ -46,3 +45,17 @@ training_files:
 defaults:
   - _self_
   - dataset: dataset_26.11.2021
+
+training_splits:
+  - splits_26.11.2021/0.yaml
+  - splits_26.11.2021/1.yaml
+  # - splits_26.11.2021/2.yaml
+  # - splits_26.11.2021/3.yaml
+  # - splits_26.11.2021/4.yaml
+
+testing_splits:
+  - splits_26.11.2021/0.yaml
+  - splits_26.11.2021/1.yaml
+  - splits_26.11.2021/2.yaml
+  - splits_26.11.2021/3.yaml
+  - splits_26.11.2021/4.yaml

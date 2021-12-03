@@ -129,3 +129,13 @@ def print_validation_outputs(outputs):
     for x in table:
         print(x)
     return table
+
+
+def validate_and_save(uuid, datapool):
+    model_name = 'rvce'
+    model, run_config = load_model_locally(uuid, model_name)
+    outputs = validate_datapool(datapool, model, run_config)
+    table = print_validation_outputs(outputs)
+    np.savetxt(f'outputs/{uuid}/test_output.txt', table, fmt='%s')
+    header = 'rvce; error; n_events; mae; file'
+    np.savetxt(f'outputs/{uuid}/test_output.csv', outputs, fmt='%s', delimiter=';', header=header)

@@ -2,7 +2,7 @@ import torch
 import torchaudio
 import numpy as np
 from collections import defaultdict, Counter
-
+import pickle
 
 def time_to_sec(time):
     h, m, s = map(float, time.split(':'))
@@ -172,16 +172,14 @@ def load_event_time_from_csv(csv):
     return np.array(start_times), np.array(end_times)
 
 
-def load_model(uuid, model_name='mae', classification=True):
+def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', classification=True):
     import wandb
     from easydict import EasyDict
     if classification:
         from model.classification import ResNet18
-    else:
-        from model.regression import ResNet18
 
     api = wandb.Api()
-    runs = api.runs('yermandy/vehicle-audio-nn', per_page=5000, order='config.uuid')
+    runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
 
     for run in runs: 
         if run.name == str(uuid):
@@ -196,23 +194,17 @@ def load_model(uuid, model_name='mae', classification=True):
     return model, config
 
 
-def load_model_locally(uuid, suffix='mae', classification=True):
-    import pickle
-
+def load_model_locally(uuid, model_name='mae', classification=True):
     if classification:
         from model.classification import ResNet18
-        folder = 'classification'
-    else:
-        from model.regression import ResNet18
-        folder = 'regression'
 
     device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
-    weights = torch.load(f'weights/{folder}/model_{uuid}_{suffix}.pth', device)
+    weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
     num_classes = len(weights['model.fc.bias'])
     model = ResNet18(num_classes=num_classes).to(device)
     model.load_state_dict(weights)
 
-    with open(f'weights/{folder}/model_{uuid}_params.pickle', 'rb') as handle:
-        params = pickle.load(handle)
+    with open(f'outputs/{uuid}/config.pickle', 'rb') as f:
+        config = pickle.load(f)
 
-    return model, params
+    return model, config

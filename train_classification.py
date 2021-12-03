@@ -7,6 +7,9 @@ from omegaconf import DictConfig, OmegaConf
 
 import hydra
 import sys
+import pickle
+import yaml
+import argparse
 
 
 def forward(loader, model, loss):
@@ -43,7 +46,7 @@ def run(config: DictConfig):
     config = EasyDict(config)
 
     # get uuid and change wandb run name
-    uuid = os.getcwd().split('/')[-1]
+    uuid = config.uuid
     wandb.run.name = str(uuid)
     os.makedirs(f'weights')
 
@@ -97,6 +100,8 @@ def run(config: DictConfig):
     val_diff_best = float('inf')
     val_rvce_best = float('inf')
 
+    with open(f'outputs/{uuid}/config.pickle', 'wb') as f:
+        pickle.dump(config, f)
 
     training_loop = tqdm(range(config.n_epochs))
     for iteration in training_loop:
@@ -168,42 +173,59 @@ def run(config: DictConfig):
         training_loop.set_description(f'trn loss {trn_loss:.2f} | val loss {val_loss:.2f} | best loss {val_loss_best:.2f}')
 
         if trn_loss <= 1e-8 or trn_mae <= 1e-8:
+            print('finishing earlier')
             break
 
         if config.use_offset:
             offset = (config.offset_length * iteration) % config.window_length
             trn_dataset.set_offset(offset)
 
+    os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)
+    
+    model_name = 'rvce'
+    model, run_config = load_model_locally(uuid, model_name)
+    outputs = validate_datapool(datapool, model, run_config, False)
+    table = print_validation_outputs(outputs)
+    np.savetxt(f'outputs/{uuid}/results/val_output.txt', table, fmt='%s')
+    header = 'rvce; error; n_events; mae; file'
+    np.savetxt(f'outputs/{uuid}/results/val_output.csv', outputs, fmt='%s', delimiter='; ', header=header)
+
     if len(config.testing_files) > 0:
         datapool = DataPool(config.testing_files, config.window_length, config.split_ratio)
         model_name = 'rvce'
-        model, run_config = load_model(uuid, model_name)
+        model, run_config = load_model_locally(uuid, model_name)
         outputs = validate_datapool(datapool, model, run_config)
         table = print_validation_outputs(outputs)
-        np.savetxt(f'outputs/{uuid}/test_output.txt', table, fmt='%s')
+        np.savetxt(f'outputs/{uuid}/results/test_output.txt', table, fmt='%s')
+        header = 'rvce; error; n_events; mae; file'
+        np.savetxt(f'outputs/{uuid}/results/test_output.csv', outputs, fmt='%s', delimiter='; ', header=header)
 
     wandb_run.finish()
 
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config-name", default='config', type=str)
+    args = parser.parse_args()
+
     sys.argv.append(f'hydra.output_subdir=config')
     sys.argv.append(f'hydra/job_logging=disabled')
     sys.argv.append(f'hydra/hydra_logging=none')
 
-    '''
-    for split in range(5):
-        # files = np.loadtxt(f'data/folds/trn/{fold}.txt', dtype=str, delimiter='\n')
-        uuid = int(datetime.now().timestamp())
-        sys.argv.append(f'training_files=splits_26.11.2021/{split}')
-        sys.argv.append(f'hydra.run.dir=outputs/{uuid}')
-        # wandb_run = wandb.init(project='vehicle-audio-nn', entity='yermandy', tags=['classification', 'cross-validation'])
-        run()
-        # wandb_run.finish()
-    '''
+    with open(f'config/{args.config_name}.yaml', 'r') as stream:
+        config = yaml.safe_load(stream)
+        config = EasyDict(config)
 
-    uuid = int(datetime.now().timestamp())
+    if 'output_name' in config and config.output_name != '' and config.output_name is not None:
+        uuid = config.output_name
+    else:
+        uuid = int(datetime.now().timestamp())
+    print('Run name:', uuid)
+    
+    sys.argv.append(f'+uuid={uuid}')
     sys.argv.append(f'hydra.run.dir=outputs/{uuid}')
     # sys.argv.append(f'training_files=dataset_26.11.2021')
     # sys.argv.append(f'training_files=manual')
+    
     run()

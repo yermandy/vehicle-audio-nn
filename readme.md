@@ -2,7 +2,7 @@
 
 #### Packages
 
-Unstall with pip
+Install with pip
 ```
 hydra-core==1.1.1
 wandb==0.12.7
@@ -12,15 +12,43 @@ torchaudio==0.9.0
 torchvision==0.10.0+cu111
 ```
 
+Updated install with pip
+```
+hydra-core==1.1.1
+wandb==0.12.7
+librosa==0.8.1
+torch==1.10.0+cu113 
+torchvision==0.11.1+cu113 
+torchaudio==0.10.0+cu113 
+tqdm
+easydict
+moviepy
+```
+
+pip install torch==1.10.0+cu113 torchvision==0.11.1+cu113 torchaudio==0.10.0+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+
+
 #### Project structure
 
-Create and populate `video` and `csv` folders
+Create and populate `data/video` and `data/csv` folders
 ```
 mkdir -p data/video
 mkdir -p data/csv
 ln -s ~/data/MultiDo/CVUTFD/copy/* data/video/
 ln -s ~/data/MultiDo/CVUTFD/result/* data/csv/
 ```
+
+#### Preprocess files
+
+Use `preprocess_data.py` to generate `data/audio`, `data/audio` and `data/intervals` 
+
+#### Wandb account
+
+To visualize training curves, create [wandb](https://wandb.ai/) account and add new project. Add your wandb project name and account name to `config/config.yaml`.
+
+#### Training
+
+Change training configurations in `config/config.yaml` and run `train_classification.py`
 
 #### Resources
 

@@ -21,20 +21,6 @@ from .constants import *
 from .params import *
 
 
-def get_split_indices(params):
-    n_features_in_sec = params.sr / params.hop_length
-    n_features_in_nn_hop = math.ceil(params.nn_hop_length * n_features_in_sec)
-    n_features_in_frame = math.ceil(params.frame_length * n_features_in_sec)
-
-    split_indices = []
-    for f in range(params.n_frames):
-        start = f * n_features_in_nn_hop
-        end = f * n_features_in_nn_hop + n_features_in_frame
-        split_indices.append([start, end])
-
-    return split_indices
-
-
 def get_cumsum(T, E):
     hist = []
     for i in range(1, len(T)):
@@ -129,7 +115,7 @@ def get_diff(signal, events, predictions, params, from_time=None, till_time=None
 def get_n_hops(signal, params):
     n_samples = len(signal)
 
-    if 'n_samples_in_frame' not in params or 'n_samples_in_nn_hop' not in params:
+    if 'n_samples_in_window' not in params or 'n_samples_in_nn_hop' not in params:
         params = get_additional_params(params)
 
     # TODO double check this
@@ -157,7 +143,7 @@ def validate(signal, model, transform, params, tqdm=lambda x: x, batch_size=32, 
     with torch.no_grad():
         for k in loop:
             start = k * params.n_samples_in_nn_hop
-            end = start + params.n_samples_in_frame
+            end = start + params.n_samples_in_window
             x = signal[start: end]
             x = transform(x)
             batch.append(x)
@@ -211,11 +197,7 @@ def validate_intervals(datapool: DataPool, is_trn: bool, model, transform, param
     mean_difference_error = difference_error / n_intervals
 
     return mean_interval_error, mean_difference_error
-
-
-def get_window_length(params):
-    return params.nn_hop_length * (params.n_frames - 1) + params.frame_length
-
+    
 
 def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=5000, seed=42, is_trn=True, offset=0):
     """ if n_samples == -1, dataset is created sequentially from a sequence """

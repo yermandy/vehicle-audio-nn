@@ -15,7 +15,7 @@ class VehicleDataset(Dataset):
             
         self.datapool = datapool
         self.config = config
-        self.window_length = get_window_length(config)
+        self.window_length = config.window_length
         self.n_samples = n_samples
         self.seed = seed
         self.is_trn = is_trn

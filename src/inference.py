@@ -21,7 +21,7 @@ def _validate_signal(signal, model, config, tqdm=lambda x: x, batch_size=32, ret
     with torch.no_grad():
         for k in loop:
             start = k * config.n_samples_in_nn_hop
-            end = start + config.n_samples_in_frame
+            end = start + config.n_features_in_window
             x = signal[start: end]
             x = transform(x)
             batch.append(x)

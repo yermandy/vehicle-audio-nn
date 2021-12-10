@@ -2,6 +2,9 @@ from .constants import *
 from easydict import EasyDict
 
 def get_additional_params(config):
+    # TODO generalize it
+    # consider for now that nn_hop_length == window_length
+    config.nn_hop_length = config.window_length
     n_samples_in_nn_hop = int(config.sr * config.nn_hop_length)
     n_samples_in_window = int(config.sr * config.window_length)
     n_features_in_sec = config.sr // config.hop_length

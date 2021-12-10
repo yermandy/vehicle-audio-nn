@@ -37,6 +37,22 @@ def forward(loader, model, loss):
     return mae, loss_sum
 
 
+def save_csv(model, datapool, prefix='test', model_name='rvce'):
+    if prefix == 'trn':
+        is_trn = True
+    elif prefix == 'val':
+        is_trn = False
+    else:
+        is_trn = None
+    
+    model, run_config = load_model_locally(uuid, model_name)
+    outputs = validate_datapool(datapool, model, run_config, is_trn)
+    table = print_validation_outputs(outputs)
+    np.savetxt(f'outputs/{uuid}/results/{prefix}_output.txt', table, fmt='%s')
+    header = 'rvce; error; n_events; mae; file'
+    np.savetxt(f'outputs/{uuid}/results/{prefix}_output.csv', outputs, fmt='%s', delimiter='; ', header=header)
+
+
 @hydra.main(config_path='config', config_name='config')
 def run(config: DictConfig):
     wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
@@ -182,23 +198,12 @@ def run(config: DictConfig):
 
     os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)
     
-    model_name = 'rvce'
-    model, run_config = load_model_locally(uuid, model_name)
-    outputs = validate_datapool(datapool, model, run_config, False)
-    table = print_validation_outputs(outputs)
-    np.savetxt(f'outputs/{uuid}/results/val_output.txt', table, fmt='%s')
-    header = 'rvce; error; n_events; mae; file'
-    np.savetxt(f'outputs/{uuid}/results/val_output.csv', outputs, fmt='%s', delimiter='; ', header=header)
+    save_csv(model, datapool, 'val')
+    save_csv(model, datapool, 'trn')
 
     if len(config.testing_files) > 0:
         datapool = DataPool(config.testing_files, config.window_length, config.split_ratio)
-        model_name = 'rvce'
-        model, run_config = load_model_locally(uuid, model_name)
-        outputs = validate_datapool(datapool, model, run_config)
-        table = print_validation_outputs(outputs)
-        np.savetxt(f'outputs/{uuid}/results/test_output.txt', table, fmt='%s')
-        header = 'rvce; error; n_events; mae; file'
-        np.savetxt(f'outputs/{uuid}/results/test_output.csv', outputs, fmt='%s', delimiter='; ', header=header)
+        save_csv(model, datapool, 'tst')
 
     wandb_run.finish()
 

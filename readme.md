@@ -32,6 +32,19 @@ ln -s ~/data/MultiDo/CVUTFD/result/* data/csv/
 
 Use `preprocess_data.py` to generate `data/audio`, `data/audio` and `data/intervals` 
 
+Notice, `config/config.yaml` defines the dataset which will be processed
+
+```
+defaults:
+ - dataset: dataset_26.11.2021 
+```
+
+where `dataset_26.11.2021` is the list of files which are going to be preprocessed and is placed in
+
+```
+./config/dataset/dataset_26.11.2021.yaml
+````
+
 #### Wandb account
 
 To visualize training curves, create [wandb](https://wandb.ai/) account and add new project. Add your wandb project name and account name to `config/config.yaml`.

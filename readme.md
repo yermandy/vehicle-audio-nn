@@ -45,6 +45,13 @@ where `dataset_26.11.2021` is the list of files which are going to be preprocess
 ./config/dataset/dataset_26.11.2021.yaml
 ````
 
+```
+
+Converting videos by ffmpeg:
+$ ffmpeg -i input_video.mts -c:v copy -c:a aac -b:a 256k output_video.mp4
+````
+
+
 #### Wandb account
 
 To visualize training curves, create [wandb](https://wandb.ai/) account and add new project. Add your wandb project name and account name to `config/config.yaml`.

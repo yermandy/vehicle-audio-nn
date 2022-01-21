@@ -9,8 +9,8 @@ def cross_validation_error(uuids):
         results = np.loadtxt(f'outputs/{uuid}/results/test_output.csv', delimiter='; ', skiprows=1, usecols=[0,1,2,3])
         results = np.atleast_2d(results)
         test_outputs.append(results.mean(0))
-    outputs_std = np.mean(test_outputs, axis=0)
-    outputs_mean = np.std(test_outputs, axis=0)
+    outputs_mean = np.mean(test_outputs, axis=0)
+    outputs_std = np.std(test_outputs, axis=0)
 
     header = 'rvce; error; n_events; mae'
     row = np.array([f'{i:.3f} ± {j:.3f}' for i, j in zip(outputs_mean, outputs_std)])[np.newaxis, :]

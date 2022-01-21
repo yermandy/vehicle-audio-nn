@@ -37,7 +37,7 @@ def forward(loader, model, loss):
     return mae, loss_sum
 
 
-def save_csv(model, datapool, prefix='test', model_name='rvce'):
+def save_csv(uuid, model, datapool, prefix='test', model_name='rvce'):
     if prefix == 'trn':
         is_trn = True
     elif prefix == 'val':
@@ -154,9 +154,9 @@ def run(config: DictConfig):
         if val_loss <= val_loss_best:
             val_loss_best = val_loss
 
-        if val_diff <= val_diff_best:
-            val_diff_best = val_diff
-            torch.save(model.state_dict(), f'outputs/{uuid}/weights/chd.pth')
+        # if val_diff <= val_diff_best:
+        #     val_diff_best = val_diff
+        #     torch.save(model.state_dict(), f'outputs/{uuid}/weights/chd.pth')
 
         if val_mae <= val_mae_best:
             val_mae_best = val_mae
@@ -182,8 +182,8 @@ def run(config: DictConfig):
             "val rvce best": val_rvce_best,
 
             # "trn diff": trn_diff,
-            "val diff": val_diff,            
-            "val diff best": val_diff_best
+            # "val diff": val_diff,            
+            # "val diff best": val_diff_best
         })
 
         training_loop.set_description(f'trn loss {trn_loss:.2f} | val loss {val_loss:.2f} | best loss {val_loss_best:.2f}')
@@ -198,12 +198,12 @@ def run(config: DictConfig):
 
     os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)
     
-    save_csv(model, datapool, 'val')
-    save_csv(model, datapool, 'trn')
+    save_csv(uuid, model, datapool, 'val')
+    save_csv(uuid, model, datapool, 'trn')
 
     if len(config.testing_files) > 0:
         datapool = DataPool(config.testing_files, config.window_length, config.split_ratio)
-        save_csv(model, datapool, 'tst')
+        save_csv(uuid, model, datapool, 'tst')
 
     wandb_run.finish()
 

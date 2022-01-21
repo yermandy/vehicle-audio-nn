@@ -54,7 +54,8 @@ def optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=T
 
         if sum_of_energies > sum_of_energies_best:
             sum_of_energies_best = sum_of_energies
-            delta_best = delta
+            # compensate for half of window length
+            delta_best = delta + window_len / 2
 
     return delta_best / e_p_s
 

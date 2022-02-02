@@ -122,7 +122,19 @@ def get_n_hops(signal, params):
     n_hops = n_samples // params.n_samples_in_nn_hop
 
     return n_hops
-    
+
+
+def get_labels(events, window_length, from_time, till_time):
+    events = crop_events(events, from_time, till_time)
+    hops = int((till_time - from_time) // window_length)
+    labels = []
+    for i in range(1, hops + 1):
+        mask = events < window_length * i
+        events = events[~mask]
+        labels.append(mask.sum())
+    labels = np.array(labels)
+    return labels
+
 
 def validate(signal, model, transform, params, tqdm=lambda x: x, batch_size=32, return_probs=False, from_time=None, till_time=None, classification=True):
 
@@ -175,10 +187,9 @@ def validate(signal, model, transform, params, tqdm=lambda x: x, batch_size=32, 
 
 
 def validate_intervals(datapool: DataPool, is_trn: bool, model, transform, params, classification=True):
-    interval_error = 0
-    difference_error = 0
-
+    rvce = 0
     n_intervals = 0
+
     for video in datapool:
         video: Video = video
         n_events = video.get_events_count(is_trn)
@@ -187,16 +198,10 @@ def validate_intervals(datapool: DataPool, is_trn: bool, model, transform, param
         predictions = validate(video.signal, model, transform, params, from_time=from_time, till_time=till_time, classification=classification)
         n_intervals += 1
 
-        # calculate error at the end of interval
-        interval_error += np.abs(predictions.sum() - n_events) / n_events
+        rvce += np.abs(predictions.sum() - n_events) / n_events
 
-        # calculate cumulative histogram difference
-        difference_error += get_diff(video.signal, video.events, predictions, params, from_time, till_time)
-
-    mean_interval_error = interval_error / n_intervals
-    mean_difference_error = difference_error / n_intervals
-
-    return mean_interval_error, mean_difference_error
+    mean_rvce = rvce / n_intervals
+    return mean_rvce
     
 
 def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=5000, seed=42, is_trn=True, offset=0):
@@ -322,6 +327,8 @@ def create_dataset_sequentially(signal, sr, events, from_time=None, till_time=No
 
 
 def create_transformation(config):
+    use_mfcc = True if 'n_mfcc' in config and config.n_mfcc is not None and config.n_mfcc > 0 else False
+
     melkwargs = {
         "n_fft": config.n_fft,
         "n_mels": config.n_mels,
@@ -332,35 +339,39 @@ def create_transformation(config):
         sample_rate=config.sr, **melkwargs
     )
 
-    # TODO: Test if MFCC features are suitable for the problem
-    # mfcc_transform = torchaudio.transforms.MFCC(
-    #     sample_rate=params.sr, n_mfcc=params.n_mfcc, melkwargs=melkwargs
-    # )
+    if use_mfcc:
+        mfcc_transform = torchaudio.transforms.MFCC(
+            sample_rate=config.sr, n_mfcc=config.n_mfcc, melkwargs=melkwargs
+        )
 
     amplitude_to_DB = torchaudio.transforms.AmplitudeToDB(top_db=80)
     
     normalization = config.normalization
 
     def transform(signal):
-        mel_features = mel_transform(signal)
-        mel_features = amplitude_to_DB(mel_features)
+        
+        if use_mfcc:
+            features = mfcc_transform(signal)
+        else:
+            features = mel_transform(signal)
+            features = amplitude_to_DB(features)
         
         if normalization == Normalization.NONE:
-            features = mel_features.unsqueeze(0)
+            features = features.unsqueeze(0)
         elif normalization == Normalization.GLOBAL:
             # normalize globally
             normalize = lambda x: (x - x.mean()) / torch.maximum(x.std(), torch.tensor(1e-8))
-            mel_features = normalize(mel_features)
-            features = mel_features.unsqueeze(0)
+            features = normalize(features)
+            features = features.unsqueeze(0)
         elif normalization == Normalization.ROW_WISE:
             # normalize features row wise
-            features = mel_features.unsqueeze(0)
+            features = features.unsqueeze(0)
             features = (features - features.mean(2).view(-1, 1)) / torch.maximum(features.std(2).view(-1, 1), torch.tensor(1e-8))
         elif normalization == Normalization.COLUMN_WISE:
             # normalize features column wise
             normalize = lambda x: (x - x.mean(0)) / torch.maximum(x.std(0), torch.tensor(1e-8))
-            mel_features = normalize(mel_features)
-            features = mel_features.unsqueeze(0)
+            features = normalize(features)
+            features = features.unsqueeze(0)
         else:
             raise Exception('unknown normalization')
         return features

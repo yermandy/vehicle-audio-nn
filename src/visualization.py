@@ -68,6 +68,7 @@ def show(params, signal, events=None,
 
     ax0.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
     ax0.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, params.window_length))
+    ax0.set_xlabel('time [min:sec]')
     
     # show events from eyedea engine
     if events is not None:
@@ -155,6 +156,7 @@ def show(params, signal, events=None,
     x_axis = np.linspace(0, len(signal[::each]), len(energy))
     ax1_1 = ax1.twinx()
     ax1_1.plot(x_axis, energy, c='black')
+    ax1.set_xlabel('number of samples')
 
     # plot spectrogram
     transform_signal = torchaudio.transforms.MelSpectrogram(sample_rate=params.sr, **get_melkwargs(params))
@@ -163,6 +165,7 @@ def show(params, signal, events=None,
     features = transform_signal(signal)
     features = transform_power(features)
     ax2.pcolormesh(features)
+    ax2.set_xlabel('number of features')
         
     if save is not None and save is not False:
         plt.tight_layout()

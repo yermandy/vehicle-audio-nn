@@ -6,7 +6,7 @@ class DataPool(dict):
     def __init__(self,
                  files: List[str],
                  window_length: float = 6,
-                 split_ratio: float = 25 * 60,
+                 split_ratio: float = 0.75,
                  tqdm=tqdm):
         super(DataPool, self).__init__()
         for file in tqdm(files, desc='Video loading'):

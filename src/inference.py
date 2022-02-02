@@ -1,4 +1,5 @@
 from .utils import *
+from tabulate import tabulate
 
 
 def _validate_signal(signal, model, config, tqdm=lambda x: x, batch_size=32, return_probs=False, from_time=None, till_time=None, classification=True):
@@ -92,7 +93,8 @@ def validate_datapool(datapool, model, config, is_trn=None):
             from_time, till_time = video.get_from_till_time(is_trn)
 
         predictions = validate(video.signal, model, transform, config, from_time=from_time, till_time=till_time, classification=True)
-        mae = get_diff(video.signal, video.events, predictions, config, from_time, till_time)
+        labels = get_labels(video.events, config.window_length, from_time, till_time)
+        mae = np.abs(predictions - labels).mean()
 
         n_predicted = predictions.sum()
         rvce = np.abs(n_predicted - n_events) / n_events
@@ -110,32 +112,22 @@ def validate_datapool(datapool, model, config, is_trn=None):
     return outputs
 
 
-def print_validation_outputs(outputs):
-    table = []
-    table_header = ' # |  rvce | error | n_events |     mae | file'
-    table_separator = '– ' * 50
-    table.append(table_header)
-    table.append(table_separator)
-    for i, row in enumerate(outputs):
-        table_row = f'{i + 1:>2} | {row[0]} | {row[1]:>5} | {row[2]:>8} | {row[3]:>7} | {row[4]}'
-        table.append(table_row)
-    table.append(table_separator)
-    mean_rvce = outputs[:, 0].astype(float).mean()
-    mean_error = outputs[:, 1].astype(int).mean()
-    mean_n_events = outputs[:, 2].astype(int).mean()
-    mean_mae = outputs[:, 3].astype(float).mean()
-    table_summary = f'   | {mean_rvce:.3f} | {mean_error:>5} | {mean_n_events:>8} | {mean_mae:7.4} | '
-    table.append(table_summary)
-    for x in table:
-        print(x)
+def validation_outputs_table(outputs):
+    rvce = outputs[:, 0].astype(float)
+    error = outputs[:, 1].astype(int)
+    n_events = outputs[:, 2].astype(int)
+    mae = outputs[:, 3].astype(float)
+
+    summary = [
+        f'{rvce.mean():.2f} ± {rvce.std():.2f}',
+        f'{error.mean():.2f} ± {error.std():.2f}',
+        f'{n_events.mean():.2f} ± {n_events.std():.2f}',
+        f'{mae.mean():.2f} ± {mae.std():.2f}',
+        'summary'
+    ]
+    
+    outputs = np.vstack((outputs, [summary]))
+    header = ['rvce', 'error', 'n_events', 'mae', 'file']
+    table = tabulate(outputs, headers=header, tablefmt='fancy_grid', showindex=True)
+
     return table
-
-
-def validate_and_save(uuid, datapool):
-    model_name = 'rvce'
-    model, run_config = load_model_locally(uuid, model_name)
-    outputs = validate_datapool(datapool, model, run_config)
-    table = print_validation_outputs(outputs)
-    np.savetxt(f'outputs/{uuid}/test_output.txt', table, fmt='%s')
-    header = 'rvce; error; n_events; mae; file'
-    np.savetxt(f'outputs/{uuid}/test_output.csv', outputs, fmt='%s', delimiter=';', header=header)

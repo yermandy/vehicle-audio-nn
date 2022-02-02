@@ -172,11 +172,14 @@ def load_event_time_from_csv(csv):
     return np.array(start_times), np.array(end_times)
 
 
-def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', classification=True):
+def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device=None, classification=True):
     import wandb
     from easydict import EasyDict
     if classification:
         from model.classification import ResNet18
+
+    if device is None:
+        device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
 
     api = wandb.Api()
     runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
@@ -186,7 +189,6 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', classi
             config = EasyDict(run.config)
             break
     
-    device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
     weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
     num_classes = len(weights['model.fc.bias'])
     model = ResNet18(num_classes=num_classes).to(device)
@@ -194,11 +196,12 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', classi
     return model, config
 
 
-def load_model_locally(uuid, model_name='mae', classification=True):
+def load_model_locally(uuid, model_name='mae', device=None, classification=True):
     if classification:
         from model.classification import ResNet18
+    if device is None:
+        device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
 
-    device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
     weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
     num_classes = len(weights['model.fc.bias'])
     model = ResNet18(num_classes=num_classes).to(device)

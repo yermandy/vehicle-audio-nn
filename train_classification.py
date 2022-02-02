@@ -12,6 +12,31 @@ import yaml
 import argparse
 
 
+def train(loader, model, loss, optim):
+    device = next(model.parameters()).device
+    # trn_loss = 0
+    # trn_mae = 0
+
+    model.train()
+    for tensor, target in loader:
+
+        tensor = tensor.to(device)
+        target = target.to(device)
+        
+        scores = model(tensor)
+        loss_value = loss(scores, target)
+
+        # trn_loss += loss_value.detach().item()
+        # preds = scores.argmax(1)
+        # trn_mae += (target - preds).abs().sum().item()
+
+        optim.zero_grad()
+        loss_value.backward()
+        optim.step()
+    # trn_mae = trn_mae / len(trn_dataset)
+    # return trn_loss
+
+
 def forward(loader, model, loss):
     device = next(model.parameters()).device
     n_samples = len(loader.dataset)
@@ -37,7 +62,7 @@ def forward(loader, model, loss):
     return mae, loss_sum
 
 
-def save_csv(uuid, model, datapool, prefix='test', model_name='rvce'):
+def validate_and_save(uuid, datapool, prefix='tst', model_name='rvce'):
     if prefix == 'trn':
         is_trn = True
     elif prefix == 'val':
@@ -45,10 +70,13 @@ def save_csv(uuid, model, datapool, prefix='test', model_name='rvce'):
     else:
         is_trn = None
     
-    model, run_config = load_model_locally(uuid, model_name)
-    outputs = validate_datapool(datapool, model, run_config, is_trn)
-    table = print_validation_outputs(outputs)
-    np.savetxt(f'outputs/{uuid}/results/{prefix}_output.txt', table, fmt='%s')
+    model, config = load_model_locally(uuid, model_name)
+    
+    outputs = validate_datapool(datapool, model, config, is_trn)
+    with open(f'outputs/{uuid}/results/{prefix}_output.txt', 'w') as file:
+        table = validation_outputs_table(outputs)
+        file.write(table)
+    
     header = 'rvce; error; n_events; mae; file'
     np.savetxt(f'outputs/{uuid}/results/{prefix}_output.csv', outputs, fmt='%s', delimiter='; ', header=header)
 
@@ -75,10 +103,10 @@ def run(config: DictConfig):
     device = torch.device(f'cuda:{config.cuda}' if torch.cuda.is_available() else 'cpu')
     print(f'Running on {device}')
 
-    datapool = DataPool(config.training_files, config.window_length, config.split_ratio)
+    trn_datapool = DataPool(config.training_files, config.window_length, config.split_ratio)
 
     trn_dataset = VehicleDataset(
-        datapool,
+        trn_datapool,
         is_trn=True,
         config=config,
         n_samples=config.n_trn_samples
@@ -87,7 +115,7 @@ def run(config: DictConfig):
     trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
 
     val_dataset = VehicleDataset(
-        datapool,
+        trn_datapool,
         is_trn=False,
         config=config,
         n_samples=config.n_val_samples
@@ -113,7 +141,6 @@ def run(config: DictConfig):
 
     val_loss_best = float('inf')
     val_mae_best = float('inf')
-    val_diff_best = float('inf')
     val_rvce_best = float('inf')
 
     with open(f'outputs/{uuid}/config.pickle', 'wb') as f:
@@ -123,40 +150,17 @@ def run(config: DictConfig):
     for iteration in training_loop:
 
         ## training
-        trn_loss = 0
-        # trn_mae = 0
-
-        model.train()
-        for tensor, target in trn_loader:
-
-            tensor = tensor.to(device)
-            target = target.to(device)
-            
-            scores = model(tensor)
-            loss_value = loss(scores, target)
-
-            trn_loss += loss_value.detach().item()
-            # preds = scores.argmax(1)
-            # trn_mae += (target - preds).abs().sum().item()
-
-            optim.zero_grad()
-            loss_value.backward()
-            optim.step()
-        # trn_mae = trn_mae / len(trn_dataset)
+        train(trn_loader, model, loss, optim)
 
         ## validation
         trn_mae, trn_loss = forward(trn_loader, model, loss)
         val_mae, val_loss = forward(val_loader, model, loss)
 
-        # trn_interval_error, trn_diff = validate_intervals(datapool, True, model, trn_dataset.transform, config)
-        val_rvce, val_diff = validate_intervals(datapool, False, model, val_dataset.transform, config)
+        # trn_rvce = validate_intervals(trn_datapool, True, model, trn_dataset.transform, config)
+        val_rvce = validate_intervals(trn_datapool, False, model, val_dataset.transform, config)
 
         if val_loss <= val_loss_best:
             val_loss_best = val_loss
-
-        # if val_diff <= val_diff_best:
-        #     val_diff_best = val_diff
-        #     torch.save(model.state_dict(), f'outputs/{uuid}/weights/chd.pth')
 
         if val_mae <= val_mae_best:
             val_mae_best = val_mae
@@ -180,10 +184,6 @@ def run(config: DictConfig):
             # "trn rvce": trn_rvce,
             "val rvce": val_rvce,
             "val rvce best": val_rvce_best,
-
-            # "trn diff": trn_diff,
-            # "val diff": val_diff,            
-            # "val diff best": val_diff_best
         })
 
         training_loop.set_description(f'trn loss {trn_loss:.2f} | val loss {val_loss:.2f} | best loss {val_loss_best:.2f}')
@@ -198,12 +198,12 @@ def run(config: DictConfig):
 
     os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)
     
-    save_csv(uuid, model, datapool, 'val')
-    save_csv(uuid, model, datapool, 'trn')
+    validate_and_save(uuid, trn_datapool, 'val')
+    validate_and_save(uuid, trn_datapool, 'trn')
 
     if len(config.testing_files) > 0:
-        datapool = DataPool(config.testing_files, config.window_length, config.split_ratio)
-        save_csv(uuid, model, datapool, 'tst')
+        tst_datapool = DataPool(config.testing_files, config.window_length, config.split_ratio)
+        validate_and_save(uuid, tst_datapool, 'tst')
 
     wandb_run.finish()
 

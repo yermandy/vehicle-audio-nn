@@ -6,7 +6,7 @@ import argparse
 def cross_validation_error(uuids):
     test_outputs = []
     for uuid in uuids:
-        results = np.loadtxt(f'outputs/{uuid}/results/test_output.csv', delimiter='; ', skiprows=1, usecols=[0,1,2,3])
+        results = np.loadtxt(f'outputs/{uuid}/results/tst_output.csv', delimiter='; ', skiprows=1, usecols=[0,1,2,3])
         results = np.atleast_2d(results)
         test_outputs.append(results.mean(0))
     outputs_mean = np.mean(test_outputs, axis=0)

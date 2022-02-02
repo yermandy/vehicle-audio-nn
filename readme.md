@@ -10,6 +10,7 @@ librosa==0.8.1
 tqdm
 easydict
 moviepy
+tabulate
 ```
 
 Install torch with pip

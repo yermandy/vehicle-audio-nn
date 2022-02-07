@@ -2,9 +2,9 @@ import os
 from torch.nn.modules.module import T
 import wandb
 import math
+from tabulate import tabulate
 import torch
 import torchaudio
-import torchvision.transforms as transforms
 import torch.nn as nn
 import numpy as np
 
@@ -16,7 +16,6 @@ from copy import deepcopy
 from .video import Video
 from .datapool import DataPool
 from .loaders import *
-from .constants import *
 from .constants import *
 from .params import *
 
@@ -136,10 +135,10 @@ def get_labels(events, window_length, from_time, till_time):
     return labels
 
 
-def validate(signal, model, transform, params, tqdm=lambda x: x, batch_size=32, return_probs=False, from_time=None, till_time=None, classification=True):
+def validate(signal, model, transform, config, tqdm=lambda x: x, return_probs=False, from_time=None, till_time=None, classification=True):
 
     if from_time is not None and till_time is not None:
-        signal = crop_signal(signal, params.sr, from_time, till_time)
+        signal = crop_signal(signal, config.sr, from_time, till_time)
         
     device = next(model.parameters()).device
 
@@ -147,20 +146,20 @@ def validate(signal, model, transform, params, tqdm=lambda x: x, batch_size=32, 
     predictions = []
     probs = []
 
-    n_hops = get_n_hops(signal, params) 
+    n_hops = get_n_hops(signal, config) 
 
     loop = tqdm(range(n_hops))
 
     model.eval()
     with torch.no_grad():
         for k in loop:
-            start = k * params.n_samples_in_nn_hop
-            end = start + params.n_samples_in_window
+            start = k * config.n_samples_in_nn_hop
+            end = start + config.n_samples_in_window
             x = signal[start: end]
             x = transform(x)
             batch.append(x)
             
-            if (k + 1) % batch_size == 0 or k + 1 == n_hops:
+            if (k + 1) % config.batch_size == 0 or k + 1 == n_hops:
                 batch = torch.stack(batch, dim=0)
                 batch = batch.to(device)
                 scores = model(batch)
@@ -209,11 +208,12 @@ def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=500
 
     all_samples = []
     all_labels = []
+    all_domains = []
 
     n_files = len(datapool)
     n_samples_per_file = n_samples // n_files
 
-    for video in datapool:
+    for i, video in enumerate(datapool):
         video: Video = video
         signal = video.signal
         sr = video.sr
@@ -234,8 +234,9 @@ def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=500
         # print(f'sampled {len(samples)} from {video.file}')
         all_samples.extend(samples)
         all_labels.extend(labels)
+        all_domains.extend([i] * len(labels))
 
-    return all_samples, all_labels
+    return all_samples, all_labels, all_domains
 
 
 def create_dataset_uniformly(signal, sr, events, from_time=None, till_time=None, window_length=10, n_samples=100, seed=42, margin=0, return_timestamps=False):
@@ -326,54 +327,22 @@ def create_dataset_sequentially(signal, sr, events, from_time=None, till_time=No
     return samples, labels
 
 
-def create_transformation(config):
-    use_mfcc = True if 'n_mfcc' in config and config.n_mfcc is not None and config.n_mfcc > 0 else False
+def create_fancy_table(outputs):
+    rvce = outputs[:, 0].astype(float)
+    error = outputs[:, 1].astype(int)
+    n_events = outputs[:, 2].astype(int)
+    mae = outputs[:, 3].astype(float)
 
-    melkwargs = {
-        "n_fft": config.n_fft,
-        "n_mels": config.n_mels,
-        "hop_length": config.hop_length
-    }
-
-    mel_transform = torchaudio.transforms.MelSpectrogram(
-        sample_rate=config.sr, **melkwargs
-    )
-
-    if use_mfcc:
-        mfcc_transform = torchaudio.transforms.MFCC(
-            sample_rate=config.sr, n_mfcc=config.n_mfcc, melkwargs=melkwargs
-        )
-
-    amplitude_to_DB = torchaudio.transforms.AmplitudeToDB(top_db=80)
+    header = ['rvce', 'error', 'n_events', 'mae', 'file']
+    footer = [
+        f'{rvce.mean():.2f} ± {rvce.std():.2f}',
+        f'{error.mean():.2f} ± {error.std():.2f}',
+        f'{n_events.mean():.2f} ± {n_events.std():.2f}',
+        f'{mae.mean():.2f} ± {mae.std():.2f}',
+        'summary'
+    ]
     
-    normalization = config.normalization
+    table = np.vstack(([header], outputs, [footer]))
+    fancy_table = tabulate(table, headers='firstrow', tablefmt='fancy_grid', showindex=True)
 
-    def transform(signal):
-        
-        if use_mfcc:
-            features = mfcc_transform(signal)
-        else:
-            features = mel_transform(signal)
-            features = amplitude_to_DB(features)
-        
-        if normalization == Normalization.NONE:
-            features = features.unsqueeze(0)
-        elif normalization == Normalization.GLOBAL:
-            # normalize globally
-            normalize = lambda x: (x - x.mean()) / torch.maximum(x.std(), torch.tensor(1e-8))
-            features = normalize(features)
-            features = features.unsqueeze(0)
-        elif normalization == Normalization.ROW_WISE:
-            # normalize features row wise
-            features = features.unsqueeze(0)
-            features = (features - features.mean(2).view(-1, 1)) / torch.maximum(features.std(2).view(-1, 1), torch.tensor(1e-8))
-        elif normalization == Normalization.COLUMN_WISE:
-            # normalize features column wise
-            normalize = lambda x: (x - x.mean(0)) / torch.maximum(x.std(0), torch.tensor(1e-8))
-            features = normalize(features)
-            features = features.unsqueeze(0)
-        else:
-            raise Exception('unknown normalization')
-        return features
-
-    return transform
+    return table, fancy_table

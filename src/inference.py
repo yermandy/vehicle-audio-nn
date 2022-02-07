@@ -1,5 +1,5 @@
 from .utils import *
-from tabulate import tabulate
+from .transformation import *
 
 
 def _validate_signal(signal, model, config, tqdm=lambda x: x, batch_size=32, return_probs=False, from_time=None, till_time=None, classification=True):
@@ -110,24 +110,3 @@ def validate_datapool(datapool, model, config, is_trn=None):
     print('rvce', rvce)
     
     return outputs
-
-
-def validation_outputs_table(outputs):
-    rvce = outputs[:, 0].astype(float)
-    error = outputs[:, 1].astype(int)
-    n_events = outputs[:, 2].astype(int)
-    mae = outputs[:, 3].astype(float)
-
-    summary = [
-        f'{rvce.mean():.2f} ± {rvce.std():.2f}',
-        f'{error.mean():.2f} ± {error.std():.2f}',
-        f'{n_events.mean():.2f} ± {n_events.std():.2f}',
-        f'{mae.mean():.2f} ± {mae.std():.2f}',
-        'summary'
-    ]
-    
-    outputs = np.vstack((outputs, [summary]))
-    header = ['rvce', 'error', 'n_events', 'mae', 'file']
-    table = tabulate(outputs, headers=header, tablefmt='fancy_grid', showindex=True)
-
-    return table

@@ -3,20 +3,18 @@ import yaml
 import argparse
 
 
-def cross_validation_error(uuids):
-    test_outputs = []
+def cross_validation_error(uuids, model_name='rvce'):
+    root_uuid = uuids[0].split('/')[0]
+    table = []
     for uuid in uuids:
-        results = np.loadtxt(f'outputs/{uuid}/results/tst_output.csv', delimiter='; ', skiprows=1, usecols=[0,1,2,3])
+        results = np.genfromtxt(f'outputs/{uuid}/results/tst_{model_name}_output.csv', delimiter=';', skip_header=1, skip_footer=1, dtype=str)
         results = np.atleast_2d(results)
-        test_outputs.append(results.mean(0))
-    outputs_mean = np.mean(test_outputs, axis=0)
-    outputs_std = np.std(test_outputs, axis=0)
-
-    header = 'rvce; error; n_events; mae'
-    row = np.array([f'{i:.3f} ± {j:.3f}' for i, j in zip(outputs_mean, outputs_std)])[np.newaxis, :]
-
-    uuid = uuid.split('/')[0]
-    np.savetxt(f'outputs/{uuid}/outputs.csv', row, fmt='%s', delimiter='; ', header=header)
+        table.extend(results)
+    table = np.array(table)
+    table, fancy_table = create_fancy_table(table)
+    np.savetxt(f'outputs/{root_uuid}/tst_{model_name}_output.csv', table, fmt='%s', delimiter=';')
+    with open(f'outputs/{root_uuid}/tst_{model_name}_output.txt', 'w') as file:
+        file.write(fancy_table)
 
 
 def cross_validate(config):

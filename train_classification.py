@@ -12,54 +12,46 @@ import yaml
 import argparse
 
 
-def train(loader, model, loss, optim):
-    device = next(model.parameters()).device
-    # trn_loss = 0
-    # trn_mae = 0
-
-    model.train()
-    for tensor, target in loader:
-
-        tensor = tensor.to(device)
-        target = target.to(device)
-        
-        scores = model(tensor)
-        loss_value = loss(scores, target)
-
-        # trn_loss += loss_value.detach().item()
-        # preds = scores.argmax(1)
-        # trn_mae += (target - preds).abs().sum().item()
-
-        optim.zero_grad()
-        loss_value.backward()
-        optim.step()
-    # trn_mae = trn_mae / len(trn_dataset)
-    # return trn_loss
-
-
-def forward(loader, model, loss):
+def forward(loader, model, loss, optim=None, is_train=False):
     device = next(model.parameters()).device
     n_samples = len(loader.dataset)
 
     loss_sum = 0
     abs_error_sum = 0
 
-    model.eval()
-    with torch.no_grad():
-        for tensor, target in loader:
+    n_events_true = defaultdict(lambda: 0)
+    n_events_pred = defaultdict(lambda: 0)
+
+    if is_train:
+        model.train()
+    else:
+        model.eval()
+
+    with torch.set_grad_enabled(is_train):
+        for tensor, target, domain in loader:
             tensor = tensor.to(device)
             target = target.to(device)
+            logits = model(tensor)
 
-            scores = model(tensor)
-            loss_value = loss(scores, target)
-
-            preds = scores.argmax(1)
-
-            loss_sum += loss_value.detach().item()
+            loss_value = loss(logits, target)
+            loss_sum += loss_value.item()
+            
+            preds = logits.argmax(1)
             abs_error_sum += (target - preds).abs().sum().item()
-    
+
+            if optim is not None:
+                optim.zero_grad()
+                loss_value.backward()
+                optim.step()
+            
+            for d, t, p in zip(domain.tolist(), target.tolist(), preds.tolist()):
+                n_events_true[d] += t
+                n_events_pred[d] += p
+
+    rvce = np.mean([abs(n_events_true[d] - n_events_pred[d]) / n_events_true[d] for d in n_events_true.keys()])
     mae = abs_error_sum / n_samples
-    return mae, loss_sum
+    
+    return mae, loss_sum, rvce
 
 
 def validate_and_save(uuid, datapool, prefix='tst', model_name='rvce'):
@@ -73,12 +65,10 @@ def validate_and_save(uuid, datapool, prefix='tst', model_name='rvce'):
     model, config = load_model_locally(uuid, model_name)
     
     outputs = validate_datapool(datapool, model, config, is_trn)
-    with open(f'outputs/{uuid}/results/{prefix}_output.txt', 'w') as file:
-        table = validation_outputs_table(outputs)
-        file.write(table)
-    
-    header = 'rvce; error; n_events; mae; file'
-    np.savetxt(f'outputs/{uuid}/results/{prefix}_output.csv', outputs, fmt='%s', delimiter='; ', header=header)
+    table, fancy_table = create_fancy_table(outputs)
+    with open(f'outputs/{uuid}/results/{prefix}_{model_name}_output.txt', 'w') as file:
+        file.write(fancy_table)
+    np.savetxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', table, fmt='%s', delimiter=';')
 
 
 @hydra.main(config_path='config', config_name='config')
@@ -138,7 +128,6 @@ def run(config: DictConfig):
     wandb_config.update({'n_trn_samples': len(trn_dataset)}, allow_val_change=True)
     wandb_config.update({'n_val_samples': len(val_dataset)}, allow_val_change=True)
 
-
     val_loss_best = float('inf')
     val_mae_best = float('inf')
     val_rvce_best = float('inf')
@@ -150,14 +139,15 @@ def run(config: DictConfig):
     for iteration in training_loop:
 
         ## training
-        train(trn_loader, model, loss, optim)
+        trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss, optim, True)
 
         ## validation
-        trn_mae, trn_loss = forward(trn_loader, model, loss)
-        val_mae, val_loss = forward(val_loader, model, loss)
+        # trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss)
+        val_mae, val_loss, val_rvce = forward(val_loader, model, loss)
 
+        ## calculate rvce from sequentioal data
         # trn_rvce = validate_intervals(trn_datapool, True, model, trn_dataset.transform, config)
-        val_rvce = validate_intervals(trn_datapool, False, model, val_dataset.transform, config)
+        # val_rvce = validate_intervals(trn_datapool, False, model, val_dataset.transform, config)
 
         if val_loss <= val_loss_best:
             val_loss_best = val_loss
@@ -181,7 +171,7 @@ def run(config: DictConfig):
             "val mae": val_mae,
             "val mae best": val_mae_best,
 
-            # "trn rvce": trn_rvce,
+            "trn rvce": trn_rvce,
             "val rvce": val_rvce,
             "val rvce best": val_rvce_best,
         })

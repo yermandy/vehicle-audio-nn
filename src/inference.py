@@ -99,14 +99,13 @@ def validate_datapool(datapool, model, config, is_trn=None):
         n_predicted = predictions.sum()
         rvce = np.abs(n_predicted - n_events) / n_events
         error = n_predicted - n_events
-        outputs.append([f'{rvce:.3f}', error, n_events, f'{mae:.3f}', f'[{from_time:.0f}, {till_time:.0f}]  {video.file}'])
+        outputs.append([f'{rvce:.3f}', error, n_events, f'{mae:.3f}', f'[{from_time:.0f}, {till_time:.0f}]', video.file])
 
     outputs = np.array(outputs)
     idx = np.argsort(outputs[:, 0].astype(float))
     outputs = outputs[idx]
 
-    rvce = outputs[:, 0].astype(float).mean()
-
-    print('rvce', rvce)
+    # rvce = outputs[:, 0].astype(float).mean()
+    # print('rvce', rvce)
     
     return outputs

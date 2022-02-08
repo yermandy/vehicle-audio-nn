@@ -333,12 +333,13 @@ def create_fancy_table(outputs):
     n_events = outputs[:, 2].astype(int)
     mae = outputs[:, 3].astype(float)
 
-    header = ['rvce', 'error', 'n_events', 'mae', 'file']
+    header = ['rvce', 'error', 'n_events', 'mae', 'time', 'file']
     footer = [
         f'{rvce.mean():.2f} ± {rvce.std():.2f}',
         f'{error.mean():.2f} ± {error.std():.2f}',
         f'{n_events.mean():.2f} ± {n_events.std():.2f}',
         f'{mae.mean():.2f} ± {mae.std():.2f}',
+        '',
         'summary'
     ]
     

@@ -25,7 +25,7 @@ def create_feature_augmentations(config):
     )
 
 
-def create_transformation(config):
+def create_transformation(config, is_train=False):
     use_mfcc = True if 'n_mfcc' in config and config.n_mfcc is not None and config.n_mfcc > 0 else False
     use_augmentations = True if 'feature_augmentation' in config and config.feature_augmentation is True else False
 
@@ -69,7 +69,7 @@ def create_transformation(config):
         else:
             raise Exception('unknown normalization')
 
-        if use_augmentations:
+        if use_augmentations and is_train:
             features = augmentations(features)
 
         return features

@@ -54,14 +54,7 @@ def forward(loader, model, loss, optim=None, is_train=False):
     return mae, loss_sum, rvce
 
 
-def validate_and_save(uuid, datapool, prefix='tst', model_name='rvce'):
-    if prefix == 'trn':
-        is_trn = True
-    elif prefix == 'val':
-        is_trn = False
-    else:
-        is_trn = None
-    
+def validate_and_save(uuid, datapool, prefix='tst', is_trn=None, model_name='rvce'):
     model, config = load_model_locally(uuid, model_name)
     
     outputs = validate_datapool(datapool, model, config, is_trn)
@@ -188,12 +181,12 @@ def run(config: DictConfig):
 
     os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)
     
-    validate_and_save(uuid, trn_datapool, 'val')
-    validate_and_save(uuid, trn_datapool, 'trn')
+    validate_and_save(uuid, trn_datapool, 'val', False)
+    validate_and_save(uuid, trn_datapool, 'trn', True)
 
     if len(config.testing_files) > 0:
         tst_datapool = DataPool(config.testing_files, config.window_length, config.split_ratio)
-        validate_and_save(uuid, tst_datapool, 'tst')
+        validate_and_save(uuid, tst_datapool, 'tst', None)
 
     wandb_run.finish()
 

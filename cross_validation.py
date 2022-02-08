@@ -3,17 +3,17 @@ import yaml
 import argparse
 
 
-def cross_validation_error(uuids, model_name='rvce'):
+def cross_validation_error(uuids, model_name='rvce', prefix='tst'):
     root_uuid = uuids[0].split('/')[0]
     table = []
     for uuid in uuids:
-        results = np.genfromtxt(f'outputs/{uuid}/results/tst_{model_name}_output.csv', delimiter=';', skip_header=1, skip_footer=1, dtype=str)
+        results = np.genfromtxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', delimiter=';', skip_header=1, skip_footer=1, dtype=str)
         results = np.atleast_2d(results)
         table.extend(results)
     table = np.array(table)
     table, fancy_table = create_fancy_table(table)
-    np.savetxt(f'outputs/{root_uuid}/tst_{model_name}_output.csv', table, fmt='%s', delimiter=';')
-    with open(f'outputs/{root_uuid}/tst_{model_name}_output.txt', 'w') as file:
+    np.savetxt(f'outputs/{root_uuid}/{prefix}_{model_name}_output.csv', table, fmt='%s', delimiter=';')
+    with open(f'outputs/{root_uuid}/{prefix}_{model_name}_output.txt', 'w') as file:
         file.write(fancy_table)
 
 

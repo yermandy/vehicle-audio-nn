@@ -26,7 +26,7 @@ class VehicleDataset(Dataset):
             seed=seed,
             is_trn=is_trn,
             offset=offset)
-        self.transform = create_transformation(config)
+        self.transform = create_transformation(config, is_trn)
     
     def set_offset(self, offset):
         self.samples, self.labels, self.domains = create_dataset_from_files(

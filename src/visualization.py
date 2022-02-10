@@ -31,11 +31,11 @@ def show_video(file, scale=0.3):
         </video>
     """)
     
-def show(params, signal, events=None, 
+def show(params, signal, best_detection_frame=None, 
          predictions=None,
          probabilities=None,
          events_start_time=None, events_end_time=None, 
-         manual_events=None, directions=None, views=None,
+         events=None, directions=None, views=None,
          from_time=0, till_time=86400,
          save=None):
 
@@ -70,10 +70,10 @@ def show(params, signal, events=None,
     ax0.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, params.window_length))
     ax0.set_xlabel('time [min:sec]')
     
-    # show events from eyedea engine
-    if events is not None:
+    # show best detection frame from eyedea engine
+    if best_detection_frame is not None:
         colors = 'violet'
-        mask = (events >= from_time) & (events < till_time)
+        mask = (best_detection_frame >= from_time) & (best_detection_frame < till_time)
         
         # color code direction
         if directions is not None:
@@ -83,12 +83,12 @@ def show(params, signal, events=None,
         if views is not None:
             colors = ['red' if view == 'rear' else 'green' for view in views[mask]]
 
-        ax0.vlines(events[mask], 0, 1, color=colors, linewidth=2.0)
+        ax0.vlines(best_detection_frame[mask], 0, 1, color=colors, linewidth=2.0)
                  
-    # show manual annotations
-    if manual_events is not None:
-        mask = (manual_events >= from_time) & (manual_events < till_time)
-        ax0.vlines(manual_events[mask], 0, 1, color='black', linestyle=':', linewidth=2.0)
+    # show annotations
+    if events is not None:
+        mask = (events >= from_time) & (events < till_time)
+        ax0.vlines(events[mask], 0, 1, color='black', linestyle=':', linewidth=2.0)
         
     # show start and end time of events
     if events_start_time is not None and events_end_time is not None:
@@ -135,7 +135,7 @@ def show(params, signal, events=None,
             events_in_windows = []
             x_axis_time = get_time(signal, params, from_time, till_time)
             for i in range(1, len(x_axis_time)):
-                events_in_window = (manual_events >= x_axis_time[i - 1]) & (manual_events < x_axis_time[i])
+                events_in_window = (events >= x_axis_time[i - 1]) & (events < x_axis_time[i])
                 events_in_windows.append(events_in_window.sum())
             #! introduce dummy ending
             events_in_windows.append(0)

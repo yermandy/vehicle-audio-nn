@@ -34,9 +34,8 @@ def get_intervals_from_files(files, from_time, till_time):
     _events_in_intervals = []
     for file in files:
         print(f'loading: {file}')
-        intervals_file = f'data/intervals/{file}.MP4.txt'
-        signal, sr = load_audio(f'data/audio/{file}.MP4.wav', return_sr=True)
-        intervals = load_intervals(intervals_file)
+        signal, sr = load_audio(file, return_sr=True)
+        intervals = load_intervals(file)
         intervals, events_in_intervals = preprocess_intervals(intervals, from_time, till_time)
         
         for interval in intervals:

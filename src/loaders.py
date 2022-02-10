@@ -128,8 +128,6 @@ def load_audio(file, return_sr=False):
     # round to the last second
     seconds = len(signal) // sr
     signal = signal[:seconds * sr]        
-    # normalize
-    signal = (signal - signal.mean()) / signal.std()
     if return_sr:
         return signal, sr
     return signal

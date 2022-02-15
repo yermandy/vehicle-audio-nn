@@ -48,7 +48,7 @@ def forward(loader, model, loss, optim=None, is_train=False):
                 n_events_true[d] += t
                 n_events_pred[d] += p
 
-    rvce = np.mean([abs(n_events_true[d] - n_events_pred[d]) / n_events_true[d] for d in n_events_true.keys()])
+    rvce = np.mean([abs(n_events_true[d] - n_events_pred[d]) / n_events_true[d] for d in n_events_true])
     mae = abs_error_sum / n_samples
     
     return mae, loss_sum, rvce

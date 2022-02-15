@@ -2,8 +2,7 @@ from .utils import *
 from .transformation import *
 
 
-def _validate_signal(signal, model, config, tqdm=lambda x: x, batch_size=32, return_probs=False, from_time=None, till_time=None, classification=True):
-    transform = create_transformation(config)
+def validate(signal, model, transform, config, tqdm=lambda x: x, return_probs=False, from_time=None, till_time=None, classification=True):
 
     if from_time is not None and till_time is not None:
         signal = crop_signal(signal, config.sr, from_time, till_time)
@@ -22,12 +21,12 @@ def _validate_signal(signal, model, config, tqdm=lambda x: x, batch_size=32, ret
     with torch.no_grad():
         for k in loop:
             start = k * config.n_samples_in_nn_hop
-            end = start + config.n_features_in_window
+            end = start + config.n_samples_in_window
             x = signal[start: end]
             x = transform(x)
             batch.append(x)
             
-            if (k + 1) % batch_size == 0 or k + 1 == n_hops:
+            if (k + 1) % config.batch_size == 0 or k + 1 == n_hops:
                 batch = torch.stack(batch, dim=0)
                 batch = batch.to(device)
                 scores = model(batch)
@@ -53,33 +52,28 @@ def _validate_signal(signal, model, config, tqdm=lambda x: x, batch_size=32, ret
     return predictions
 
 
-def _validate_intervals(datapool: DataPool, is_trn: bool, model, config, classification=True):
-    transform = create_transformation(config)
-
-    interval_error = 0
-    difference_error = 0
+def validate_intervals(datapool: DataPool, is_trn: bool, model, transform, params, classification=True):
+    rvce = 0
     n_intervals = 0
+
     for video in datapool:
         video: Video = video
         n_events = video.get_events_count(is_trn)
         from_time, till_time = video.get_from_till_time(is_trn)
 
-        predictions = validate(video.signal, model, transform, config, from_time=from_time, till_time=till_time, classification=classification)
+        predictions = validate(video.signal, model, transform, params, from_time=from_time, till_time=till_time, classification=classification)
         n_intervals += 1
 
-        # calculate error at the end of interval
-        interval_error += np.abs(predictions.sum() - n_events) / n_events
+        rvce += np.abs(predictions.sum() - n_events) / n_events
 
-        # calculate cumulative histogram difference
-        difference_error += get_diff(video.signal, video.events, predictions, config, from_time, till_time)
-
-    mean_interval_error = interval_error / n_intervals
-    mean_difference_error = difference_error / n_intervals
-
-    return mean_interval_error, mean_difference_error
+    mean_rvce = rvce / n_intervals
+    return mean_rvce
 
 
 def validate_datapool(datapool, model, config, is_trn=None):
+    """
+        Returns array [[0:rvce, 1:error, 2:n_events, 3:mae, 4:time, 5:file]]
+    """
     transform = create_transformation(config)
     outputs = []
 

@@ -28,6 +28,7 @@ def create_feature_augmentations(config):
 def create_transformation(config, is_train=False):
     use_mfcc = True if 'n_mfcc' in config and config.n_mfcc is not None and config.n_mfcc > 0 else False
     use_augmentations = True if 'feature_augmentation' in config and config.feature_augmentation is True else False
+    use_resampling = True if config.sr != 44100 else False
 
     mel_transform = create_mel_transform(config)
     
@@ -37,17 +38,24 @@ def create_transformation(config, is_train=False):
     if use_augmentations:
         augmentations = create_feature_augmentations(config)
 
+    amplitude_to_DB = T.AmplitudeToDB()
 
-    amplitude_to_DB = T.AmplitudeToDB(top_db=80)
+    if use_resampling:
+        resample = T.Resample(44100, config.sr)
     
     normalization = config.normalization
 
     def transform(signal) -> torch.Tensor:
+        if use_resampling:
+            signal = resample(signal)
         
         if use_mfcc:
             features = mfcc_transform(signal)
         else:
             features = mel_transform(signal)
+            # https://arxiv.org/pdf/1709.01922.pdf
+            # apply logarithmic compression
+            # features = torch.log10(features + 1)
             features = amplitude_to_DB(features)
 
         if normalization == Normalization.NONE:

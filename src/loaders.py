@@ -127,7 +127,7 @@ def load_audio(file, return_sr=False):
         signal, sr = load_audio_wav(f'data/audio/{file}.MP4.wav', True)
     # round to the last second
     seconds = len(signal) // sr
-    signal = signal[:seconds * sr]        
+    signal = signal[:seconds * sr]
     if return_sr:
         return signal, sr
     return signal
@@ -211,6 +211,8 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device
     num_classes = len(weights['model.fc.bias'])
     model = ResNet18(num_classes=num_classes).to(device)
     model.load_state_dict(weights)
+    model.eval()
+    
     return model, config
 
 
@@ -224,6 +226,7 @@ def load_model_locally(uuid, model_name='mae', device=None, classification=True)
     num_classes = len(weights['model.fc.bias'])
     model = ResNet18(num_classes=num_classes).to(device)
     model.load_state_dict(weights)
+    model.eval()
 
     with open(f'outputs/{uuid}/config.pickle', 'rb') as f:
         config = pickle.load(f)

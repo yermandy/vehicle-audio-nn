@@ -1,0 +1,22 @@
+# sampling rate [samples]
+sr: 44100
+# length of one feature in samples
+n_fft: 1024
+# number of mel features
+n_mels: 64
+# number of mfcc features
+n_mfcc: 0
+# stft hop length
+hop_length: 128
+# frequency upper bound
+f_max: 11000
+# frequency lower bound
+f_min: 0
+# size of gaussian kernel for features preprocessing
+gaussian_blur: 0
+# resize features
+resize: True
+# resize to size
+resize_size: [128, 128]
+# none / row-wise / column-wise / global
+normalization: global

@@ -1,0 +1,11 @@
+# name of run
+uuid: ${now:%d.%m.%y}-${now:%H:%M:%S}
+
+defaults:
+  - _self_
+  - wandb: wandb
+  - testing_files: default
+  - training_files: default
+  - features@_here_: default
+  - model@_here_: default
+  - experiment@_here_: null

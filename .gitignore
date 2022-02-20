@@ -9,5 +9,6 @@ weights
 plots
 outputs
 multirun
+config
 
 __pycache__

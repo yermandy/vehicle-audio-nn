@@ -48,7 +48,8 @@ def cross_validate(config):
 
         run()
 
-    cross_validation_error(uuids)
+    cross_validation_error(uuids, 'rvce')
+    cross_validation_error(uuids, 'mae')
 
 
 if __name__ == "__main__":

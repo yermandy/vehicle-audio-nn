@@ -1,6 +1,7 @@
 import numpy as np
 import src 
 
+
 class Video():
     def __init__(self, file: str, window_length: float = 6, split_ratio: float = 25 * 60, silent: bool = True):
         if not silent:
@@ -8,9 +9,9 @@ class Video():
             
         self.silent = silent
         self.file = file
-        self.signal, self.sr = src.load_audio(f'data/audio/{file}.MP4.wav', return_sr=True)
-        self.events = src.load_events(f'data/labels/{file}.MP4.txt')
-        self.intervals = src.load_intervals(f'data/intervals/{file}.MP4.txt')[:, 1]
+        self.signal, self.sr = src.load_audio(file, return_sr=True)
+        self.events = src.load_events(file)
+        self.intervals = src.load_intervals(file)[:, 1]
         self.signal_length = len(self.signal) / self.sr
         self._split(window_length, split_ratio)
 

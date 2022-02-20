@@ -3,6 +3,7 @@ import torchaudio
 import numpy as np
 from collections import defaultdict, Counter
 import pickle
+import os
 
 def time_to_sec(time):
     h, m, s = map(float, time.split(':'))
@@ -104,28 +105,45 @@ def preprocess_csv(csv):
     return rows
 
 
-def load_audio(audio_file, return_sr=False):
-    signal, sr = torchaudio.load(audio_file)
+def load_audio_wav(file, return_sr=False):
+    signal, sr = torchaudio.load(file)
     signal = signal.mean(0)
+    if return_sr:
+        return signal, sr
+    return signal
+
+
+def load_audio_tensor(file, return_sr=False):
+    signal, sr = torch.load(file)
+    if return_sr:
+        return signal, sr
+    return signal
+
+
+def load_audio(file, return_sr=False):
+    if os.path.exists(f'data/audio_tensors/{file}.MP4.pt'):
+        signal, sr = load_audio_tensor(f'data/audio_tensors/{file}.MP4.pt', True)
+    else:
+        signal, sr = load_audio_wav(f'data/audio/{file}.MP4.wav', True)
     # round to the last second
     seconds = len(signal) // sr
-    signal = signal[:seconds * sr]        
+    signal = signal[:seconds * sr]
     if return_sr:
         return signal, sr
     return signal
 
 
 def load_events(file):
-    return np.loadtxt(file)
+    return np.loadtxt(f'data/labels/{file}.MP4.txt')
 
 
 def load_intervals(file):
-    return np.loadtxt(file)
+    return np.loadtxt(f'data/intervals/{file}.MP4.txt')
 
 
 def load_intervals_and_n_events(file):
-    events = load_events(f'data/labels/{file}.MP4.txt')
-    intervals = load_intervals(f'data/intervals/{file}.MP4.txt')
+    events = load_events(file)
+    intervals = load_intervals(file)
 
     n_events_array = []
     for interval_from_time, interval_till_time in intervals:
@@ -193,6 +211,8 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device
     num_classes = len(weights['model.fc.bias'])
     model = ResNet18(num_classes=num_classes).to(device)
     model.load_state_dict(weights)
+    model.eval()
+    
     return model, config
 
 
@@ -206,6 +226,7 @@ def load_model_locally(uuid, model_name='mae', device=None, classification=True)
     num_classes = len(weights['model.fc.bias'])
     model = ResNet18(num_classes=num_classes).to(device)
     model.load_state_dict(weights)
+    model.eval()
 
     with open(f'outputs/{uuid}/config.pickle', 'rb') as f:
         config = pickle.load(f)

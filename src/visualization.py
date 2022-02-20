@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 
 import warnings
+
+from .transformation import create_transformation
 warnings.filterwarnings("ignore")
 
 
@@ -31,22 +33,23 @@ def show_video(file, scale=0.3):
         </video>
     """)
     
-def show(params, signal, events=None, 
+def show(config, signal, best_detection_frame=None, 
          predictions=None,
          probabilities=None,
          events_start_time=None, events_end_time=None, 
-         manual_events=None, directions=None, views=None,
+         events=None, directions=None, views=None,
          from_time=0, till_time=86400,
-         save=None):
+         save=None,
+         plot_true_features=False):
 
     def formatter(x, y):
         return f'{x // 60:02.0f}:{x % 60:02.0f}'
     
     print(f'{formatter(from_time, None)} - {formatter(till_time, None)}')
     
-    signal = signal[from_time * params.sr: till_time * params.sr]
+    signal = signal[from_time * config.sr: till_time * config.sr]
     
-    signal_length = len(signal) / params.sr
+    signal_length = len(signal) / config.sr
 
     nrows = 3
     if predictions is not None:
@@ -67,13 +70,13 @@ def show(params, signal, events=None,
     ax0.plot(x_axis, np.zeros(len(x_axis)), marker='o', markersize=3, color='black')
 
     ax0.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
-    ax0.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, params.window_length))
+    ax0.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, config.window_length))
     ax0.set_xlabel('time [min:sec]')
     
-    # show events from eyedea engine
-    if events is not None:
+    # show best detection frame from eyedea engine
+    if best_detection_frame is not None:
         colors = 'violet'
-        mask = (events >= from_time) & (events < till_time)
+        mask = (best_detection_frame >= from_time) & (best_detection_frame < till_time)
         
         # color code direction
         if directions is not None:
@@ -83,12 +86,12 @@ def show(params, signal, events=None,
         if views is not None:
             colors = ['red' if view == 'rear' else 'green' for view in views[mask]]
 
-        ax0.vlines(events[mask], 0, 1, color=colors, linewidth=2.0)
+        ax0.vlines(best_detection_frame[mask], 0, 1, color=colors, linewidth=2.0)
                  
-    # show manual annotations
-    if manual_events is not None:
-        mask = (manual_events >= from_time) & (manual_events < till_time)
-        ax0.vlines(manual_events[mask], 0, 1, color='black', linestyle=':', linewidth=2.0)
+    # show annotations
+    if events is not None:
+        mask = (events >= from_time) & (events < till_time)
+        ax0.vlines(events[mask], 0, 1, color='black', linestyle=':', linewidth=2.0)
         
     # show start and end time of events
     if events_start_time is not None and events_end_time is not None:
@@ -108,23 +111,23 @@ def show(params, signal, events=None,
 
     # plot predictions
     if predictions is not None:
-        if signal_length % params.window_length != 0:
-            print(f'interval is not divisible by {params.window_length}')
+        if signal_length % config.window_length != 0:
+            print(f'interval is not divisible by {config.window_length}')
         ax3.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
-        ax3.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, params.window_length))
+        ax3.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, config.window_length))
         from .utils import get_time
-        x_axis_time = get_time(signal, params, from_time, till_time)
+        x_axis_time = get_time(signal, config, from_time, till_time)
         #! introduce dummy ending
         predictions = np.append(predictions, 0)
         ax3.step(x_axis_time, predictions, where='post', linewidth=3.0, c='tab:red')
         
         max_output = int(np.max(predictions))
         ax3.hlines(np.arange(1, max_output + 1), x_axis_time[0], x_axis_time[-1], color='k', linestyle='dotted', linewidth=1.0)
-        max_output = max(max_output, 1)
+        max_output = max(max_output, 1) + 1
         ax3.vlines(x_axis_time, 0, max_output, color='k', linestyle='dotted', linewidth=1, alpha=0.5)
         
         if probabilities is not None:
-            x_axis_time = get_time(signal, params, from_time, till_time)
+            x_axis_time = get_time(signal, config, from_time, till_time)
             for x, p in zip(x_axis_time[:-1], probabilities):
                 predicted_class = np.argmax(p)
                 for i, p_i in zip(range(predicted_class + 1), p):
@@ -133,9 +136,9 @@ def show(params, signal, events=None,
 
         if events is not None:
             events_in_windows = []
-            x_axis_time = get_time(signal, params, from_time, till_time)
+            x_axis_time = get_time(signal, config, from_time, till_time)
             for i in range(1, len(x_axis_time)):
-                events_in_window = (manual_events >= x_axis_time[i - 1]) & (manual_events < x_axis_time[i])
+                events_in_window = (events >= x_axis_time[i - 1]) & (events < x_axis_time[i])
                 events_in_windows.append(events_in_window.sum())
             #! introduce dummy ending
             events_in_windows.append(0)
@@ -145,7 +148,7 @@ def show(params, signal, events=None,
     each = 16
     ax1.plot(signal[::each], alpha=0.5)
     
-    features = torch.stft(signal, n_fft=params.n_fft, hop_length=params.hop_length)
+    features = torch.stft(signal, n_fft=config.n_fft, hop_length=config.hop_length)
     energy = features[..., 0].pow(2)
     energy = energy.sum(0)
     energy = conv(energy)
@@ -159,11 +162,15 @@ def show(params, signal, events=None,
     ax1.set_xlabel('number of samples')
 
     # plot spectrogram
-    transform_signal = torchaudio.transforms.MelSpectrogram(sample_rate=params.sr, **get_melkwargs(params))
-    transform_power = torchaudio.transforms.AmplitudeToDB(top_db=70)
+    if plot_true_features:
+        transform = create_transformation(config)
+        features = transform(signal).squeeze()
+    else:
+        transform_signal = torchaudio.transforms.MelSpectrogram(sample_rate=config.sr, **get_melkwargs(config))
+        transform_power = torchaudio.transforms.AmplitudeToDB(top_db=70)
+        features = transform_signal(signal)
+        features = transform_power(features)
 
-    features = transform_signal(signal)
-    features = transform_power(features)
     ax2.pcolormesh(features)
     ax2.set_xlabel('number of features')
         

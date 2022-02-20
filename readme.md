@@ -5,11 +5,12 @@
 Install with pip
 ```
 hydra-core==1.1.1
-wandb==0.12.7
+wandb==0.12.10
 librosa==0.8.1
 tqdm
 easydict
 moviepy
+tabulate
 ```
 
 Install torch with pip

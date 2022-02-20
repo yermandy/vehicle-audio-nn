@@ -19,17 +19,17 @@ class VehicleDataset(Dataset):
         self.n_samples = n_samples
         self.seed = seed
         self.is_trn = is_trn
-        self.samples, self.labels = create_dataset_from_files(
+        self.samples, self.labels, self.domains = create_dataset_from_files(
             datapool, 
             window_length=self.window_length,
             n_samples=n_samples,
             seed=seed,
             is_trn=is_trn,
             offset=offset)
-        self.transform = create_transformation(config)
+        self.transform = create_transformation(config, is_trn)
     
     def set_offset(self, offset):
-        self.samples, self.labels = create_dataset_from_files(
+        self.samples, self.labels, self.domains = create_dataset_from_files(
             datapool=self.datapool, 
             window_length=self.window_length,
             n_samples=self.n_samples,
@@ -43,5 +43,6 @@ class VehicleDataset(Dataset):
     def __getitem__(self, index):
         sample = self.samples[index]
         label = self.labels[index]
+        domain = self.domains[index]
         features = self.transform(sample)
-        return features, label
+        return features, label, domain

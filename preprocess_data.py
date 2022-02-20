@@ -7,6 +7,7 @@ from src import *
 
 
 os.makedirs('data/audio', exist_ok=True)
+os.makedirs('data/audio_tensors', exist_ok=True)
 os.makedirs('data/labels', exist_ok=True)
 os.makedirs('data/intervals', exist_ok=True)
 
@@ -15,6 +16,8 @@ def extract_audio(file):
     import moviepy.editor as mp
     video = mp.VideoFileClip(f"data/video/{file}.MP4")
     video.audio.write_audiofile(f"data/audio/{file}.MP4.wav")
+    signal, sr = load_audio(file, return_sr=True)
+    torch.save([signal, sr], f'data/audio_tensors/{file}.MP4.pt')
 
 
 def optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=True, window_len=0.5):
@@ -61,7 +64,7 @@ def optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=T
 
 
 def extract_labels(file):
-    signal, sr = load_audio(f'data/audio/{file}.MP4.wav', return_sr=True)
+    signal, sr = load_audio(file, return_sr=True)
     signal_length = len(signal) // sr
     csv = load_csv(f'{file}.MP4')
     views = load_views_from_csv(csv)

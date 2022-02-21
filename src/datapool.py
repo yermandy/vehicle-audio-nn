@@ -1,6 +1,6 @@
 from typing import List
 from .video import Video
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 class DataPool(dict):
     def __init__(self,

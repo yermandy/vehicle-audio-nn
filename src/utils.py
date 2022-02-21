@@ -7,9 +7,10 @@ import torch
 import torchaudio
 import torch.nn as nn
 import numpy as np
+import omegaconf
 
 from easydict import EasyDict
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from datetime import datetime
 from copy import deepcopy
 
@@ -278,3 +279,15 @@ def create_fancy_table(outputs):
     fancy_table = tabulate(table, headers='firstrow', tablefmt='fancy_grid', showindex=True)
 
     return table, fancy_table
+
+def print_config(config):
+    table = [] 
+    for k, v in config.items():
+        if type(v) == omegaconf.listconfig.ListConfig: 
+            table.append([k, f'list with {len(v)} entries'])
+        elif type(v) == omegaconf.dictconfig.DictConfig: 
+            table.append([k, f'dict with {len(v)} entries'])
+        else:
+            table.append([k, v])
+    print(tabulate(table))
+

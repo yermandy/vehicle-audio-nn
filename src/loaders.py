@@ -4,6 +4,7 @@ import numpy as np
 from collections import defaultdict, Counter
 import pickle
 import os
+from .model import ResNet18
 
 def time_to_sec(time):
     h, m, s = map(float, time.split(':'))
@@ -217,8 +218,6 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device
 
 
 def load_model_locally(uuid, model_name='mae', device=None, classification=True):
-    if classification:
-        from model.classification import ResNet18
     if device is None:
         device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
 

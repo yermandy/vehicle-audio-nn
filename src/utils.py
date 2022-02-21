@@ -1,5 +1,4 @@
 import os
-from torch.nn.modules.module import T
 import wandb
 import math
 from tabulate import tabulate

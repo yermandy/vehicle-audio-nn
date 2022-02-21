@@ -64,8 +64,10 @@ def validate_and_save(uuid, datapool, prefix='tst', is_trn=None, model_name='rvc
     np.savetxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', table, fmt='%s', delimiter=';')
 
 
-@hydra.main(config_path='config', config_name='config')
+@hydra.main(config_path='config', config_name='default')
 def run(config: DictConfig):
+    print_config(config)
+
     wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
 
     # replace DictConfig with EasyDict
@@ -196,26 +198,10 @@ def run(config: DictConfig):
 
 
 def setup_hydra():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config-name", default='default', type=str)
-    args, _ = parser.parse_known_args()
-
-    with open(f'config/{args.config_name}.yaml', 'r') as stream:
-        config = yaml.safe_load(stream)
-        config = EasyDict(config)
-
-    if 'output_name' in config and config.output_name:
-        uuid = config.output_name
-    else:
-        uuid = int(datetime.now().timestamp())
-    print('Run name:', uuid)
-
-    sys.argv.append(f'+uuid={uuid}')
-    sys.argv.append(f'hydra.run.dir=outputs/{uuid}')
+    sys.argv.append(r'hydra.run.dir=outputs/${uuid}')
     sys.argv.append(f'hydra.output_subdir=config')
     sys.argv.append(f'hydra/job_logging=disabled')
     sys.argv.append(f'hydra/hydra_logging=none')
-
 
 if __name__ == "__main__":
     setup_hydra()

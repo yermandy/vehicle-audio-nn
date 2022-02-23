@@ -149,7 +149,6 @@ def create_transformation(config, is_train=False):
             features = augmentations(features)
 
         if use_gaussian_blur:
-            print('gaussian blur')
             features = gaussian_blur(features)
 
         if use_image_augmentations and is_train:

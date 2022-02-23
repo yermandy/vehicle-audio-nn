@@ -1,22 +1,38 @@
 # sampling rate [samples]
 sr: 44100
-# length of one feature in samples
+ 
+# stft | mel | mfcc
+transformation: stft
+
+#! stft parameters
+# size of FFT, creates n_fft // 2 + 1 bins
 n_fft: 1024
+# length of hop between STFT windows
+hop_length: 512
+
+#! mel parameters (uses stft parameters)
 # number of mel features
-n_mels: 64
-# number of mfcc features
-n_mfcc: 0
-# stft hop length
-hop_length: 128
-# frequency upper bound
+n_mels: 128
+# frequency upper bound: int or null
 f_max: 11000
 # frequency lower bound
 f_min: 0
-# size of gaussian kernel for features preprocessing
-gaussian_blur: 0
+
+#! mfcc parameters (uses stft and mel parameters)
+# number of mfcc features
+n_mfcc: 0
+
+#! features post processing
+# time masking and frequency masking augmentations for training
+feature_augmentation: false
+time_mask_param: null
+freq_mask_param: null
+# size of gaussian kernel and sigma e.g.: [5, 0.5]
+gaussian_blur: null
 # resize features
-resize: True
-# resize to size
+resize: null
+# resize to size e.g.: [128, 128]
 resize_size: [128, 128]
-# none / row-wise / column-wise / global
+# zero mean, unit variance feature normalization:
+# none | row-wise | column-wise | global
 normalization: global

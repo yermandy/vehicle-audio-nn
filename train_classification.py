@@ -1,7 +1,6 @@
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from model.classification import *
 from src import *
 from omegaconf import DictConfig, OmegaConf
 
@@ -85,10 +84,10 @@ def run(config: DictConfig):
 
     config = get_additional_params(config)
 
-    device = torch.device(f'cuda:{config.cuda}' if torch.cuda.is_available() else 'cpu')
+    device = get_device(config.cuda)
     print(f'Running on {device}')
 
-    trn_datapool = DataPool(config.training_files, config.window_length, config.split_ratio)
+    trn_datapool = DataPool(config.training_files, config)
 
     trn_dataset = VehicleDataset(
         trn_datapool,
@@ -190,7 +189,7 @@ def run(config: DictConfig):
     validate_and_save(uuid, trn_datapool, 'trn', True, 'mae')
 
     if len(config.testing_files) > 0:
-        tst_datapool = DataPool(config.testing_files, config.window_length, config.split_ratio)
+        tst_datapool = DataPool(config.testing_files, config)
         validate_and_save(uuid, tst_datapool, 'tst', None, 'rvce')
         validate_and_save(uuid, tst_datapool, 'tst', None, 'mae')
 

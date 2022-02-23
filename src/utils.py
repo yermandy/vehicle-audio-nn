@@ -20,6 +20,9 @@ from .constants import *
 from .params import *
 
 
+def get_device(cuda):
+    return torch.device(f'cuda:{cuda}' if torch.cuda.is_available() else 'cpu')
+
 def get_cumsum(T, E):
     hist = []
     for i in range(1, len(T)):
@@ -99,7 +102,7 @@ def get_diff(signal, events, predictions, params, from_time=None, till_time=None
         from_time = 0
     
     if till_time == None:
-        till_time = len(signal) / params.sr
+        till_time = get_signal_length(signal, params)
 
     signal, events = crop_signal_events(signal, events, params.sr, from_time, till_time)
 
@@ -132,7 +135,12 @@ def get_labels(events, window_length, from_time, till_time):
         labels.append(mask.sum())
     labels = np.array(labels)
     return labels
-    
+
+
+def get_signal_length(signal, config):
+    # in this project we assume that the loaded signal has 44100 samples in one second
+    return len(signal) // config.sr
+
 
 def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=5000, seed=42, is_trn=True, offset=0):
     """ if n_samples == -1, dataset is created sequentially from a sequence """

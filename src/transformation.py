@@ -9,18 +9,31 @@ import torchvision.transforms as TV
 from .constants import *
 
 
+def create_stftkwargs(config):
+    return {
+        'n_fft': config.n_fft, 
+        'hop_length': config.hop_length,
+        'power': 1
+    }
+
 def create_melkwargs(config):
-    return {"n_fft": config.n_fft, "n_mels": config.n_mels, "hop_length": config.hop_length}
+    return {
+        'n_mels': config.n_mels,
+        'f_min': config.f_min,
+        'f_max': config.f_max
+    }
 
 
 def create_mel_transform(config):
-    return T.MelSpectrogram(sample_rate=config.sr, 
-            f_max=config.f_max,
-            **create_melkwargs(config))
+    return T.MelSpectrogram(sample_rate=config.sr, **create_melkwargs(config), **create_stftkwargs(config))
 
 
 def create_mfcc_transform(config):
     return T.MFCC(sample_rate=config.sr, n_mfcc=config.n_mfcc, melkwargs=create_melkwargs(config))
+
+
+def create_stft_transform(config):
+    return T.Spectrogram(**create_stftkwargs(config))
 
 
 def create_feature_augmentations(config):
@@ -34,6 +47,9 @@ def initialize(config):
     if 'f_max' not in config:
         config.f_max = None
 
+    if 'f_min' not in config:
+        config.f_min = 0
+
     if 'n_mfcc' not in config:
         config.n_mfcc = 0
 
@@ -41,7 +57,7 @@ def initialize(config):
         config.feature_augmentation = False
 
     if 'gaussian_blur' not in config:
-        config.gaussian_blur = 0
+        config.gaussian_blur = [5, 0.5]
 
     if 'image_augmentations' not in config:
         config.image_augmentations = False
@@ -52,32 +68,39 @@ def initialize(config):
     if 'resize_size' not in config:
         config.resize_size = [64, 64]
 
+    if 'transformation' not in config:
+        config.transformation = 'mel'
+
 
 def create_transformation(config, is_train=False):
     initialize(config)
 
-    use_mfcc = config.n_mfcc > 0
+    use_mfcc = config.transformation == 'mfcc'
+    use_mel = config.transformation == 'mel'
+    use_stft = config.transformation == 'stft'
     use_augmentations = config.feature_augmentation
-    use_resampling = config.sr != 44100
-    use_gaussian_blur = config.gaussian_blur > 0
+    use_gaussian_blur = config.gaussian_blur is not None and type(config.gaussian_blur) == list
     use_image_augmentations = config.image_augmentations
 
-    mel_transform = create_mel_transform(config)
     normalization = config.normalization
-    amplitude_to_DB = T.AmplitudeToDB()
+
+    # apply logarithmic compression: https://arxiv.org/pdf/1709.01922.pdf
+    amplitude_to_DB = T.AmplitudeToDB('energy')
     
+    if use_mel:
+        mel_transform = create_mel_transform(config)
+
+    if use_stft:
+        stft_transform = create_stft_transform(config)
+        
     if use_mfcc:
         mfcc_transform = create_mfcc_transform(config)
 
     if use_augmentations:
         augmentations = create_feature_augmentations(config)
 
-    if use_resampling:
-        resample = T.Resample(44100, config.sr)
-
     if use_gaussian_blur:
-        gaussian_blur = lambda x: F.gaussian_blur(x, config.gaussian_blur, 0.1)
-        # gaussian_blur = torchvision.transforms.GaussianBlur(config.gaussian_blur, sigma=0.1)
+        gaussian_blur = lambda x: F.gaussian_blur(x, config.gaussian_blur[0], config.gaussian_blur[1])
 
     if config.resize:
         resize = TV.Resize(config.resize_size)
@@ -91,16 +114,13 @@ def create_transformation(config, is_train=False):
         ])
 
     def transform(signal) -> torch.Tensor:
-        if use_resampling:
-            signal = resample(signal)
-        
         if use_mfcc:
             features = mfcc_transform(signal)
+        elif use_stft:
+            features = stft_transform(signal)
+            features = amplitude_to_DB(features)
         else:
             features = mel_transform(signal)
-            # https://arxiv.org/pdf/1709.01922.pdf
-            # apply logarithmic compression
-            # features = torch.log10(features + 1)
             features = amplitude_to_DB(features)
 
         if config.resize:
@@ -129,6 +149,7 @@ def create_transformation(config, is_train=False):
             features = augmentations(features)
 
         if use_gaussian_blur:
+            print('gaussian blur')
             features = gaussian_blur(features)
 
         if use_image_augmentations and is_train:

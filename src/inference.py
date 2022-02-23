@@ -80,7 +80,7 @@ def validate_datapool(datapool, model, config, is_trn=None):
     for video in tqdm(datapool):
         if is_trn is None:
             from_time = 0
-            till_time = len(video.signal) // config.sr
+            till_time = get_signal_length(video.signal, config)
             n_events = len(video.events)
         else:
             n_events = video.get_events_count(is_trn)

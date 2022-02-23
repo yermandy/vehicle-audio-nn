@@ -3,17 +3,17 @@ import src
 
 
 class Video():
-    def __init__(self, file: str, window_length: float = 6, split_ratio: float = 25 * 60, silent: bool = True):
+    def __init__(self, file: str, config, silent: bool = True):
         if not silent:
             print(f'loading: {file}')
             
         self.silent = silent
         self.file = file
-        self.signal, self.sr = src.load_audio(file, return_sr=True)
+        self.signal, self.sr = src.load_audio(file, resample_sr=config.sr, return_sr=True)
         self.events = src.load_events(file)
         self.intervals = src.load_intervals(file)[:, 1]
         self.signal_length = len(self.signal) / self.sr
-        self._split(window_length, split_ratio)
+        self._split(config.window_length, config.split_ratio)
 
     def _split(self, window_length: float, split_ratio: float):
         split_at = self.signal_length * split_ratio

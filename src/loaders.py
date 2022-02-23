@@ -5,6 +5,8 @@ from collections import defaultdict, Counter
 import pickle
 import os
 from .model import ResNet18
+import torchaudio.transforms as T
+
 
 def time_to_sec(time):
     h, m, s = map(float, time.split(':'))
@@ -108,6 +110,7 @@ def preprocess_csv(csv):
 
 def load_audio_wav(file, return_sr=False):
     signal, sr = torchaudio.load(file)
+    assert sr == 44100, 'sampling rate of the device is not 44100'
     signal = signal.mean(0)
     if return_sr:
         return signal, sr
@@ -116,21 +119,24 @@ def load_audio_wav(file, return_sr=False):
 
 def load_audio_tensor(file, return_sr=False):
     signal, sr = torch.load(file)
+    assert sr == 44100, 'sampling rate of the device is not 44100'
     if return_sr:
         return signal, sr
     return signal
 
 
-def load_audio(file, return_sr=False):
+def load_audio(file, resample_sr=44100, return_sr=False):
     if os.path.exists(f'data/audio_tensors/{file}.MP4.pt'):
         signal, sr = load_audio_tensor(f'data/audio_tensors/{file}.MP4.pt', True)
     else:
         signal, sr = load_audio_wav(f'data/audio/{file}.MP4.wav', True)
+    if sr != resample_sr:
+        signal = T.Resample(sr, resample_sr).forward(signal)
     # round to the last second
-    seconds = len(signal) // sr
-    signal = signal[:seconds * sr]
+    seconds = len(signal) // resample_sr
+    signal = signal[:seconds * resample_sr]
     if return_sr:
-        return signal, sr
+        return signal, resample_sr
     return signal
 
 
@@ -194,11 +200,9 @@ def load_event_time_from_csv(csv):
 def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device=None, classification=True):
     import wandb
     from easydict import EasyDict
-    if classification:
-        from model.classification import ResNet18
 
     if device is None:
-        device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
+        device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
 
     api = wandb.Api()
     runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
@@ -219,7 +223,7 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device
 
 def load_model_locally(uuid, model_name='mae', device=None, classification=True):
     if device is None:
-        device = torch.device(f'cuda:1' if torch.cuda.is_available() else 'cpu')
+        device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
 
     weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
     num_classes = len(weights['model.fc.bias'])

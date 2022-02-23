@@ -2,7 +2,6 @@ import numpy as np
 import src 
 from .constants import * 
 
-
 class Video():
     def __init__(self, file: str, config, silent: bool = True):
         if not silent:
@@ -12,6 +11,9 @@ class Video():
         self.file = file
         self.signal, self.sr = src.load_audio(file, resample_sr=config.sr, return_sr=True)
         self.events = src.load_events(file)
+        self.csv = src.load_csv(file)
+        self.views = src.load_views_from_csv(self.csv)
+        self.events_start_time, self.events_end_time = src.load_event_time_from_csv(self.csv)
         self.intervals = src.load_intervals(file)[:, 1]
         self.signal_length = len(self.signal) / self.sr
         self._split(config.window_length, config.split_ratio)

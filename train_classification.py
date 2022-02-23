@@ -53,10 +53,10 @@ def forward(loader, model, loss, optim=None, is_train=False):
     return mae, loss_sum, rvce
 
 
-def validate_and_save(uuid, datapool, prefix='tst', is_trn=None, model_name='rvce'):
+def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='rvce'):
     model, config = load_model_locally(uuid, model_name)
     
-    outputs = validate_datapool(datapool, model, config, is_trn)
+    outputs = validate_datapool(datapool, model, config, part)
     table, fancy_table = create_fancy_table(outputs)
     with open(f'outputs/{uuid}/results/{prefix}_{model_name}_output.txt', 'w') as file:
         file.write(fancy_table)
@@ -91,7 +91,7 @@ def run(config: DictConfig):
 
     trn_dataset = VehicleDataset(
         trn_datapool,
-        is_trn=True,
+        part=Part.TRAINING,
         config=config,
         n_samples=config.n_trn_samples
     )
@@ -100,7 +100,7 @@ def run(config: DictConfig):
 
     val_dataset = VehicleDataset(
         trn_datapool,
-        is_trn=False,
+        part=Part.VALIDATION,
         config=config,
         n_samples=config.n_val_samples
     )
@@ -182,16 +182,16 @@ def run(config: DictConfig):
 
     os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)
     
-    validate_and_save(uuid, trn_datapool, 'val', False, 'rvce')
-    validate_and_save(uuid, trn_datapool, 'val', False, 'mae')
+    validate_and_save(uuid, trn_datapool, 'val', Part.VALIDATION, 'rvce')
+    validate_and_save(uuid, trn_datapool, 'val', Part.VALIDATION, 'mae')
     
-    validate_and_save(uuid, trn_datapool, 'trn', True, 'rvce')
-    validate_and_save(uuid, trn_datapool, 'trn', True, 'mae')
+    validate_and_save(uuid, trn_datapool, 'trn', Part.TRAINING, 'rvce')
+    validate_and_save(uuid, trn_datapool, 'trn', Part.TRAINING, 'mae')
 
     if len(config.testing_files) > 0:
         tst_datapool = DataPool(config.testing_files, config)
-        validate_and_save(uuid, tst_datapool, 'tst', None, 'rvce')
-        validate_and_save(uuid, tst_datapool, 'tst', None, 'mae')
+        validate_and_save(uuid, tst_datapool, 'tst', Part.TEST, 'rvce')
+        validate_and_save(uuid, tst_datapool, 'tst', Part.TEST, 'mae')
 
     wandb_run.finish()
 

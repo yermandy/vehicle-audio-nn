@@ -142,7 +142,7 @@ def get_signal_length(signal, config):
     return len(signal) // config.sr
 
 
-def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=5000, seed=42, is_trn=True, offset=0):
+def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=5000, seed=42, part=Part.TRAINING, offset=0):
     """ if n_samples == -1, dataset is created sequentially from a sequence """
 
     all_samples = []
@@ -158,7 +158,7 @@ def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=500
         sr = video.sr
         events = video.events
 
-        from_time, till_time = video.get_from_till_time(is_trn)
+        from_time, till_time = video.get_from_till_time(part)
         from_time = from_time + offset
         
         if n_samples == -1:

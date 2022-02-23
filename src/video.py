@@ -1,5 +1,6 @@
 import numpy as np
 import src 
+from .constants import * 
 
 
 class Video():
@@ -29,31 +30,38 @@ class Video():
         if not self.silent:
             print(f' --> trn time {self.trn_from_time} : {self.trn_till_time}\n --> val time {self.val_from_time} : {self.val_till_time}')
 
-    def get_events(self, is_trn):
-        if is_trn:
+    def get_events(self, part: Part):
+        if part.is_trn():
             return src.crop_events(self.events, self.trn_from_time, self.trn_till_time)
-        else:
+        elif part.is_val():
             return src.crop_events(self.events, self.val_from_time, self.val_till_time)
+        else:
+            return self.events
 
-    def get_signal(self, is_trn):
-        if is_trn:
+    def get_signal(self, part: Part):
+        if part.is_trn():
             return src.crop_signal(self.signal, self.sr, self.trn_from_time, self.trn_till_time)
-        else:
+        elif part.is_val():
             return src.crop_signal(self.signal, self.sr, self.val_from_time, self.val_till_time)
+        else:
+            return self.signal
 
-    def get_from_till_time(self, is_trn):
-        if is_trn:
+    def get_from_till_time(self, part: Part):
+        if part.is_trn():
             return self.trn_from_time, self.trn_till_time
-        else:
+        elif part.is_val():
             return self.val_from_time, self.val_till_time
-
-    def get_events_count(self, is_trn):
-        events = self.events
-        if is_trn:
-            mask = (events >= self.trn_from_time) & (events < self.trn_till_time)
         else:
-            mask = (events >= self.val_from_time) & (events < self.val_till_time)
-        return mask.sum()
+            return self.trn_from_time, self.val_till_time
+
+    def get_events_count(self, part: Part):
+        events = self.events
+        if part.is_trn():
+            return  np.sum((events >= self.trn_from_time) & (events < self.trn_till_time))
+        elif part.is_val():
+            return np.sum((events >= self.val_from_time) & (events < self.val_till_time))
+        else:
+            return len(events)
 
     def __str__(self) -> str:
         return f'{self.file} ({int(self.trn_from_time)}:{int(self.trn_till_time)}) ({int(self.val_from_time)}:{int(self.val_till_time)})'

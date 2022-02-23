@@ -7,7 +7,7 @@ class VehicleDataset(Dataset):
 
     def __init__(self,
             datapool: DataPool,
-            is_trn: bool = True,
+            part: bool = Part.TRAINING,
             seed: int = 42,
             config: EasyDict = EasyDict(),
             n_samples: int = 100,
@@ -18,15 +18,15 @@ class VehicleDataset(Dataset):
         self.window_length = config.window_length
         self.n_samples = n_samples
         self.seed = seed
-        self.is_trn = is_trn
+        self.part = part
         self.samples, self.labels, self.domains = create_dataset_from_files(
             datapool, 
             window_length=self.window_length,
             n_samples=n_samples,
             seed=seed,
-            is_trn=is_trn,
+            part=part,
             offset=offset)
-        self.transform = create_transformation(config, is_trn)
+        self.transform = create_transformation(config, part)
     
     def set_offset(self, offset):
         self.samples, self.labels, self.domains = create_dataset_from_files(
@@ -34,7 +34,7 @@ class VehicleDataset(Dataset):
             window_length=self.window_length,
             n_samples=self.n_samples,
             seed=self.seed,
-            is_trn=self.is_trn,
+            part=self.part,
             offset=offset)
 
     def __len__(self):

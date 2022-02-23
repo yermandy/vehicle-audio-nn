@@ -72,7 +72,7 @@ def initialize(config):
         config.transformation = 'mel'
 
 
-def create_transformation(config, is_train=False):
+def create_transformation(config, part: Part = Part.TEST):
     initialize(config)
 
     use_mfcc = config.transformation == 'mfcc'
@@ -82,7 +82,7 @@ def create_transformation(config, is_train=False):
     use_gaussian_blur = config.gaussian_blur is not None and type(config.gaussian_blur) == list
     use_image_augmentations = config.image_augmentations
 
-    normalization = config.normalization
+    normalization = Normalization(config.normalization)
 
     # apply logarithmic compression: https://arxiv.org/pdf/1709.01922.pdf
     amplitude_to_DB = T.AmplitudeToDB('energy')
@@ -126,18 +126,18 @@ def create_transformation(config, is_train=False):
         if config.resize:
             features = resize(features.unsqueeze(0)).squeeze()
             
-        if normalization == Normalization.NONE:
+        if normalization.is_none():
             features = features.unsqueeze(0)
-        elif normalization == Normalization.GLOBAL:
+        elif normalization.is_global():
             # normalize globally
             normalize = lambda x: (x - x.mean()) / torch.maximum(x.std(), torch.tensor(1e-8))
             features = normalize(features)
             features = features.unsqueeze(0)
-        elif normalization == Normalization.ROW_WISE:
+        elif normalization.is_row_wise():
             # normalize features row wise
             features = features.unsqueeze(0)
             features = (features - features.mean(2).view(-1, 1)) / torch.maximum(features.std(2).view(-1, 1), torch.tensor(1e-8))
-        elif normalization == Normalization.COLUMN_WISE:
+        elif normalization.is_column_wise():
             # normalize features column wise
             normalize = lambda x: (x - x.mean(0)) / torch.maximum(x.std(0), torch.tensor(1e-8))
             features = normalize(features)
@@ -145,13 +145,13 @@ def create_transformation(config, is_train=False):
         else:
             raise Exception('unknown normalization')
 
-        if use_augmentations and is_train:
+        if use_augmentations and part.is_trn():
             features = augmentations(features)
 
         if use_gaussian_blur:
             features = gaussian_blur(features)
 
-        if use_image_augmentations and is_train:
+        if use_image_augmentations and part.is_trn():
             features = image_augmentations(features)
             
         return features

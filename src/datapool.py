@@ -1,16 +1,12 @@
 from typing import List
 from .video import Video
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 class DataPool(dict):
-    def __init__(self,
-                 files: List[str],
-                 window_length: float = 6,
-                 split_ratio: float = 0.75,
-                 tqdm=tqdm):
+    def __init__(self, files: List[str], config):
         super(DataPool, self).__init__()
         for file in tqdm(files, desc='Video loading'):
-            self.__setitem__(file, Video(file, window_length, split_ratio))
+            self.__setitem__(file, Video(file, config))
 
     def __getitem__(self, key) -> Video:
         return super().get(key)

@@ -1,19 +1,23 @@
 import numpy as np
 import src 
-
+from .constants import * 
 
 class Video():
-    def __init__(self, file: str, window_length: float = 6, split_ratio: float = 25 * 60, silent: bool = True):
+    def __init__(self, file: str, config, silent: bool = True):
         if not silent:
             print(f'loading: {file}')
-            
         self.silent = silent
         self.file = file
-        self.signal, self.sr = src.load_audio(file, return_sr=True)
+        self.config = config
+        self.signal, self.sr = src.load_audio(file, resample_sr=config.sr, return_sr=True)
         self.events = src.load_events(file)
+        self.csv = src.load_csv(file)
+        self.views = src.load_views_from_csv(self.csv)
+        self.category = src.load_category_from_csv(self.csv)
+        self.events_start_time, self.events_end_time = src.load_event_time_from_csv(self.csv)
         self.intervals = src.load_intervals(file)[:, 1]
         self.signal_length = len(self.signal) / self.sr
-        self._split(window_length, split_ratio)
+        self._split(config.window_length, config.split_ratio)
 
     def _split(self, window_length: float, split_ratio: float):
         split_at = self.signal_length * split_ratio
@@ -29,31 +33,38 @@ class Video():
         if not self.silent:
             print(f' --> trn time {self.trn_from_time} : {self.trn_till_time}\n --> val time {self.val_from_time} : {self.val_till_time}')
 
-    def get_events(self, is_trn):
-        if is_trn:
+    def get_events(self, part: Part):
+        if part.is_trn():
             return src.crop_events(self.events, self.trn_from_time, self.trn_till_time)
-        else:
+        elif part.is_val():
             return src.crop_events(self.events, self.val_from_time, self.val_till_time)
+        else:
+            return self.events
 
-    def get_signal(self, is_trn):
-        if is_trn:
+    def get_signal(self, part: Part):
+        if part.is_trn():
             return src.crop_signal(self.signal, self.sr, self.trn_from_time, self.trn_till_time)
-        else:
+        elif part.is_val():
             return src.crop_signal(self.signal, self.sr, self.val_from_time, self.val_till_time)
+        else:
+            return self.signal
 
-    def get_from_till_time(self, is_trn):
-        if is_trn:
+    def get_from_till_time(self, part: Part):
+        if part.is_trn():
             return self.trn_from_time, self.trn_till_time
-        else:
+        elif part.is_val():
             return self.val_from_time, self.val_till_time
-
-    def get_events_count(self, is_trn):
-        events = self.events
-        if is_trn:
-            mask = (events >= self.trn_from_time) & (events < self.trn_till_time)
         else:
-            mask = (events >= self.val_from_time) & (events < self.val_till_time)
-        return mask.sum()
+            return self.trn_from_time, self.val_till_time
+
+    def get_events_count(self, part: Part):
+        events = self.events
+        if part.is_trn():
+            return  np.sum((events >= self.trn_from_time) & (events < self.trn_till_time))
+        elif part.is_val():
+            return np.sum((events >= self.val_from_time) & (events < self.val_till_time))
+        else:
+            return len(events)
 
     def __str__(self) -> str:
         return f'{self.file} ({int(self.trn_from_time)}:{int(self.trn_till_time)}) ({int(self.val_from_time)}:{int(self.val_till_time)})'

@@ -8,6 +8,8 @@ import matplotlib.ticker as tick
 import warnings
 
 from .transformation import create_transformation
+from .utils import get_signal_length
+
 warnings.filterwarnings("ignore")
 
 
@@ -49,7 +51,7 @@ def show(config, signal, best_detection_frame=None,
     
     signal = signal[from_time * config.sr: till_time * config.sr]
     
-    signal_length = len(signal) / config.sr
+    signal_length = get_signal_length(signal, config)
 
     nrows = 3
     if predictions is not None:

@@ -1,10 +1,7 @@
 from train_classification import *
-import yaml
-import argparse
 
 
-def cross_validation_error(uuids, model_name='rvce', prefix='tst'):
-    root_uuid = uuids[0].split('/')[0]
+def generate_cross_validation_table(uuids, model_name='rvce', prefix='tst'):
     table = []
     for uuid in uuids:
         results = np.genfromtxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', delimiter=';', skip_header=1, skip_footer=1, dtype=str)
@@ -17,53 +14,39 @@ def cross_validation_error(uuids, model_name='rvce', prefix='tst'):
         file.write(fancy_table)
 
 
-def cross_validate(config):
-    config = EasyDict(config)
-
-    sys.argv.append(f'training_files')
-    sys.argv.append(f'testing_files')
-    sys.argv.append(f'uuid')
-
-    cross_validation_uuid = int(datetime.now().timestamp())
-
-    uuids = []
-
-    for split, (training_files, testing_files) in enumerate(zip(config.training_splits, config.testing_splits)):
-
-        if 'output_name' in config:
-            uuid = f'{config.output_name}/{split}'
-        else:
-            uuid = f'{cross_validation_uuid}/{int(datetime.now().timestamp())}'
-        
-        for i, arg in enumerate(sys.argv):
-            if 'training_files' in arg:
-                sys.argv[i] = f'+training_files={training_files}' 
-            if 'testing_files' in arg:
-                sys.argv[i] = f'+testing_files={testing_files}' 
-            if 'uuid' in arg:
-                sys.argv[i] = f'+uuid={uuid}' 
-
-        uuids.append(uuid)
-        sys.argv.append(f'hydra.run.dir=outputs/{uuid}')
-
-        run()
-
-    cross_validation_error(uuids, 'rvce')
-    cross_validation_error(uuids, 'mae')
+@hydra.main(config_path='config', config_name='default')
+def setup_globals(config: DictConfig):
+    global cross_validation_folder, root_uuid, n_splits
+    cross_validation_folder = config['cross_validation_folder']
+    root_uuid = config['uuid']
+    n_splits = config['n_splits']
 
 
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config-name", default='config_cross_validation', type=str)
-    args = parser.parse_args()
-
-    sys.argv.extend([f'--config-name', f'{args.config_name}'])
+def setup_hydra():
     sys.argv.append(f'hydra.output_subdir=config')
     sys.argv.append(f'hydra/job_logging=disabled')
     sys.argv.append(f'hydra/hydra_logging=none')
+    sys.argv.append('hydra.run.dir=outputs/tmp')
 
-    with open(f'config/{args.config_name}.yaml', 'r') as stream:
-        config = yaml.safe_load(stream)
-        cross_validate(config)
+
+def cross_validate():
+    setup_globals()
+
+    uuids = []
+    for split in range(n_splits):
+        split_uuid = f'{root_uuid}/{split}'
+        uuids.append(split_uuid)
+        sys.argv.append(f'++split={split}')
+        sys.argv.append(f'uuid={split_uuid}')
+        sys.argv.append(f'hydra.run.dir=outputs/{split_uuid}')
+        sys.argv.append(f'training_files={cross_validation_folder}/{split}')
+        sys.argv.append(f'testing_files={cross_validation_folder}/{split}')
+        run()
+    
+    generate_cross_validation_table(uuids, 'rvce')
+    generate_cross_validation_table(uuids, 'mae')
+
+if __name__ == "__main__":
+    setup_hydra()
+    cross_validate()
     

@@ -1,8 +1,3 @@
-import os
-import sys
-import numpy as np
-import torch
-import hydra
 from src import *
 
 
@@ -124,9 +119,12 @@ def extract_intevals(file, empty_interval_in_s=10):
     print(labels_file, len(intervals))
 
 
-@hydra.main(config_path='config', config_name='config')
-def preprocess(config):
-    files = config.dataset
+def preprocess():
+    assert len(sys.argv) == 2, 'first argument is the path to .yaml list with files'
+
+    with open(sys.argv[1], 'r') as stream:
+        files = yaml.safe_load(stream)
+    
     for file in files:
         print('File: ', file)
         print('\nExtracting audio')
@@ -138,10 +136,4 @@ def preprocess(config):
 
 
 if __name__ == '__main__':
-    
-    sys.argv.append(f'hydra.run.dir=.')
-    sys.argv.append(f'hydra.output_subdir=null')
-    sys.argv.append(f'hydra/job_logging=disabled')
-    sys.argv.append(f'hydra/hydra_logging=none')
-
     preprocess()

@@ -71,15 +71,11 @@ def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='
 def run(config: DictConfig):
     print_config(config)
 
-    # wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
+    wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
 
     # replace DictConfig with EasyDict
     config = OmegaConf.to_container(config)
     config = EasyDict(config)
-
-    print(config['uuid'])
-    print(config.uuid)
-    exit()
 
     # get uuid and change wandb run name
     uuid = config.uuid

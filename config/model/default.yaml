@@ -10,8 +10,6 @@ batch_size: 64
 num_workers: 8
 # training to validation ratio
 split_ratio: 0.75
-n_trn_samples: -1
-n_val_samples: -1
 # use new offset after each epoch
 use_offset: True
 # offset length in sec
@@ -26,3 +24,5 @@ frame_length: 6.0
 # length of one window in seconds
 window_length: 6.0
 # number of frames in one window
+
+heads: ['n_counts']

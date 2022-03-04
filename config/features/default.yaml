@@ -1,5 +1,5 @@
 # sampling rate [samples]
-sr: 44100
+sr: 22050
  
 # stft | mel | mfcc
 transformation: stft
@@ -27,12 +27,17 @@ n_mfcc: 0
 feature_augmentation: false
 time_mask_param: null
 freq_mask_param: null
+
 # size of gaussian kernel and sigma e.g.: [5, 0.5]
-gaussian_blur: null
+gaussian_blur: false
+gaussian_blur_kernel_size: 5
+gaussian_blur_sigma: 0.5
+
 # resize features
-resize: null
+resize: false
 # resize to size e.g.: [128, 128]
 resize_size: [128, 128]
+
 # zero mean, unit variance feature normalization:
 # none | row-wise | column-wise | global
 normalization: global

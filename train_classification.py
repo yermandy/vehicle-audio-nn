@@ -27,23 +27,27 @@ def forward(loader, model, loss, optim=None, is_train=False):
         model.eval()
 
     with torch.set_grad_enabled(is_train):
-        for tensor, target, domain in loader:
+        for tensor, labels in loader:
             tensor = tensor.to(device)
-            target = target.to(device)
-            logits = model(tensor)
+            # target = target.to(device)
+            heads = model(tensor)
+            logits = heads['n_counts']
 
-            loss_value = loss(logits, target)
+            n_counts = labels['n_counts'].to(device)
+            domain = labels['domain']
+
+            loss_value = loss(logits, n_counts)
             loss_sum += loss_value.item()
             
             preds = logits.argmax(1)
-            abs_error_sum += (target - preds).abs().sum().item()
+            abs_error_sum += (n_counts - preds).abs().sum().item()
 
             if optim is not None:
                 optim.zero_grad()
                 loss_value.backward()
                 optim.step()
             
-            for d, t, p in zip(domain.tolist(), target.tolist(), preds.tolist()):
+            for d, t, p in zip(domain.tolist(), n_counts.tolist(), preds.tolist()):
                 n_events_true[d] += t
                 n_events_pred[d] += p
 
@@ -67,11 +71,15 @@ def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='
 def run(config: DictConfig):
     print_config(config)
 
-    wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
+    # wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
 
     # replace DictConfig with EasyDict
     config = OmegaConf.to_container(config)
     config = EasyDict(config)
+
+    print(config['uuid'])
+    print(config.uuid)
+    exit()
 
     # get uuid and change wandb run name
     uuid = config.uuid
@@ -89,38 +97,25 @@ def run(config: DictConfig):
 
     trn_datapool = DataPool(config.training_files, config)
 
-    trn_dataset = VehicleDataset(
-        trn_datapool,
-        part=Part.TRAINING,
-        config=config,
-        n_samples=config.n_trn_samples
-    )
+    trn_dataset = VehicleDataset(trn_datapool, part=Part.TRAINING, config=config)
+    trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=True)
 
-    trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
-
-    val_dataset = VehicleDataset(
-        trn_datapool,
-        part=Part.VALIDATION,
-        config=config,
-        n_samples=config.n_val_samples
-    )
-
+    val_dataset = VehicleDataset(trn_datapool, part=Part.VALIDATION, config=config)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, num_workers=config.num_workers)
 
-    model = ResNet18(num_classes=config.num_classes).to(device)
+    model = ResNet18(config).to(device)
 
     loss = nn.CrossEntropyLoss()
 
     optim = Adam(model.parameters(), lr=config.lr)
 
+    config.n_trn_samples = len(trn_dataset)
+    config.n_val_samples = len(val_dataset)
     wandb_config = wandb.config
     wandb_config.update(config)
     wandb_config.uuid = uuid
     wandb_config.model = model.__class__.__name__
     wandb_config.optim = optim.__class__.__name__
-    wandb_config.uniform_sampling = False if config.n_trn_samples == -1 else True
-    wandb_config.update({'n_trn_samples': len(trn_dataset)}, allow_val_change=True)
-    wandb_config.update({'n_val_samples': len(val_dataset)}, allow_val_change=True)
 
     val_loss_best = float('inf')
     val_mae_best = float('inf')
@@ -178,7 +173,7 @@ def run(config: DictConfig):
 
         if config.use_offset:
             offset = (config.offset_length * iteration) % config.window_length
-            trn_dataset.set_offset(offset)
+            trn_dataset.create_with_offset(offset)
 
     os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)
     

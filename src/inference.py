@@ -29,7 +29,8 @@ def validate(signal, model, transform, config, tqdm=lambda x: x, return_probs=Fa
             if (k + 1) % config.batch_size == 0 or k + 1 == n_hops:
                 batch = torch.stack(batch, dim=0)
                 batch = batch.to(device)
-                scores = model(batch)
+                heads = model(batch)
+                scores = heads['n_counts']
                 
                 if return_probs:
                     p = scores.softmax(1).tolist()
@@ -52,7 +53,7 @@ def validate(signal, model, transform, config, tqdm=lambda x: x, return_probs=Fa
     return predictions
 
 
-def validate_intervals(datapool: DataPool, part: Part, model, transform, params, classification=True):
+def validate_intervals(datapool: DataPool, part: Part, model, transform, config, classification=True):
     rvce = 0
     n_intervals = 0
 
@@ -61,7 +62,7 @@ def validate_intervals(datapool: DataPool, part: Part, model, transform, params,
         n_events = video.get_events_count(part)
         from_time, till_time = video.get_from_till_time(part)
 
-        predictions = validate(video.signal, model, transform, params, from_time=from_time, till_time=till_time, classification=classification)
+        predictions = validate(video.signal, model, transform, config, from_time=from_time, till_time=till_time, classification=classification)
         n_intervals += 1
 
         rvce += np.abs(predictions.sum() - n_events) / n_events

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from .constants import *
 from easydict import EasyDict
 

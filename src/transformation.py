@@ -57,7 +57,7 @@ def initialize(config):
         config.feature_augmentation = False
 
     if 'gaussian_blur' not in config:
-        config.gaussian_blur = [5, 0.5]
+        config.gaussian_blur = False
 
     if 'image_augmentations' not in config:
         config.image_augmentations = False
@@ -79,7 +79,7 @@ def create_transformation(config, part: Part = Part.TEST):
     use_mel = config.transformation == 'mel'
     use_stft = config.transformation == 'stft'
     use_augmentations = config.feature_augmentation
-    use_gaussian_blur = config.gaussian_blur is not None and type(config.gaussian_blur) == list
+    use_gaussian_blur = config.gaussian_blur
     use_image_augmentations = config.image_augmentations
 
     normalization = Normalization(config.normalization)
@@ -100,7 +100,7 @@ def create_transformation(config, part: Part = Part.TEST):
         augmentations = create_feature_augmentations(config)
 
     if use_gaussian_blur:
-        gaussian_blur = lambda x: F.gaussian_blur(x, config.gaussian_blur[0], config.gaussian_blur[1])
+        gaussian_blur = lambda x: F.gaussian_blur(x, config.gaussian_blur_kernel_size, config.gaussian_blur_sigma)
 
     if config.resize:
         resize = TV.Resize(config.resize_size)

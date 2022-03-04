@@ -6,13 +6,14 @@ class Video():
     def __init__(self, file: str, config, silent: bool = True):
         if not silent:
             print(f'loading: {file}')
-            
         self.silent = silent
         self.file = file
+        self.config = config
         self.signal, self.sr = src.load_audio(file, resample_sr=config.sr, return_sr=True)
         self.events = src.load_events(file)
         self.csv = src.load_csv(file)
         self.views = src.load_views_from_csv(self.csv)
+        self.category = src.load_category_from_csv(self.csv)
         self.events_start_time, self.events_end_time = src.load_event_time_from_csv(self.csv)
         self.intervals = src.load_intervals(file)[:, 1]
         self.signal_length = len(self.signal) / self.sr

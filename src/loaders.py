@@ -6,6 +6,7 @@ import pickle
 import os
 from .model import ResNet18
 import torchaudio.transforms as T
+from .constants import *
 
 
 def time_to_sec(time):
@@ -48,16 +49,11 @@ def find_clusters(X, delta=1*60):
 
 def preprocess_csv(csv):
     licence_plates = defaultdict(list)
-
-    start_time_column_id = 8
-    end_time_column_id = 9
-    best_detection_frame_time_column_id = 14
-    views_column_id = 23
     
     for row in csv:
         plate_id = row[1]
-        start_time = row[start_time_column_id]
-        end_time = row[end_time_column_id]
+        start_time = row[CsvColumnID.START_TIME]
+        end_time = row[CsvColumnID.END_TIME]
         if start_time != '':
             licence_plates[plate_id].append(
                 [time_to_sec(start_time), row]
@@ -82,13 +78,15 @@ def preprocess_csv(csv):
         for cluster_id, cluster_objects in clusters.items():
             traking_rows = np.array(car_rows[cluster_objects])
             
-            most_common_view = Counter(item for item in traking_rows[:, views_column_id]).most_common(1)[0][0]
+            most_common_view = Counter(item for item in traking_rows[:, CsvColumnID.VIEWS]).most_common(1)[0][0]
+            most_common_color = Counter(item for item in traking_rows[:, CsvColumnID.COLOR]).most_common(1)[0][0]
+            most_common_category = Counter(item for item in traking_rows[:, CsvColumnID.CATEGORY]).most_common(1)[0][0]
             
             modified_row = np.full_like(traking_rows[0], '')
             
-            start_times = traking_rows[:, start_time_column_id]
-            end_times = traking_rows[:, end_time_column_id]
-            best_detection_frame_times = traking_rows[:, best_detection_frame_time_column_id]
+            start_times = traking_rows[:, CsvColumnID.START_TIME]
+            end_times = traking_rows[:, CsvColumnID.END_TIME]
+            best_detection_frame_times = traking_rows[:, CsvColumnID.BEST_DETECTION_FRAME_TIME]
             
             times = np.concatenate([start_times, end_times])
             times = np.sort(times)
@@ -97,13 +95,15 @@ def preprocess_csv(csv):
             modified_row[0] = tracking_uuid
             modified_row[1] = key
             tracking_uuid += 1
-            modified_row[best_detection_frame_time_column_id] = best_detection_frame_times[-1]
-            modified_row[start_time_column_id] = times[0]
-            modified_row[end_time_column_id] = times[-1]
-            modified_row[views_column_id] = most_common_view
+            modified_row[CsvColumnID.BEST_DETECTION_FRAME_TIME] = best_detection_frame_times[-1]
+            modified_row[CsvColumnID.START_TIME] = times[0]
+            modified_row[CsvColumnID.END_TIME] = times[-1]
+            modified_row[CsvColumnID.VIEWS] = most_common_view
+            modified_row[CsvColumnID.CATEGORY] = most_common_category
+            modified_row[CsvColumnID.COLOR] = most_common_color
             rows.append(modified_row)
     rows = np.array(rows)
-    indices = np.argsort(rows[:, start_time_column_id])
+    indices = np.argsort(rows[:, CsvColumnID.START_TIME])
     rows = rows[indices]
     return rows
 
@@ -169,7 +169,11 @@ def load_column(csv, column):
 
 
 def load_views_from_csv(csv):
-    return load_column(csv, 23)
+    return load_column(csv, CsvColumnID.VIEWS)
+
+
+def load_category_from_csv(csv):
+    return load_column(csv, CsvColumnID.CATEGORY)
 
 
 def load_best_detection_frame_time_from_csv(csv):
@@ -221,17 +225,16 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device
     return model, config
 
 
-def load_model_locally(uuid, model_name='mae', device=None, classification=True):
+def load_model_locally(uuid, model_name='mae', device=None):
     if device is None:
         device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
-    num_classes = len(weights['model.fc.bias'])
-    model = ResNet18(num_classes=num_classes).to(device)
-    model.load_state_dict(weights)
-    model.eval()
-
     with open(f'outputs/{uuid}/config.pickle', 'rb') as f:
         config = pickle.load(f)
+
+    weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
+    model = ResNet18(config).to(device)
+    model.load_state_dict(weights)
+    model.eval()
 
     return model, config

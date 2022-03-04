@@ -1,4 +1,12 @@
-from enum import Enum
+from enum import Enum, IntEnum
+
+class CsvColumnID(IntEnum):
+    START_TIME = 8
+    END_TIME = 9
+    BEST_DETECTION_FRAME_TIME = 14
+    CATEGORY = 15
+    COLOR = 17
+    VIEWS = 23
 
 
 class Normalization(str, Enum):

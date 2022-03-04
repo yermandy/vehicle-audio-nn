@@ -142,126 +142,61 @@ def get_signal_length(signal, config):
     return len(signal) // config.sr
 
 
-def create_dataset_from_files(datapool: DataPool, window_length=6, n_samples=5000, seed=42, part=Part.TRAINING, offset=0):
-    """ if n_samples == -1, dataset is created sequentially from a sequence """
-
+def create_dataset_from_files(datapool: DataPool, part=Part.TRAINING, offset=0):
     all_samples = []
-    all_labels = []
-    all_domains = []
-
-    n_files = len(datapool)
-    n_samples_per_file = n_samples // n_files
+    all_labels = defaultdict(lambda: [])
 
     for i, video in enumerate(datapool):
         video: Video = video
-        signal = video.signal
-        sr = video.sr
-        events = video.events
 
         from_time, till_time = video.get_from_till_time(part)
         from_time = from_time + offset
         
-        if n_samples == -1:
-            samples, labels = create_dataset_sequentially(signal, sr, events,
-                from_time=from_time, till_time=till_time, window_length=window_length)
-        else:
-            samples, labels = create_dataset_uniformly(signal, sr, events,
-                from_time=from_time, till_time=till_time, seed=seed,
-                window_length=window_length, n_samples=n_samples_per_file)
+        samples, labels = create_dataset_sequentially(video, from_time=from_time, till_time=till_time)
 
+        for k, v in labels.items():
+            all_labels[k].extend(v)
 
-        # print(f'sampled {len(samples)} from {video.file}')
+        all_labels['domain'].extend([i] * len(v))
         all_samples.extend(samples)
-        all_labels.extend(labels)
-        all_domains.extend([i] * len(labels))
 
-    return all_samples, all_labels, all_domains
+    return all_samples, all_labels
 
 
-def create_dataset_uniformly(signal, sr, events, from_time=None, till_time=None, window_length=10, n_samples=100, seed=42, margin=0, return_timestamps=False):
-
+def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
     if from_time is None:
         from_time = 0
 
-    max_time = len(signal) // sr
-
-    if till_time is None or till_time > max_time:
-        till_time = max_time
-
-    np.random.seed(seed)
-
-    samples = []
-    labels = []
-    timestamps = []
-
-    # _all_from = []
-    # _all_till = []
-
-    while len(samples) < n_samples:
-        sample_from = np.random.rand(1)[0] * (till_time - from_time - window_length) + from_time
-        sample_till = sample_from + window_length
-
-        events_timestamps = []
-        skip = False
-
-        for event in events:
-            if sample_from <= event < sample_till:
-
-                events_timestamps.append(event)
-
-                # skip interval with event in margin
-                if event < sample_from + margin or event > sample_till - margin:
-                    skip = True
-                    break
-
-        if skip:
-            continue
-
-        # _all_from.append(sample_from)
-        # _all_till.append(sample_till)
-
-        sample = signal[int(sample_from * sr): int(sample_till * sr)]
-
-        samples.append(sample)
-        labels.append(len(events_timestamps))
-        timestamps.append(events_timestamps)
-
-    # print(np.min(_all_from), np.max(_all_from))
-    # print(np.min(_all_till), np.max(_all_till))
-
-    if return_timestamps:
-        return samples, labels, timestamps
-
-    return samples, labels
-
-
-def create_dataset_sequentially(signal, sr, events, from_time=None, till_time=None, window_length=10):
-
-    if from_time is None:
-        from_time = 0
-
-    max_time = len(signal) // sr
+    max_time = len(video.signal) // video.sr
 
     if till_time is None or till_time > max_time:
         till_time = max_time
 
     samples = []
-    labels = []
+    labels = defaultdict(lambda: [])
 
     interval_time = till_time - from_time
-    n_samples = int(interval_time // window_length)
+    n_samples = int(interval_time // video.config.window_length)
 
     for i in range(n_samples):
-        sample_from = from_time + i * window_length
-        sample_till = sample_from + window_length
+        sample_from = from_time + i * video.config.window_length
+        sample_till = sample_from + video.config.window_length
 
-        mask = (events >= sample_from) & (events < sample_till)
-        label = mask.sum()
+        mask = (video.events >= sample_from) & (video.events < sample_till)
+        
+        n_counts_label = mask.sum()
+        labels['n_counts'].append(n_counts_label)
 
-        sample = signal[int(sample_from * sr): int(sample_till * sr)]
+        if 'n_incoming' in video.config.heads:
+            n_incoming_label = np.sum(video.views[mask] == 'frontal')
+            labels['n_incoming'].append(n_incoming_label)
 
+        if 'n_outgoing' in video.config.heads:
+            n_outgoing_label = np.sum(video.views[mask] == 'rear')
+            labels['n_outgoing'].append(n_outgoing_label)
+
+        sample = video.signal[int(sample_from * video.sr): int(sample_till * video.sr)]
         samples.append(sample)
-        labels.append(label)
 
     return samples, labels
 

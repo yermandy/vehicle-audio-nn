@@ -80,9 +80,11 @@ def create_transformation(config: Config, part: Part = Part.TEST):
         elif config.transformation.is_stft():
             features = stft_transform(signal)
             features = amplitude_to_DB(features)
-        else:
+        elif config.transformation.is_mel():
             features = mel_transform(signal)
             features = amplitude_to_DB(features)
+        else:
+            raise Exception('unknown transformation')
 
         if config.resize:
             features = resize(features.unsqueeze(0)).squeeze()

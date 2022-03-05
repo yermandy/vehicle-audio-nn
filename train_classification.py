@@ -41,7 +41,7 @@ def forward(loader, model, loss, optim=None, is_train=False):
             preds = logits.argmax(1)
             abs_error_sum += (n_counts - preds).abs().sum().item()
 
-            if optim is not None:
+            if optim is not None and is_train:
                 optim.zero_grad()
                 loss_value.backward()
                 optim.step()
@@ -68,9 +68,13 @@ def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='
 
 @hydra.main(config_path='config', config_name='default')
 def run(config):
+    # make config type and attribute safe
     config = Config(config)
+
+    # print config
     print_config(config)
 
+    # initialize wandb run
     wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
 
     # get uuid and change wandb run name
@@ -85,27 +89,31 @@ def run(config):
     device = get_device(config.cuda)
     print(f'Running on {device}')
 
+    # initialize training datapool
     trn_datapool = DataPool(config.training_files, config)
 
+    # initialize training dataset
     trn_dataset = VehicleDataset(trn_datapool, part=Part.TRAINING, config=config)
     trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=True)
 
+    # initialize validation dataset
     val_dataset = VehicleDataset(trn_datapool, part=Part.VALIDATION, config=config)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, num_workers=config.num_workers)
 
+    # initialize model
     model = ResNet18(config).to(device)
 
+    # initialize loss function
     loss = nn.CrossEntropyLoss()
 
+    # initialize optimizer
     optim = Adam(model.parameters(), lr=config.lr)
 
     config.n_trn_samples = len(trn_dataset)
     config.n_val_samples = len(val_dataset)
-    wandb_config = wandb.config
-    wandb_config.update(config)
-    wandb_config.uuid = uuid
-    wandb_config.model = model.__class__.__name__
-    wandb_config.optim = optim.__class__.__name__
+    config.model = model.__class__.__name__
+    config.optim = optim.__class__.__name__
+    wandb.config.update(config)
 
     val_loss_best = float('inf')
     val_mae_best = float('inf')

@@ -29,7 +29,6 @@ def forward(loader, model, loss, optim=None, is_train=False):
     with torch.set_grad_enabled(is_train):
         for tensor, labels in loader:
             tensor = tensor.to(device)
-            # target = target.to(device)
             heads = model(tensor)
             logits = heads['n_counts']
 
@@ -129,10 +128,6 @@ def run(config: DictConfig):
         ## validation
         # trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss)
         val_mae, val_loss, val_rvce = forward(val_loader, model, loss)
-
-        ## calculate rvce from sequentioal data
-        # trn_rvce = validate_intervals(trn_datapool, True, model, trn_dataset.transform, config)
-        # val_rvce = validate_intervals(trn_datapool, False, model, val_dataset.transform, config)
 
         if val_loss <= val_loss_best:
             val_loss_best = val_loss

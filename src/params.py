@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from .constants import *
 from easydict import EasyDict
+from dataclasses import dataclass
 
 def get_additional_params(config):
     # TODO generalize it

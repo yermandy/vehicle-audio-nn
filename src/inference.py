@@ -2,7 +2,9 @@ from .utils import *
 from .transformation import *
 
 
-def validate(signal, model, transform, config, tqdm=lambda x: x, return_probs=False, from_time=None, till_time=None, classification=True):
+def validate_sinal(signal, model, config, tqdm=lambda x: x, return_probs=False, from_time=None, till_time=None, classification=True):
+
+    transform = create_transformation(config)
 
     if from_time is not None and till_time is not None:
         signal = crop_signal(signal, config.sr, from_time, till_time)
@@ -10,8 +12,8 @@ def validate(signal, model, transform, config, tqdm=lambda x: x, return_probs=Fa
     device = next(model.parameters()).device
 
     batch = []
-    predictions = []
-    probs = []
+    preds = defaultdict(list)
+    probs = defaultdict(list)
 
     n_hops = get_n_hops(signal, config) 
 
@@ -30,63 +32,47 @@ def validate(signal, model, transform, config, tqdm=lambda x: x, return_probs=Fa
                 batch = torch.stack(batch, dim=0)
                 batch = batch.to(device)
                 heads = model(batch)
-                scores = heads['n_counts']
                 
-                if return_probs:
-                    p = scores.softmax(1).tolist()
-                    probs.extend(p)
+                for head, scores in heads.items():
+                    if return_probs:
+                        p = scores.softmax(1).tolist()
+                        probs[head].extend(p)
 
-                if classification:
-                    y = scores.argmax(1).view(-1).tolist()
-                else:
-                    y = scores.view(-1).tolist()
+                    if classification:
+                        y = scores.argmax(1).flatten().tolist()
+                    else:
+                        y = scores.flatten().tolist()
 
-                predictions.extend(y)
+                    preds[head].extend(y)
+                
                 batch = []
 
-    predictions = np.array(predictions)
+    preds = {k: np.array(v) for k, v in preds.items()}
 
     if return_probs:
-        probs = np.array(probs)
-        return predictions, probs
+        probs = {k: np.array(v) for k, v in probs.items()}
+        return preds, probs
 
-    return predictions
-
-
-def validate_intervals(datapool: DataPool, part: Part, model, transform, config, classification=True):
-    rvce = 0
-    n_intervals = 0
-
-    for video in datapool:
-        video: Video = video
-        n_events = video.get_events_count(part)
-        from_time, till_time = video.get_from_till_time(part)
-
-        predictions = validate(video.signal, model, transform, config, from_time=from_time, till_time=till_time, classification=classification)
-        n_intervals += 1
-
-        rvce += np.abs(predictions.sum() - n_events) / n_events
-
-    mean_rvce = rvce / n_intervals
-    return mean_rvce
+    return preds
 
 
-def validate_datapool(datapool, model, config, part=Part.TEST):
+def validate_datapool(datapool: DataPool, model, config, part=Part.TEST):
     """
         Returns array [[0:rvce, 1:error, 2:n_events, 3:mae, 4:time, 5:file]]
     """
-    transform = create_transformation(config)
     outputs = []
 
     for video in tqdm(datapool):
         n_events = video.get_events_count(part)
         from_time, till_time = video.get_from_till_time(part)
 
-        predictions = validate(video.signal, model, transform, config, from_time=from_time, till_time=till_time, classification=True)
-        labels = get_labels(video.events, config.window_length, from_time, till_time)
-        mae = np.abs(predictions - labels).mean()
+        preds = validate_sinal(video.signal, model, config, from_time=from_time, till_time=till_time, classification=True)
+        preds = preds['n_counts']
 
-        n_predicted = predictions.sum()
+        labels = get_labels(video.events, config.window_length, from_time, till_time)
+        mae = np.abs(preds - labels).mean()
+
+        n_predicted = preds.sum()
         rvce = np.abs(n_predicted - n_events) / n_events
         error = n_predicted - n_events
         outputs.append([f'{rvce:.3f}', error, n_events, f'{mae:.3f}', f'[{from_time:.0f}, {till_time:.0f}]', video.file])

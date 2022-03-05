@@ -67,14 +67,11 @@ def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='
 
 
 @hydra.main(config_path='config', config_name='default')
-def run(config: DictConfig):
+def run(config):
+    config = Config(config)
     print_config(config)
 
     wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
-
-    # replace DictConfig with EasyDict
-    config = OmegaConf.to_container(config)
-    config = EasyDict(config)
 
     # get uuid and change wandb run name
     uuid = config.uuid
@@ -84,8 +81,6 @@ def run(config: DictConfig):
     # set original root
     root = hydra.utils.get_original_cwd()
     os.chdir(root)
-
-    config = get_additional_params(config)
 
     device = get_device(config.cuda)
     print(f'Running on {device}')

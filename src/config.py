@@ -1,8 +1,6 @@
-from dataclasses import dataclass
 from .constants import *
 from easydict import EasyDict
 from dataclasses import dataclass
-
 
 
 @dataclass
@@ -10,8 +8,9 @@ class FeaturesConfig():
     # sampling rate [samples]
     sr: int = 22050
     
+    # signal to feature transformation
     # stft | mel | mfcc
-    transformation: str = 'stft'
+    transformation: Transformation = Transformation.STFT
 
     #! stft parameters
     # size of FFT, creates n_fft // 2 + 1 bins
@@ -47,9 +46,12 @@ class FeaturesConfig():
     # resize to size e.g.: [128, 128]
     resize_size: tuple = (128, 128)
 
+    # image augmentations for training
+    image_augmentations: bool = False
+
     # zero mean, unit variance feature normalization:
     # none | row-wise | column-wise | global
-    normalization: str = 'global'
+    normalization: Normalization = Normalization.GLOBAL
 
 
 @dataclass
@@ -80,14 +82,14 @@ class ModelConfig(object):
     # number of frames in one window
 
     # neural network heads
-    heads: tuple = ('n_counts')
+    heads: tuple = ('n_counts',)
 
 
 @dataclass
 class WandbConfig:
-    wandb_project: str
-    wandb_entity: str
-    wandb_tags: tuple
+    wandb_project: str = None
+    wandb_entity: str = None
+    wandb_tags: tuple  = None
 
 
 @dataclass
@@ -95,11 +97,15 @@ class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, object):
     uuid: 'str' = None
     n_samples_in_nn_hop: int = None
     n_samples_in_window: int = None
+    training_files: tuple = ('12_RX100',)
+    testing_files: tuple = ('12_RX100',)
 
     def __init__(self, config=None, **kwargs):
+        super(Config, self).__init__(config, **kwargs)
         self.n_samples_in_nn_hop = int(self.sr * self.nn_hop_length)
         self.n_samples_in_window = int(self.sr * self.window_length)
-        super(Config, self).__init__(config, **kwargs)
+        self.normalization = Normalization(self.normalization)
+        self.transformation = Transformation(self.transformation)
 
     def __str__(self) -> str:
         return super().__str__()

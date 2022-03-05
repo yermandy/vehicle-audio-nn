@@ -31,6 +31,24 @@ class Normalization(str, Enum):
         return self == self.NONE
 
 
+class Transformation(str, Enum):
+    STFT = "stft"
+    MEL = "mel"
+    MFCC = "mfcc"
+
+    def __str__(self) -> str:
+        return str.__str__(self)
+
+    def is_stft(self) -> bool:
+        return self == self.STFT
+
+    def is_mel(self) -> bool:
+        return self == self.MEL
+
+    def is_mfcc(self) -> bool:
+        return self == self.MFCC
+
+
 class Part(str, Enum):
     TRAINING = 'trn'
     VALIDATION = 'val'

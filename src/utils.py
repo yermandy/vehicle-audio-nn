@@ -17,7 +17,7 @@ from .video import Video
 from .datapool import DataPool
 from .loaders import *
 from .constants import *
-from .params import *
+from .config import *
 
 
 def get_device(cuda):

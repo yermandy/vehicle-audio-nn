@@ -91,37 +91,37 @@ def crop_signal_events(signal, events, sr, from_time, till_time):
     return signal, events
 
 
-def get_time(signal, params, from_time, till_time):
-    n_hops = get_n_hops(signal, params)
+def get_time(signal: torch.Tensor, config: Config, from_time: float, till_time: float):
+    n_hops = get_n_hops(signal, config)
     time = np.linspace(from_time, till_time, n_hops + 1)
     return time
 
 
-def get_diff(signal, events, predictions, params, from_time=None, till_time=None):
+def get_diff(signal: torch.Tensor, events: np.ndarray, predictions: np.ndarray, config: Config, from_time: float = None, till_time: float = None):
     if from_time == None:
         from_time = 0
     
     if till_time == None:
-        till_time = get_signal_length(signal, params)
+        till_time = get_signal_length(signal, config)
 
-    signal, events = crop_signal_events(signal, events, params.sr, from_time, till_time)
+    signal, events = crop_signal_events(signal, events, config.sr, from_time, till_time)
 
-    time = get_time(signal, params, from_time, till_time)
+    time = get_time(signal, config, from_time, till_time)
 
     cumsum_pred = np.cumsum(predictions)
     cumsum_true = get_cumsum(time, events)
     return np.abs(cumsum_pred - cumsum_true).mean()
 
 
-def get_n_hops(signal, params):
-    return len(signal) // params.n_samples_in_nn_hop
+def get_n_hops(signal: torch.Tensor, config: Config) -> int:
+    return len(signal) // config.n_samples_in_nn_hop
 
 
-def get_labels(events, window_length, from_time, till_time):
+def get_labels(events, window_length, from_time, till_time) -> np.ndarray:
     events = crop_events(events, from_time, till_time)
-    hops = int((till_time - from_time) // window_length)
+    n_hops = int((till_time - from_time) // window_length)
     labels = []
-    for i in range(1, hops + 1):
+    for i in range(1, n_hops + 1):
         mask = events < window_length * i
         events = events[~mask]
         labels.append(mask.sum())
@@ -134,7 +134,7 @@ def get_signal_length(signal, config):
     return len(signal) // config.sr
 
 
-def create_dataset_from_files(datapool: DataPool, part=Part.TRAINING, offset=0):
+def create_dataset_from_files(datapool: DataPool, part=Part.TRAINING, offset: float=0):
     all_samples = []
     all_labels = defaultdict(lambda: [])
 
@@ -217,10 +217,12 @@ def create_fancy_table(outputs):
 def print_config(config):
     table = [] 
     for k, v in config.items():
-        if type(v) == omegaconf.listconfig.ListConfig: 
+        if isinstance(v, (list, omegaconf.listconfig.ListConfig)):
             table.append([k, f'list with {len(v)} entries'])
-        elif type(v) == omegaconf.dictconfig.DictConfig: 
+        elif isinstance(v, (dict, omegaconf.dictconfig.DictConfig)):
             table.append([k, f'dict with {len(v)} entries'])
+        elif callable(v):
+            table.append([k, f'function'])
         else:
             table.append([k, v])
     print(tabulate(table))

@@ -23,4 +23,5 @@ nn_hop_length: 6.0
 window_length: 6.0
 
 # list of neural network heads
-heads: ['n_counts']
+heads: 
+  n_counts: 1.0

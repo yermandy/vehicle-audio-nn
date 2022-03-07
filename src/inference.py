@@ -2,8 +2,10 @@ from .utils import *
 from .transformation import *
 
 
-def validate_sinal(signal, model, config, tqdm=lambda x: x, return_probs=False, from_time=None, till_time=None, classification=True):
+def validate_video(video: Video, model, tqdm=lambda x: x, return_probs=False, from_time=None, till_time=None, classification=True):
 
+    signal = video.signal
+    config = video.config
     transform = create_transformation(config)
 
     if from_time is not None and till_time is not None:
@@ -66,7 +68,7 @@ def validate_datapool(datapool: DataPool, model, config, part=Part.TEST):
         n_events = video.get_events_count(part)
         from_time, till_time = video.get_from_till_time(part)
 
-        preds = validate_sinal(video.signal, model, config, from_time=from_time, till_time=till_time, classification=True)
+        preds = validate_video(video, model, from_time=from_time, till_time=till_time, classification=True)
         preds = preds['n_counts']
 
         labels = get_labels(video.events, config.window_length, from_time, till_time)

@@ -1,7 +1,8 @@
+from typing import Dict
 from .constants import *
 from easydict import EasyDict
-from dataclasses import dataclass
-
+from dataclasses import dataclass, field
+import omegaconf
 
 @dataclass
 class FeaturesConfig():
@@ -82,7 +83,8 @@ class ModelConfig(object):
     # number of frames in one window
 
     # neural network heads
-    heads: tuple = ('n_counts',)
+    # heads: Dict[str, float] = {'n_counts' : 1.0}
+    heads: Dict[str, float] = None
 
 
 @dataclass
@@ -94,7 +96,7 @@ class WandbConfig:
 
 @dataclass
 class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, object):
-    uuid: 'str' = None
+    uuid: str = None
     n_samples_in_nn_hop: int = None
     n_samples_in_window: int = None
     training_files: tuple = ('12_RX100',)
@@ -106,6 +108,13 @@ class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, object):
         self.n_samples_in_window = int(self.sr * self.window_length)
         self.normalization = Normalization(self.normalization)
         self.transformation = Transformation(self.transformation)
+        self.to_primitive()
+
+    def to_primitive(self):
+        # TODO recursive call on lists and dicts
+        for k, v in self.items():
+            if isinstance(v, omegaconf.ListConfig):
+                self[k] = list(v)
 
     def __str__(self) -> str:
         return super().__str__()

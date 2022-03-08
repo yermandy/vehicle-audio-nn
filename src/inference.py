@@ -1,12 +1,20 @@
+from typing import Callable, Dict, Tuple
 from .utils import *
 from .transformation import *
 
 
-def validate_video(video: Video, model, tqdm=lambda x: x, return_probs=False, from_time=None, till_time=None, classification=True):
+def validate_video(video: Video, model, return_probs=True, return_preds=True,
+                   from_time=None, till_time=None, classification=True):
 
     signal = video.signal
     config = video.config
     transform = create_transformation(config)
+
+    if from_time is None:
+        from_time = 0
+
+    if till_time is None:
+        till_time = get_signal_length(signal, config)
 
     if from_time is not None and till_time is not None:
         signal = crop_signal(signal, config.sr, from_time, till_time)
@@ -17,13 +25,11 @@ def validate_video(video: Video, model, tqdm=lambda x: x, return_probs=False, fr
     preds = defaultdict(list)
     probs = defaultdict(list)
 
-    n_hops = get_n_hops(signal, config) 
-
-    loop = tqdm(range(n_hops))
+    n_hops = get_n_hops(config, from_time, till_time) 
 
     model.eval()
     with torch.no_grad():
-        for k in loop:
+        for k in range(n_hops):
             start = k * config.n_samples_in_nn_hop
             end = start + config.n_samples_in_window
             x = signal[start: end]
@@ -40,50 +46,94 @@ def validate_video(video: Video, model, tqdm=lambda x: x, return_probs=False, fr
                         p = scores.softmax(1).tolist()
                         probs[head].extend(p)
 
-                    if classification:
-                        y = scores.argmax(1).flatten().tolist()
-                    else:
-                        y = scores.flatten().tolist()
-
-                    preds[head].extend(y)
+                    if return_preds:
+                        if classification:
+                            y = scores.argmax(1).flatten().tolist()
+                        else:
+                            y = scores.flatten().tolist()
+                        preds[head].extend(y)
                 
                 batch = []
 
-    preds = {k: np.array(v) for k, v in preds.items()}
+    to_return = []
 
+    if return_preds:
+        preds = {k: np.array(v) for k, v in preds.items()}
+        to_return.append(preds)
+    
     if return_probs:
         probs = {k: np.array(v) for k, v in probs.items()}
-        return preds, probs
-
-    return preds
+        to_return.append(probs)
+    
+    return to_return if len(to_return) > 1 else to_return[0]
 
 
 def validate_datapool(datapool: DataPool, model, config, part=Part.TEST):
-    """
-        Returns array [[0:rvce, 1:error, 2:n_events, 3:mae, 4:time, 5:file]]
-    """
-    outputs = []
+    dict = defaultdict(list)
+    files = []
+    times = []
 
     for video in tqdm(datapool):
-        n_events = video.get_events_count(part)
         from_time, till_time = video.get_from_till_time(part)
 
-        preds = validate_video(video, model, from_time=from_time, till_time=till_time, classification=True)
-        preds = preds['n_counts']
+        files.append(video.file)
+        times.append(f'{from_time:.0f}: {till_time:.0f}')
 
-        labels = get_labels(video.events, config.window_length, from_time, till_time)
-        mae = np.abs(preds - labels).mean()
+        probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time, classification=True)
+        preds, n_predicted = inference(probs, config)
+        labels = get_labels(video, from_time, till_time)
 
-        n_predicted = preds.sum()
-        rvce = np.abs(n_predicted - n_events) / n_events
-        error = n_predicted - n_events
-        outputs.append([f'{rvce:.3f}', error, n_events, f'{mae:.3f}', f'[{from_time:.0f}, {till_time:.0f}]', video.file])
+        for head in preds.keys():
+            head_labels = labels[head]
+            head_n_events = head_labels.sum()
 
-    outputs = np.array(outputs)
-    idx = np.argsort(outputs[:, 0].astype(float))
-    outputs = outputs[idx]
+            if preds is not None:
+                head_preds = preds[head]
+                head_mae = np.abs(head_preds - head_labels).mean()
+                dict[f'mae: {head}'].append(f'{head_mae:.4f}')
+            
+            if n_predicted is not None:
+                head_n_predicted = n_predicted[head]
+                head_rvce = np.abs(head_n_predicted - head_n_events) / head_n_events
+                head_error = head_n_predicted - head_n_events
+                dict[f'rvce: {head}'].append(f'{head_rvce:.4f}')
+                dict[f'n_events: {head}'].append(head_n_events)
+                dict[f'error: {head}'].append(f'{head_error}')
 
-    # rvce = outputs[:, 0].astype(float).mean()
-    # print('rvce', rvce)
+    append_summary(dict, times, files)
     
-    return outputs
+    return dict
+
+
+def append_summary(dict, times, files):
+    for k, v in dict.items():
+        v = np.array(v).astype(float)
+        stats = f'{v.mean():.2f} ± {v.std():.2f}'
+        dict[k].append(stats)
+
+    times.append('')
+    files.append('summary')
+
+    dict['time'] = times
+    dict['file'] = files
+
+def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='rvce'):
+    model, config = load_model_locally(uuid, model_name)
+    datapool_summary = validate_datapool(datapool, model, config, part)
+    save_dict_txt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.txt', datapool_summary)
+    save_dict_csv(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', datapool_summary)
+
+
+def simple_inference(probs: Dict[str, np.ndarray]):
+    preds = {}
+    n_predicted = {}
+    for head, head_probs in probs.items():
+        preds[head] = head_probs.argmax(1)
+        n_predicted[head] = preds[head].sum()
+    return preds, n_predicted
+
+
+def inference(preds: Dict[str, np.ndarray], config: Config) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
+    # if config.inference_function == 'simple':
+    if True:
+        return simple_inference(preds)

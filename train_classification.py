@@ -11,7 +11,7 @@ import yaml
 import argparse
 
 
-def forward(loader, model, loss, optim=None, is_train=False):
+def forward(loader, model, loss, config, optim=None, is_train=False):
     device = next(model.parameters()).device
     n_samples = len(loader.dataset)
 
@@ -30,40 +30,36 @@ def forward(loader, model, loss, optim=None, is_train=False):
         for tensor, labels in loader:
             tensor = tensor.to(device)
             heads = model(tensor)
-            logits = heads['n_counts']
-
-            n_counts = labels['n_counts'].to(device)
+            
             domain = labels['domain']
 
-            loss_value = loss(logits, n_counts)
-            loss_sum += loss_value.item()
-            
-            preds = logits.argmax(1)
-            abs_error_sum += (n_counts - preds).abs().sum().item()
+            loss_value = 0
+
+            for head, head_logits in heads.items():
+
+                head_labels = labels[head].to(device)
+                head_weight = config.heads[head]
+
+                loss_value += head_weight * loss(head_logits, head_labels)
+                loss_sum += loss_value.item()
+                
+                if head == 'n_counts':
+                    head_preds = head_logits.argmax(1)
+                    abs_error_sum += (head_labels - head_preds).abs().sum().item()
+
+                    for d, t, p in zip(domain.tolist(), head_labels.tolist(), head_preds.tolist()):
+                        n_events_true[d] += t
+                        n_events_pred[d] += p
 
             if optim is not None and is_train:
                 optim.zero_grad()
                 loss_value.backward()
                 optim.step()
-            
-            for d, t, p in zip(domain.tolist(), n_counts.tolist(), preds.tolist()):
-                n_events_true[d] += t
-                n_events_pred[d] += p
 
     rvce = np.mean([abs(n_events_true[d] - n_events_pred[d]) / n_events_true[d] for d in n_events_true])
     mae = abs_error_sum / n_samples
     
     return mae, loss_sum, rvce
-
-
-def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='rvce'):
-    model, config = load_model_locally(uuid, model_name)
-    
-    outputs = validate_datapool(datapool, model, config, part)
-    table, fancy_table = create_fancy_table(outputs)
-    with open(f'outputs/{uuid}/results/{prefix}_{model_name}_output.txt', 'w') as file:
-        file.write(fancy_table)
-    np.savetxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', table, fmt='%s', delimiter=';')
 
 
 @hydra.main(config_path='config', config_name='default')
@@ -86,8 +82,8 @@ def run(config):
     root = hydra.utils.get_original_cwd()
     os.chdir(root)
 
+    # set device
     device = get_device(config.cuda)
-    print(f'Running on {device}')
 
     # initialize training datapool
     trn_datapool = DataPool(config.training_files, config)
@@ -126,11 +122,11 @@ def run(config):
     for iteration in training_loop:
 
         ## training
-        trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss, optim, True)
+        trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss, config, optim, True)
 
         ## validation
-        # trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss)
-        val_mae, val_loss, val_rvce = forward(val_loader, model, loss)
+        # trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss, config,)
+        val_mae, val_loss, val_rvce = forward(val_loader, model, loss, config)
 
         if val_loss <= val_loss_best:
             val_loss_best = val_loss

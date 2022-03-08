@@ -2,16 +2,32 @@ from train_classification import *
 
 
 def generate_cross_validation_table(uuids, model_name='rvce', prefix='tst'):
+    root_uuid = uuids[0].split('/')[0]
     table = []
+    header = []
+    dict = {}
     for uuid in uuids:
-        results = np.genfromtxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', delimiter=';', skip_header=1, skip_footer=1, dtype=str)
+        results = np.genfromtxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', delimiter=',', skip_footer=1, dtype=str)
+        header = results[0]
+        results = results[1:]
         results = np.atleast_2d(results)
         table.extend(results)
-    table = np.array(table)
-    table, fancy_table = create_fancy_table(table)
-    np.savetxt(f'outputs/{root_uuid}/{prefix}_{model_name}_output.csv', table, fmt='%s', delimiter=';')
-    with open(f'outputs/{root_uuid}/{prefix}_{model_name}_output.txt', 'w') as file:
-        file.write(fancy_table)
+    table = np.array(table).T
+    times = []
+    files = []
+    for i in range(len(header)):
+        column_name = header[i]
+        column = table[i].tolist()
+        if column_name == 'file':
+            files = column
+        elif column_name == 'time':
+            times = column
+        else:
+            dict[column_name] = column
+
+    append_summary(dict, times, files)
+    save_dict_csv(f'outputs/{root_uuid}/{prefix}_{model_name}_output.csv', dict)
+    save_dict_txt(f'outputs/{root_uuid}/{prefix}_{model_name}_output.txt', dict)
 
 
 @hydra.main(config_path='config', config_name='default')

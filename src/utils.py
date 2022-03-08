@@ -7,6 +7,7 @@ import torchaudio
 import torch.nn as nn
 import numpy as np
 import omegaconf
+import csv
 
 from easydict import EasyDict
 from tqdm.auto import tqdm
@@ -91,8 +92,8 @@ def crop_signal_events(signal, events, sr, from_time, till_time):
     return signal, events
 
 
-def get_time(signal: torch.Tensor, config: Config, from_time: float, till_time: float):
-    n_hops = get_n_hops(signal, config)
+def get_time(config: Config, from_time: float, till_time: float):
+    n_hops = get_n_hops(config, from_time, till_time)
     time = np.linspace(from_time, till_time, n_hops + 1)
     return time
 
@@ -106,26 +107,39 @@ def get_diff(signal: torch.Tensor, events: np.ndarray, predictions: np.ndarray, 
 
     signal, events = crop_signal_events(signal, events, config.sr, from_time, till_time)
 
-    time = get_time(signal, config, from_time, till_time)
+    time = get_time(config, from_time, till_time)
 
     cumsum_pred = np.cumsum(predictions)
     cumsum_true = get_cumsum(time, events)
     return np.abs(cumsum_pred - cumsum_true).mean()
 
 
-def get_n_hops(signal: torch.Tensor, config: Config) -> int:
-    return len(signal) // config.n_samples_in_nn_hop
+def get_n_hops(config: Config, from_time, till_time) -> int:
+    return int((till_time - from_time) // config.nn_hop_length)
 
 
-def get_labels(events, window_length, from_time, till_time) -> np.ndarray:
-    events = crop_events(events, from_time, till_time)
-    n_hops = int((till_time - from_time) // window_length)
-    labels = []
-    for i in range(1, n_hops + 1):
-        mask = events < window_length * i
-        events = events[~mask]
-        labels.append(mask.sum())
-    labels = np.array(labels)
+def get_labels(video: Video, from_time, till_time) -> np.ndarray:
+    n_hops = get_n_hops(video.config, from_time, till_time)
+    labels = defaultdict(lambda: [])
+
+    for i in range(n_hops):
+        sample_from = from_time + i * video.config.nn_hop_length
+        sample_till = sample_from + video.config.window_length
+    
+        mask = (video.events >= sample_from) & (video.events < sample_till)
+        
+        n_counts_label = mask.sum()
+        labels['n_counts'].append(n_counts_label)
+
+        if 'n_incoming' in video.config.heads:
+            n_incoming_label = np.sum(video.views[mask] == 'frontal')
+            labels['n_incoming'].append(n_incoming_label)
+
+        if 'n_outgoing' in video.config.heads:
+            n_outgoing_label = np.sum(video.views[mask] == 'rear')
+            labels['n_outgoing'].append(n_outgoing_label)
+    
+    labels = {k: np.array(v) for k, v in labels.items()}
     return labels
 
 
@@ -227,3 +241,17 @@ def print_config(config):
             table.append([k, v])
     print(tabulate(table))
 
+
+
+def save_dict_csv(name: str, dict: Dict[str, np.ndarray]):
+    with open(name, 'w') as file:
+        writer = csv.writer(file)
+        writer.writerow(dict.keys())
+        rows = np.array(list(dict.values())).T
+        writer.writerows(rows)
+
+
+def save_dict_txt(name: str, dict: Dict[str, np.ndarray]):
+    with open(name, 'w') as file:
+        table = tabulate(dict, headers='keys', tablefmt='fancy_grid', showindex=True)
+        file.write(table)

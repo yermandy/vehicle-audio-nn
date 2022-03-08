@@ -86,6 +86,8 @@ class ModelConfig(object):
     # heads: Dict[str, float] = {'n_counts' : 1.0}
     heads: Dict[str, float] = None
 
+    inference_function = InferenceFunction.SIMPLE
+
 
 @dataclass
 class WandbConfig:
@@ -108,6 +110,7 @@ class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, object):
         self.n_samples_in_window = int(self.sr * self.window_length)
         self.normalization = Normalization(self.normalization)
         self.transformation = Transformation(self.transformation)
+        self.inference_function = InferenceFunction(self.inference_function)
         self.to_primitive()
 
     def to_primitive(self):

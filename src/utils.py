@@ -118,6 +118,19 @@ def get_n_hops(config: Config, from_time, till_time) -> int:
     return int((till_time - from_time) // config.nn_hop_length)
 
 
+def extract_labels(video, labels, mask):
+    n_counts_label = mask.sum()
+    labels['n_counts'].append(n_counts_label)
+
+    if 'n_incoming' in video.config.heads:
+        n_incoming_label = np.sum(video.views[mask] == 'frontal')
+        labels['n_incoming'].append(n_incoming_label)
+
+    if 'n_outgoing' in video.config.heads:
+        n_outgoing_label = np.sum(video.views[mask] == 'rear')
+        labels['n_outgoing'].append(n_outgoing_label)
+
+
 def get_labels(video: Video, from_time, till_time) -> np.ndarray:
     n_hops = get_n_hops(video.config, from_time, till_time)
     labels = defaultdict(lambda: [])
@@ -125,19 +138,8 @@ def get_labels(video: Video, from_time, till_time) -> np.ndarray:
     for i in range(n_hops):
         sample_from = from_time + i * video.config.nn_hop_length
         sample_till = sample_from + video.config.window_length
-    
         mask = (video.events >= sample_from) & (video.events < sample_till)
-        
-        n_counts_label = mask.sum()
-        labels['n_counts'].append(n_counts_label)
-
-        if 'n_incoming' in video.config.heads:
-            n_incoming_label = np.sum(video.views[mask] == 'frontal')
-            labels['n_incoming'].append(n_incoming_label)
-
-        if 'n_outgoing' in video.config.heads:
-            n_outgoing_label = np.sum(video.views[mask] == 'rear')
-            labels['n_outgoing'].append(n_outgoing_label)
+        extract_labels(video, labels, mask)
     
     labels = {k: np.array(v) for k, v in labels.items()}
     return labels
@@ -187,19 +189,8 @@ def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
     for i in range(n_samples):
         sample_from = from_time + i * video.config.window_length
         sample_till = sample_from + video.config.window_length
-
         mask = (video.events >= sample_from) & (video.events < sample_till)
-        
-        n_counts_label = mask.sum()
-        labels['n_counts'].append(n_counts_label)
-
-        if 'n_incoming' in video.config.heads:
-            n_incoming_label = np.sum(video.views[mask] == 'frontal')
-            labels['n_incoming'].append(n_incoming_label)
-
-        if 'n_outgoing' in video.config.heads:
-            n_outgoing_label = np.sum(video.views[mask] == 'rear')
-            labels['n_outgoing'].append(n_outgoing_label)
+        extract_labels(video, labels, mask)
 
         sample = video.signal[int(sample_from * video.sr): int(sample_till * video.sr)]
         samples.append(sample)

@@ -117,6 +117,7 @@ def append_summary(dict, times, files):
     dict['time'] = times
     dict['file'] = files
 
+
 def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='rvce'):
     model, config = load_model_locally(uuid, model_name)
     datapool_summary = validate_datapool(datapool, model, config, part)
@@ -134,6 +135,5 @@ def simple_inference(probs: Dict[str, np.ndarray]):
 
 
 def inference(preds: Dict[str, np.ndarray], config: Config) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
-    # if config.inference_function == 'simple':
-    if True:
+    if config.inference_function.is_simple():
         return simple_inference(preds)

@@ -1,5 +1,6 @@
 from enum import Enum, IntEnum
 
+
 class CsvColumnID(IntEnum):
     START_TIME = 8
     END_TIME = 9
@@ -7,6 +8,16 @@ class CsvColumnID(IntEnum):
     CATEGORY = 15
     COLOR = 17
     VIEWS = 23
+
+
+class InferenceFunction(str, Enum):
+    SIMPLE = 'simple'
+
+    def __str__(self) -> str:
+        return str.__str__(self)
+
+    def is_simple(self) -> bool:
+        return self == self.SIMPLE
 
 
 class Normalization(str, Enum):
@@ -54,6 +65,9 @@ class Part(str, Enum):
     VALIDATION = 'val'
     TEST = 'tst'
 
+    def __str__(self) -> str:
+        return str.__str__(self)
+
     def is_trn(self) -> bool:
         return self == self.TRAINING
 
@@ -62,6 +76,3 @@ class Part(str, Enum):
 
     def is_tst(self) -> bool:
         return self == self.TEST
-
-    def __str__(self) -> str:
-        return str.__str__(self)

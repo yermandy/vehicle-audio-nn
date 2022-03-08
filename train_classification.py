@@ -13,13 +13,12 @@ import argparse
 
 def forward(loader, model, loss, config, optim=None, is_train=False):
     device = next(model.parameters()).device
-    n_samples = len(loader.dataset)
 
     loss_sum = 0
-    abs_error_sum = 0
+    abs_errors = defaultdict(list)
 
-    n_events_true = defaultdict(lambda: 0)
-    n_events_pred = defaultdict(lambda: 0)
+    n_events_true = defaultdict(lambda: defaultdict(int))
+    n_events_pred = defaultdict(lambda: defaultdict(int))
 
     if is_train:
         model.train()
@@ -28,10 +27,9 @@ def forward(loader, model, loss, config, optim=None, is_train=False):
 
     with torch.set_grad_enabled(is_train):
         for tensor, labels in loader:
+            domain = labels['domain']
             tensor = tensor.to(device)
             heads = model(tensor)
-            
-            domain = labels['domain']
 
             loss_value = 0
 
@@ -43,23 +41,36 @@ def forward(loader, model, loss, config, optim=None, is_train=False):
                 loss_value += head_weight * loss(head_logits, head_labels)
                 loss_sum += loss_value.item()
                 
-                if head == 'n_counts':
-                    head_preds = head_logits.argmax(1)
-                    abs_error_sum += (head_labels - head_preds).abs().sum().item()
+                head_preds = head_logits.argmax(1)
+                head_abs_errors = (head_labels - head_preds).abs().tolist()
+                abs_errors[head].extend(head_abs_errors)
 
-                    for d, t, p in zip(domain.tolist(), head_labels.tolist(), head_preds.tolist()):
-                        n_events_true[d] += t
-                        n_events_pred[d] += p
+                for d, t, p in zip(domain.tolist(), head_labels.tolist(), head_preds.tolist()):
+                    n_events_true[head][d] += t
+                    n_events_pred[head][d] += p
 
             if optim is not None and is_train:
                 optim.zero_grad()
                 loss_value.backward()
                 optim.step()
 
-    rvce = np.mean([abs(n_events_true[d] - n_events_pred[d]) / n_events_true[d] for d in n_events_true])
-    mae = abs_error_sum / n_samples
+    # weighted rvce by head weight
+    rvce = 0
+    for head, head_weight in config.heads.items():
+        rvce += head_weight * np.mean([
+            abs(n_events_true[head][d] - n_events_pred[head][d]) / n_events_true[head][d] 
+            for d in n_events_true[head] 
+            if n_events_true[head][d] != 0
+        ])
+
+    # weighted mae by head weight
+    mae = np.sum([
+        config.heads[head] * np.mean(head_abs_errors) 
+        for head, head_abs_errors 
+        in abs_errors.items()
+    ])
     
-    return mae, loss_sum, rvce
+    return loss_sum, mae, rvce
 
 
 @hydra.main(config_path='config', config_name='default')
@@ -122,11 +133,11 @@ def run(config):
     for iteration in training_loop:
 
         ## training
-        trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss, config, optim, True)
+        trn_loss, trn_mae, trn_rvce = forward(trn_loader, model, loss, config, optim, True)
 
         ## validation
-        # trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss, config,)
-        val_mae, val_loss, val_rvce = forward(val_loader, model, loss, config)
+        # trn_loss, trn_mae, trn_rvce = forward(trn_loader, model, loss, config,)
+        val_loss, val_mae, val_rvce = forward(val_loader, model, loss, config)
 
         if val_loss <= val_loss_best:
             val_loss_best = val_loss

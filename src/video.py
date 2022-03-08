@@ -1,9 +1,12 @@
+from typing import Tuple
 import numpy as np
-import src 
+import torch
+import src
+from src.config import Config 
 from .constants import * 
 
 class Video():
-    def __init__(self, file: str, config, silent: bool = True):
+    def __init__(self, file: str, config: Config, silent: bool = True):
         if not silent:
             print(f'loading: {file}')
         self.silent = silent
@@ -33,7 +36,7 @@ class Video():
         if not self.silent:
             print(f' --> trn time {self.trn_from_time} : {self.trn_till_time}\n --> val time {self.val_from_time} : {self.val_till_time}')
 
-    def get_events(self, part: Part):
+    def get_events(self, part: Part) -> np.ndarray:
         if part.is_trn():
             return src.crop_events(self.events, self.trn_from_time, self.trn_till_time)
         elif part.is_val():
@@ -41,7 +44,7 @@ class Video():
         else:
             return self.events
 
-    def get_signal(self, part: Part):
+    def get_signal(self, part: Part) -> torch.Tensor:
         if part.is_trn():
             return src.crop_signal(self.signal, self.sr, self.trn_from_time, self.trn_till_time)
         elif part.is_val():
@@ -49,7 +52,7 @@ class Video():
         else:
             return self.signal
 
-    def get_from_till_time(self, part: Part):
+    def get_from_till_time(self, part: Part) -> Tuple[float, float]:
         if part.is_trn():
             return self.trn_from_time, self.trn_till_time
         elif part.is_val():
@@ -57,7 +60,7 @@ class Video():
         else:
             return self.trn_from_time, self.val_till_time
 
-    def get_events_count(self, part: Part):
+    def get_events_count(self, part: Part) -> int:
         events = self.events
         if part.is_trn():
             return  np.sum((events >= self.trn_from_time) & (events < self.trn_till_time))

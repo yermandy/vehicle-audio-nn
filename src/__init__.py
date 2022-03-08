@@ -5,7 +5,7 @@ from .loaders import *
 from .dtw import *
 from .visualization import show, show_video
 from .constants import *
-from .params import *
+from .config import *
 from .inference import *
 from .transformation import *
 from .dataset import VehicleDataset

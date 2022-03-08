@@ -7,6 +7,7 @@ import torchaudio
 import torch.nn as nn
 import numpy as np
 import omegaconf
+import csv
 
 from easydict import EasyDict
 from tqdm.auto import tqdm
@@ -17,7 +18,7 @@ from .video import Video
 from .datapool import DataPool
 from .loaders import *
 from .constants import *
-from .params import *
+from .config import *
 
 
 def get_device(cuda):
@@ -91,49 +92,56 @@ def crop_signal_events(signal, events, sr, from_time, till_time):
     return signal, events
 
 
-def get_time(signal, params, from_time, till_time):
-    n_hops = get_n_hops(signal, params)
+def get_time(config: Config, from_time: float, till_time: float):
+    n_hops = get_n_hops(config, from_time, till_time)
     time = np.linspace(from_time, till_time, n_hops + 1)
     return time
 
 
-def get_diff(signal, events, predictions, params, from_time=None, till_time=None):
+def get_diff(signal: torch.Tensor, events: np.ndarray, predictions: np.ndarray, config: Config, from_time: float = None, till_time: float = None):
     if from_time == None:
         from_time = 0
     
     if till_time == None:
-        till_time = get_signal_length(signal, params)
+        till_time = get_signal_length(signal, config)
 
-    signal, events = crop_signal_events(signal, events, params.sr, from_time, till_time)
+    signal, events = crop_signal_events(signal, events, config.sr, from_time, till_time)
 
-    time = get_time(signal, params, from_time, till_time)
+    time = get_time(config, from_time, till_time)
 
     cumsum_pred = np.cumsum(predictions)
     cumsum_true = get_cumsum(time, events)
     return np.abs(cumsum_pred - cumsum_true).mean()
 
 
-def get_n_hops(signal, params):
-    n_samples = len(signal)
-
-    if 'n_samples_in_window' not in params or 'n_samples_in_nn_hop' not in params:
-        params = get_additional_params(params)
-
-    # TODO double check this
-    n_hops = n_samples // params.n_samples_in_nn_hop
-
-    return n_hops
+def get_n_hops(config: Config, from_time, till_time) -> int:
+    return int((till_time - from_time) // config.nn_hop_length)
 
 
-def get_labels(events, window_length, from_time, till_time):
-    events = crop_events(events, from_time, till_time)
-    hops = int((till_time - from_time) // window_length)
-    labels = []
-    for i in range(1, hops + 1):
-        mask = events < window_length * i
-        events = events[~mask]
-        labels.append(mask.sum())
-    labels = np.array(labels)
+def extract_labels(video, labels, mask):
+    n_counts_label = mask.sum()
+    labels['n_counts'].append(n_counts_label)
+
+    if 'n_incoming' in video.config.heads:
+        n_incoming_label = np.sum(video.views[mask] == 'frontal')
+        labels['n_incoming'].append(n_incoming_label)
+
+    if 'n_outgoing' in video.config.heads:
+        n_outgoing_label = np.sum(video.views[mask] == 'rear')
+        labels['n_outgoing'].append(n_outgoing_label)
+
+
+def get_labels(video: Video, from_time, till_time) -> np.ndarray:
+    n_hops = get_n_hops(video.config, from_time, till_time)
+    labels = defaultdict(lambda: [])
+
+    for i in range(n_hops):
+        sample_from = from_time + i * video.config.nn_hop_length
+        sample_till = sample_from + video.config.window_length
+        mask = (video.events >= sample_from) & (video.events < sample_till)
+        extract_labels(video, labels, mask)
+    
+    labels = {k: np.array(v) for k, v in labels.items()}
     return labels
 
 
@@ -142,7 +150,7 @@ def get_signal_length(signal, config):
     return len(signal) // config.sr
 
 
-def create_dataset_from_files(datapool: DataPool, part=Part.TRAINING, offset=0):
+def create_dataset_from_files(datapool: DataPool, part=Part.TRAINING, offset: float=0):
     all_samples = []
     all_labels = defaultdict(lambda: [])
 
@@ -181,19 +189,8 @@ def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
     for i in range(n_samples):
         sample_from = from_time + i * video.config.window_length
         sample_till = sample_from + video.config.window_length
-
         mask = (video.events >= sample_from) & (video.events < sample_till)
-        
-        n_counts_label = mask.sum()
-        labels['n_counts'].append(n_counts_label)
-
-        if 'n_incoming' in video.config.heads:
-            n_incoming_label = np.sum(video.views[mask] == 'frontal')
-            labels['n_incoming'].append(n_incoming_label)
-
-        if 'n_outgoing' in video.config.heads:
-            n_outgoing_label = np.sum(video.views[mask] == 'rear')
-            labels['n_outgoing'].append(n_outgoing_label)
+        extract_labels(video, labels, mask)
 
         sample = video.signal[int(sample_from * video.sr): int(sample_till * video.sr)]
         samples.append(sample)
@@ -225,11 +222,27 @@ def create_fancy_table(outputs):
 def print_config(config):
     table = [] 
     for k, v in config.items():
-        if type(v) == omegaconf.listconfig.ListConfig: 
+        if isinstance(v, (list, omegaconf.listconfig.ListConfig)):
             table.append([k, f'list with {len(v)} entries'])
-        elif type(v) == omegaconf.dictconfig.DictConfig: 
+        elif isinstance(v, (dict, omegaconf.dictconfig.DictConfig)):
             table.append([k, f'dict with {len(v)} entries'])
+        elif callable(v):
+            table.append([k, f'function'])
         else:
             table.append([k, v])
     print(tabulate(table))
 
+
+
+def save_dict_csv(name: str, dict: Dict[str, np.ndarray]):
+    with open(name, 'w') as file:
+        writer = csv.writer(file)
+        writer.writerow(dict.keys())
+        rows = np.array(list(dict.values())).T
+        writer.writerows(rows)
+
+
+def save_dict_txt(name: str, dict: Dict[str, np.ndarray]):
+    with open(name, 'w') as file:
+        table = tabulate(dict, headers='keys', tablefmt='fancy_grid', showindex=True)
+        file.write(table)

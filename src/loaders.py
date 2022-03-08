@@ -125,7 +125,7 @@ def load_audio_tensor(file, return_sr=False):
     return signal
 
 
-def load_audio(file, resample_sr=44100, return_sr=False):
+def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
     if os.path.exists(f'data/audio_tensors/{file}.MP4.pt'):
         signal, sr = load_audio_tensor(f'data/audio_tensors/{file}.MP4.pt', True)
     else:

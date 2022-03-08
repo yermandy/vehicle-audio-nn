@@ -11,15 +11,14 @@ import yaml
 import argparse
 
 
-def forward(loader, model, loss, optim=None, is_train=False):
+def forward(loader, model, loss, config, optim=None, is_train=False):
     device = next(model.parameters()).device
-    n_samples = len(loader.dataset)
 
     loss_sum = 0
-    abs_error_sum = 0
+    abs_errors = defaultdict(list)
 
-    n_events_true = defaultdict(lambda: 0)
-    n_events_pred = defaultdict(lambda: 0)
+    n_events_true = defaultdict(lambda: defaultdict(int))
+    n_events_pred = defaultdict(lambda: defaultdict(int))
 
     if is_train:
         model.train()
@@ -28,58 +27,62 @@ def forward(loader, model, loss, optim=None, is_train=False):
 
     with torch.set_grad_enabled(is_train):
         for tensor, labels in loader:
-            tensor = tensor.to(device)
-            # target = target.to(device)
-            heads = model(tensor)
-            logits = heads['n_counts']
-
-            n_counts = labels['n_counts'].to(device)
             domain = labels['domain']
+            tensor = tensor.to(device)
+            heads = model(tensor)
 
-            loss_value = loss(logits, n_counts)
-            loss_sum += loss_value.item()
-            
-            preds = logits.argmax(1)
-            abs_error_sum += (n_counts - preds).abs().sum().item()
+            loss_value = 0
 
-            if optim is not None:
+            for head, head_logits in heads.items():
+
+                head_labels = labels[head].to(device)
+                head_weight = config.heads[head]
+
+                loss_value += head_weight * loss(head_logits, head_labels)
+                loss_sum += loss_value.item()
+                
+                head_preds = head_logits.argmax(1)
+                head_abs_errors = (head_labels - head_preds).abs().tolist()
+                abs_errors[head].extend(head_abs_errors)
+
+                for d, t, p in zip(domain.tolist(), head_labels.tolist(), head_preds.tolist()):
+                    n_events_true[head][d] += t
+                    n_events_pred[head][d] += p
+
+            if optim is not None and is_train:
                 optim.zero_grad()
                 loss_value.backward()
                 optim.step()
-            
-            for d, t, p in zip(domain.tolist(), n_counts.tolist(), preds.tolist()):
-                n_events_true[d] += t
-                n_events_pred[d] += p
 
-    rvce = np.mean([abs(n_events_true[d] - n_events_pred[d]) / n_events_true[d] for d in n_events_true])
-    mae = abs_error_sum / n_samples
+    # weighted rvce by head weight
+    rvce = 0
+    for head, head_weight in config.heads.items():
+        rvce += head_weight * np.mean([
+            abs(n_events_true[head][d] - n_events_pred[head][d]) / n_events_true[head][d] 
+            for d in n_events_true[head] 
+            if n_events_true[head][d] != 0
+        ])
+
+    # weighted mae by head weight
+    mae = np.sum([
+        config.heads[head] * np.mean(head_abs_errors) 
+        for head, head_abs_errors 
+        in abs_errors.items()
+    ])
     
-    return mae, loss_sum, rvce
-
-
-def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='rvce'):
-    model, config = load_model_locally(uuid, model_name)
-    
-    outputs = validate_datapool(datapool, model, config, part)
-    table, fancy_table = create_fancy_table(outputs)
-    with open(f'outputs/{uuid}/results/{prefix}_{model_name}_output.txt', 'w') as file:
-        file.write(fancy_table)
-    np.savetxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', table, fmt='%s', delimiter=';')
+    return loss_sum, mae, rvce
 
 
 @hydra.main(config_path='config', config_name='default')
-def run(config: DictConfig):
+def run(config):
+    # make config type and attribute safe
+    config = Config(config)
+
+    # print config
     print_config(config)
 
-    # wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
-
-    # replace DictConfig with EasyDict
-    config = OmegaConf.to_container(config)
-    config = EasyDict(config)
-
-    print(config['uuid'])
-    print(config.uuid)
-    exit()
+    # initialize wandb run
+    wandb_run = wandb.init(project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags)
 
     # get uuid and change wandb run name
     uuid = config.uuid
@@ -90,32 +93,34 @@ def run(config: DictConfig):
     root = hydra.utils.get_original_cwd()
     os.chdir(root)
 
-    config = get_additional_params(config)
-
+    # set device
     device = get_device(config.cuda)
-    print(f'Running on {device}')
 
+    # initialize training datapool
     trn_datapool = DataPool(config.training_files, config)
 
+    # initialize training dataset
     trn_dataset = VehicleDataset(trn_datapool, part=Part.TRAINING, config=config)
     trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=True)
 
+    # initialize validation dataset
     val_dataset = VehicleDataset(trn_datapool, part=Part.VALIDATION, config=config)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, num_workers=config.num_workers)
 
+    # initialize model
     model = ResNet18(config).to(device)
 
+    # initialize loss function
     loss = nn.CrossEntropyLoss()
 
+    # initialize optimizer
     optim = Adam(model.parameters(), lr=config.lr)
 
     config.n_trn_samples = len(trn_dataset)
     config.n_val_samples = len(val_dataset)
-    wandb_config = wandb.config
-    wandb_config.update(config)
-    wandb_config.uuid = uuid
-    wandb_config.model = model.__class__.__name__
-    wandb_config.optim = optim.__class__.__name__
+    config.model = model.__class__.__name__
+    config.optim = optim.__class__.__name__
+    wandb.config.update(config)
 
     val_loss_best = float('inf')
     val_mae_best = float('inf')
@@ -128,15 +133,11 @@ def run(config: DictConfig):
     for iteration in training_loop:
 
         ## training
-        trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss, optim, True)
+        trn_loss, trn_mae, trn_rvce = forward(trn_loader, model, loss, config, optim, True)
 
         ## validation
-        # trn_mae, trn_loss, trn_rvce = forward(trn_loader, model, loss)
-        val_mae, val_loss, val_rvce = forward(val_loader, model, loss)
-
-        ## calculate rvce from sequentioal data
-        # trn_rvce = validate_intervals(trn_datapool, True, model, trn_dataset.transform, config)
-        # val_rvce = validate_intervals(trn_datapool, False, model, val_dataset.transform, config)
+        # trn_loss, trn_mae, trn_rvce = forward(trn_loader, model, loss, config,)
+        val_loss, val_mae, val_rvce = forward(val_loader, model, loss, config)
 
         if val_loss <= val_loss_best:
             val_loss_best = val_loss

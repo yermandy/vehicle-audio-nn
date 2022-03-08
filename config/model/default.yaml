@@ -19,10 +19,12 @@ num_classes: 50
 
 # length of one hop in seconds
 nn_hop_length: 6.0
-# length of one frame in seconds
-frame_length: 6.0
 # length of one window in seconds
-window_length: 6.0
-# number of frames in one window
 
-heads: ['n_counts']
+
+# list of neural network heads
+heads: 
+  n_counts: 1.0
+
+# interence function
+inference_function: simple

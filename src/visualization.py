@@ -118,7 +118,7 @@ def show(config, signal, best_detection_frame=None,
         ax3.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
         ax3.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, config.window_length))
         from .utils import get_time
-        x_axis_time = get_time(signal, config, from_time, till_time)
+        x_axis_time = get_time(config, from_time, till_time)
         #! introduce dummy ending
         predictions = np.append(predictions, 0)
         ax3.step(x_axis_time, predictions, where='post', linewidth=3.0, c='tab:red')
@@ -129,7 +129,7 @@ def show(config, signal, best_detection_frame=None,
         ax3.vlines(x_axis_time, 0, max_output, color='k', linestyle='dotted', linewidth=1, alpha=0.5)
         
         if probabilities is not None:
-            x_axis_time = get_time(signal, config, from_time, till_time)
+            x_axis_time = get_time(config, from_time, till_time)
             for x, p in zip(x_axis_time[:-1], probabilities):
                 predicted_class = np.argmax(p)
                 for i, p_i in zip(range(predicted_class + 1), p):
@@ -138,7 +138,7 @@ def show(config, signal, best_detection_frame=None,
 
         if events is not None:
             events_in_windows = []
-            x_axis_time = get_time(signal, config, from_time, till_time)
+            x_axis_time = get_time(config, from_time, till_time)
             for i in range(1, len(x_axis_time)):
                 events_in_window = (events >= x_axis_time[i - 1]) & (events < x_axis_time[i])
                 events_in_windows.append(events_in_window.sum())

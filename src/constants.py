@@ -12,12 +12,16 @@ class CsvColumnID(IntEnum):
 
 class InferenceFunction(str, Enum):
     SIMPLE = 'simple'
+    OPTIMAL_RVCE = 'optimal_rvce'
 
     def __str__(self) -> str:
         return str.__str__(self)
 
     def is_simple(self) -> bool:
         return self == self.SIMPLE
+
+    def is_optimal_rvce(self) -> bool:
+        return self == self.OPTIMAL_RVCE
 
 
 class Normalization(str, Enum):

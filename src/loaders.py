@@ -7,6 +7,9 @@ import os
 from .model import ResNet18
 import torchaudio.transforms as T
 from .constants import *
+from .config import *
+
+from typing import Tuple, Any
 
 
 def time_to_sec(time):
@@ -225,13 +228,16 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device
     return model, config
 
 
-def load_model_locally(uuid, model_name='mae', device=None):
+def load_config_locally(uuid) -> Config:
+    with open(f'outputs/{uuid}/config.pickle', 'rb') as f:
+        return pickle.load(f)
+
+
+def load_model_locally(uuid, model_name='mae', device=None) -> Tuple[Any, Config]:
     if device is None:
         device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    with open(f'outputs/{uuid}/config.pickle', 'rb') as f:
-        config = pickle.load(f)
-
+    config = load_config_locally(uuid)
     weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
     model = ResNet18(config).to(device)
     model.load_state_dict(weights)

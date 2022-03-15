@@ -8,11 +8,15 @@ os.makedirs('data/intervals', exist_ok=True)
 
 
 def extract_audio(file):
+    audio_tensor_file = f'data/audio_tensors/{file}.MP4.pt'
+    if os.path.exists(audio_tensor_file):
+        print(f'file {audio_tensor_file} exists')
+        return
     import moviepy.editor as mp
     video = mp.VideoFileClip(f"data/video/{file}.MP4")
     video.audio.write_audiofile(f"data/audio/{file}.MP4.wav")
     signal, sr = load_audio(file, return_sr=True)
-    torch.save([signal, sr], f'data/audio_tensors/{file}.MP4.pt')
+    torch.save([signal, sr], audio_tensor_file)
 
 
 def optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=True, window_len=0.5):
@@ -59,6 +63,10 @@ def optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=T
 
 
 def extract_labels(file):
+    labels_file_name = f'data/labels/{file}.MP4.txt'
+    if os.path.exists(labels_file_name):
+        print(f'file {labels_file_name} exists')
+        return
     signal, sr = load_audio(file, return_sr=True)
     signal_length = len(signal) // sr
     csv = load_csv(f'{file}.MP4')
@@ -90,10 +98,15 @@ def extract_labels(file):
     estimated_labels = np.round(estimated_labels, 2)
     estimated_labels.tolist()
     
-    np.savetxt(f'data/labels/{file}.MP4.txt', estimated_labels, fmt='%s')
+    np.savetxt(labels_file_name, estimated_labels, fmt='%s')
 
 
 def extract_intevals(file, empty_interval_in_s=10):
+    intervals_file = f'data/intervals/{file}.MP4.txt'
+    if os.path.exists(intervals_file):
+        print(f'file {intervals_file} exists')
+        return
+
     labels_file = f'data/labels/{file}.MP4.txt'
     csv = load_csv(f'{file}.MP4')
     events_start_times = csv[:, 8]
@@ -114,18 +127,13 @@ def extract_intevals(file, empty_interval_in_s=10):
             intervals.append([f'{next_cut:.2f}', f'{cut_at:.2f}'])
             next_cut = cut_at
     
-    intervals_file = f'data/intervals/{file}.MP4.txt'
     np.savetxt(intervals_file, intervals, fmt='%s')
     print(labels_file, len(intervals))
 
 
-def preprocess():
-    assert len(sys.argv) == 2, 'first argument is the path to .yaml list with files'
-
-    with open(sys.argv[1], 'r') as stream:
-        files = yaml.safe_load(stream)
-    
+def preprocess(files):    
     for file in files:
+        print('-' * 50)
         print('File: ', file)
         print('\nExtracting audio')
         extract_audio(file)
@@ -136,4 +144,9 @@ def preprocess():
 
 
 if __name__ == '__main__':
-    preprocess()
+    assert len(sys.argv) == 2, 'first argument is the path to .yaml list with files'
+
+    with open(sys.argv[1], 'r') as stream:
+        files = yaml.safe_load(stream)
+
+    preprocess(files)

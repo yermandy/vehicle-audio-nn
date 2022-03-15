@@ -31,26 +31,20 @@ ln -s ~/data/MultiDo/CVUTFD/result/* data/csv/
 
 #### Preprocess files
 
-Use `preprocess_data.py` to generate `data/audio`, `data/audio` and `data/intervals` 
+Use `preprocess_data.py` to generate `data/audio`, `data/audio_tensors`, `data/labels` and `data/intervals` 
 
-Notice, `config/config.yaml` defines the dataset which will be processed
-
-```
-defaults:
- - dataset: dataset_26.11.2021 
-```
-
-where `dataset_26.11.2021` is the list of files which are going to be preprocessed and is placed in
+Example:
 
 ```
-./config/dataset/dataset_26.11.2021.yaml
-````
-
+preprocess_data.py config/dataset/dataset.yaml
 ```
 
+where `config/dataset/dataset.yaml` is the path to yaml list with files to be preprocessed
+
+```
 Converting videos by ffmpeg:
 $ ffmpeg -i input_video.mts -c:v copy -c:a aac -b:a 256k output_video.mp4
-````
+```
 
 
 #### Wandb account

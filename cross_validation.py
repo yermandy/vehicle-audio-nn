@@ -46,6 +46,7 @@ def setup_hydra():
 
 
 def cross_validate():
+    setup_hydra()
     setup_globals()
 
     uuids = []
@@ -53,6 +54,7 @@ def cross_validate():
         split_uuid = f'{root_uuid}/{split}'
         uuids.append(split_uuid)
         sys.argv.append(f'++split={split}')
+        sys.argv.append(f'++root_uuid={root_uuid}')
         sys.argv.append(f'uuid={split_uuid}')
         sys.argv.append(f'hydra.run.dir=outputs/{split_uuid}')
         sys.argv.append(f'training_files={cross_validation_folder}/{split}')
@@ -63,6 +65,5 @@ def cross_validate():
     generate_cross_validation_table(uuids, 'mae')
 
 if __name__ == "__main__":
-    setup_hydra()
     cross_validate()
     

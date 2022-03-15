@@ -118,18 +118,45 @@ def get_n_hops(config: Config, from_time, till_time) -> int:
     return int((till_time - from_time) // config.nn_hop_length)
 
 
-def extract_labels(video, labels, mask):
-    n_counts_label = mask.sum()
-    labels['n_counts'].append(n_counts_label)
+def get_directions_dict() -> dict:
+    return {
+        'n_incoming': 'frontal',
+        'n_outgoing': 'rear',
+    }
 
-    if 'n_incoming' in video.config.heads:
-        n_incoming_label = np.sum(video.views[mask] == 'frontal')
-        labels['n_incoming'].append(n_incoming_label)
+def get_categories_dict() -> dict:
+    return {
+        'n_BUS': 'BUS',
+        'n_CAR': 'CAR',
+        'n_ERR': 'ERR',
+        'n_HVT': 'HVT',
+        'n_LGT': 'LGT',
+        'n_MTB': 'MTB',
+        'n_UNK': 'UNK',
+        'n_UNL': 'UNL',
+        'n_VAN': 'VAN',
+        'n_TO12': 'TO12',
+        'n_CYCLE': 'CYCLE',
+        'n_TRUCK': 'TRUCK',
+        'n_TO34': 'TO34',
+        'n_SPECIAL': 'SPECIAL',
+        'n_PEDESTRIAN': 'PEDESTRIAN',
+        'n_TO12_CARAVAN': 'TO12_CARAVAN'
+    }
 
-    if 'n_outgoing' in video.config.heads:
-        n_outgoing_label = np.sum(video.views[mask] == 'rear')
-        labels['n_outgoing'].append(n_outgoing_label)
+def extract_labels(video: Video, labels, mask):
+    n_counts = mask.sum()
+    labels['n_counts'].append(n_counts)
 
+    for head_name, categoty_name in get_directions_dict().items():
+        if head_name in video.config.heads:
+            label = np.sum(video.views[mask] == categoty_name)
+            labels[head_name].append(label)
+
+    for head_name, categoty_name in get_categories_dict().items():
+        if head_name in video.config.heads:
+            label = np.sum(video.category[mask] == categoty_name)
+            labels[head_name].append(label)
 
 def get_labels(video: Video, from_time, till_time) -> np.ndarray:
     n_hops = get_n_hops(video.config, from_time, till_time)

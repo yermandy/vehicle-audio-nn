@@ -1,6 +1,7 @@
 from typing import Callable, Dict, Tuple
 from .utils import *
 from .transformation import *
+from scipy.special import logsumexp
 
 
 def validate_video(video: Video, model, return_probs=True, return_preds=True,
@@ -68,7 +69,7 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
     return to_return if len(to_return) > 1 else to_return[0]
 
 
-def validate_datapool(datapool: DataPool, model, config, part=Part.TEST):
+def validate_datapool(datapool: DataPool, model, config: Config, part=Part.TEST):
     dict = defaultdict(list)
     files = []
     times = []
@@ -83,7 +84,7 @@ def validate_datapool(datapool: DataPool, model, config, part=Part.TEST):
         preds, n_predicted = inference(probs, config)
         labels = get_labels(video, from_time, till_time)
 
-        for head in preds.keys():
+        for head in config.heads:
             head_labels = labels[head]
             head_n_events = head_labels.sum()
 
@@ -94,7 +95,11 @@ def validate_datapool(datapool: DataPool, model, config, part=Part.TEST):
             
             if n_predicted is not None:
                 head_n_predicted = n_predicted[head]
-                head_rvce = np.abs(head_n_predicted - head_n_events) / head_n_events
+                # TODO think about it
+                if head_n_events == 0:
+                    head_rvce = np.abs(head_n_predicted - head_n_events)
+                else:
+                    head_rvce = np.abs(head_n_predicted - head_n_events) / head_n_events
                 head_error = head_n_predicted - head_n_events
                 dict[f'rvce: {head}'].append(f'{head_rvce:.4f}')
                 dict[f'n_events: {head}'].append(head_n_events)
@@ -118,14 +123,16 @@ def append_summary(dict, times, files):
     dict['file'] = files
 
 
-def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='rvce'):
-    model, config = load_model_locally(uuid, model_name)
+def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='rvce', config=None):
+    model, _config = load_model_locally(uuid, model_name)
+    if config is None:
+        config = _config
     datapool_summary = validate_datapool(datapool, model, config, part)
     save_dict_txt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.txt', datapool_summary)
     save_dict_csv(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', datapool_summary)
 
 
-def simple_inference(probs: Dict[str, np.ndarray]):
+def inference_simple(probs: Dict[str, np.ndarray]):
     preds = {}
     n_predicted = {}
     for head, head_probs in probs.items():
@@ -134,6 +141,57 @@ def simple_inference(probs: Dict[str, np.ndarray]):
     return preds, n_predicted
 
 
+def total_count_distribution(p_count):
+    """ 
+    Input:
+      p_c [n_labels x n_windows] 
+    Output:
+      distr [n_windows * (n_labels - 1)] distr[c] is the probability 
+        that the total number of events is c 
+    """
+
+    n_labels, n_windows = p_count.shape
+
+    log_p_count = np.log(p_count)
+    log_P = np.zeros(((n_labels - 1) * n_windows + 1, n_windows))
+    log_P.fill(np.NINF)
+
+    for s in range(n_labels):
+        log_P[s, n_windows - 1] = np.log(p_count[s, n_windows - 1])
+        
+    for i in range(n_windows - 2, -1, -1):
+        for s in range((n_windows - i) * (n_labels - 1) + 1):
+            a = []
+            for c in range(max(s - (n_windows - i - 1) * (n_labels - 1), 0), min(n_labels, s + 1)):
+                a.append(log_p_count[c, i] + log_P[s - c, i + 1])
+            log_P[s, i] = logsumexp(a)
+
+    return np.exp(log_P[:, 0]) 
+
+
+def optimal_rvce_predictor(probs, dist):
+    n_labels, n_windows = probs.shape
+    max_total_count = (n_labels - 1) * n_windows
+    rvce_risk = np.zeros(max_total_count)
+    count_range = np.arange(1, max_total_count + 1)
+    for c in range(1, max_total_count + 1):
+        rvce_risk[c - 1] = np.sum(dist[1:] * np.abs(count_range - c) / count_range)
+    pred_count_rvce = np.argmin(rvce_risk) + 1
+    return pred_count_rvce
+
+
+def inference_optimal_rvce(probs: Dict[str, np.ndarray]):
+    print('optimal')
+    n_predicted = {}
+    for head, head_probs in probs.items():
+        head_probs = head_probs.T
+        dist = total_count_distribution(head_probs)
+        n_predicted[head] = optimal_rvce_predictor(head_probs, dist)
+    return None, n_predicted
+
+
 def inference(preds: Dict[str, np.ndarray], config: Config) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
     if config.inference_function.is_simple():
-        return simple_inference(preds)
+        return inference_simple(preds)
+    elif config.inference_function.is_optimal_rvce():
+        return inference_optimal_rvce(preds)

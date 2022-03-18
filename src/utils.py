@@ -144,9 +144,11 @@ def get_categories_dict() -> dict:
         'n_TO12_CARAVAN': 'TO12_CARAVAN'
     }
 
-def extract_labels(video: Video, labels, mask):
+
+def _extract_labels(video: Video, labels, mask):
     n_counts = mask.sum()
     labels['n_counts'].append(n_counts)
+    labels['domain'].append(video.domain)
 
     for head_name, categoty_name in get_directions_dict().items():
         if head_name in video.config.heads:
@@ -158,6 +160,7 @@ def extract_labels(video: Video, labels, mask):
             label = np.sum(video.category[mask] == categoty_name)
             labels[head_name].append(label)
 
+
 def get_labels(video: Video, from_time, till_time) -> np.ndarray:
     n_hops = get_n_hops(video.config, from_time, till_time)
     labels = defaultdict(lambda: [])
@@ -166,7 +169,7 @@ def get_labels(video: Video, from_time, till_time) -> np.ndarray:
         sample_from = from_time + i * video.config.nn_hop_length
         sample_till = sample_from + video.config.window_length
         mask = (video.events >= sample_from) & (video.events < sample_till)
-        extract_labels(video, labels, mask)
+        _extract_labels(video, labels, mask)
     
     labels = {k: np.array(v) for k, v in labels.items()}
     return labels
@@ -183,6 +186,7 @@ def create_dataset_from_files(datapool: DataPool, part=Part.TRAINING, offset: fl
 
     for i, video in enumerate(datapool):
         video: Video = video
+        video.domain = i
 
         from_time, till_time = video.get_from_till_time(part)
         from_time = from_time + offset
@@ -192,7 +196,7 @@ def create_dataset_from_files(datapool: DataPool, part=Part.TRAINING, offset: fl
         for k, v in labels.items():
             all_labels[k].extend(v)
 
-        all_labels['domain'].extend([i] * len(v))
+        # all_labels['domain'].extend([i] * len(v))
         all_samples.extend(samples)
 
     return all_samples, all_labels
@@ -217,7 +221,7 @@ def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
         sample_from = from_time + i * video.config.window_length
         sample_till = sample_from + video.config.window_length
         mask = (video.events >= sample_from) & (video.events < sample_till)
-        extract_labels(video, labels, mask)
+        _extract_labels(video, labels, mask)
 
         sample = video.signal[int(sample_from * video.sr): int(sample_till * video.sr)]
         samples.append(sample)

@@ -88,6 +88,12 @@ class ModelConfig(object):
 
     inference_function = InferenceFunction.SIMPLE
 
+    raw_signal: bool = False
+
+    # architecture:
+    # ResNet18 | WaveCNN
+    architecture: str = 'ResNet18'
+
 
 @dataclass
 class WandbConfig:

@@ -75,6 +75,9 @@ def create_transformation(config: Config, part: Part = Part.TEST):
         ])
 
     def transform(signal) -> torch.Tensor:
+        if config.raw_signal:
+            return signal.unsqueeze(0)
+
         if config.transformation.is_mfcc():
             features = mfcc_transform(signal)
         elif config.transformation.is_stft():

@@ -49,16 +49,16 @@ $ ffmpeg -i input_video.mts -c:v copy -c:a aac -b:a 256k output_video.mp4
 
 #### Wandb account
 
-To visualize training curves, create [wandb](https://wandb.ai/) account and add new project. Add your wandb project name and account name to `config/config.yaml`.
+To visualize training curves, create [wandb](https://wandb.ai/) account and add new project. Add your wandb project name and account name to `config/wandb/wandb.yaml`.
 
 #### Training
 
-Change training configurations in `config/config.yaml` and run `train_classification.py`
+Change training configurations in `config/model/default.yaml.yaml` and run `train_classification.py`
 
-Specify another config file
+To override run configuration, use:
 ```
-python train_classification.py --config-name config_name
-python cross_validation.py --config-name config_name
+python train_classification.py experiment=
+python cross_validation.py experiment=
 ```
 
 #### Resources

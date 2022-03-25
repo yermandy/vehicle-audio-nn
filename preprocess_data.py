@@ -128,7 +128,7 @@ def extract_intevals(file, empty_interval_in_s=10):
             next_cut = cut_at
 
     signal, sr = load_audio(file, return_sr=True)
-    end = signal // sr
+    end = len(signal) // sr
 
     intervals.append([f'{cut_at:.2f}', f'{end:.2f}'])
     

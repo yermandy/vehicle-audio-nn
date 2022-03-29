@@ -22,8 +22,8 @@ def get_melkwargs(params):
 
 def conv(array):
     array = array.view(1, 1, -1)
-    kernel = torch.ones(1, 1, 201)
-    array = torch.nn.functional.conv1d(array, kernel)
+    kernel = torch.ones(1, 1, 101)
+    array = torch.nn.functional.conv1d(array, kernel, padding='same')
     array = array.squeeze()
     return array
 
@@ -52,6 +52,10 @@ def show(config, signal, best_detection_frame=None,
     signal = signal[from_time * config.sr: till_time * config.sr]
     
     signal_length = get_signal_length(signal, config)
+
+    if till_time > signal_length:
+        print('till_time > signal_length')
+        till_time = signal_length
 
     nrows = 3
     if predictions is not None:

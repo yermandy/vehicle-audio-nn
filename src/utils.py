@@ -34,8 +34,8 @@ def get_cumsum(T, E):
 
 
 def get_intervals_from_files(files, from_time, till_time):
-    _intervals = []
-    _events_in_intervals = []
+    I = []
+    E = []
     for file in files:
         print(f'loading: {file}')
         signal, sr = load_audio(file, return_sr=True)
@@ -43,11 +43,11 @@ def get_intervals_from_files(files, from_time, till_time):
         intervals, events_in_intervals = preprocess_intervals(intervals, from_time, till_time)
         
         for interval in intervals:
-            _intervals.append(signal[int(interval[0] * sr): int(interval[1] * sr)])
+            I.append(signal[int(interval[0] * sr): int(interval[1] * sr)])
         
-        _events_in_intervals.extend(events_in_intervals)
+        E.extend(events_in_intervals)
 
-    return _intervals, np.array(_events_in_intervals)
+    return np.array(I), np.array(E)
 
 
 def preprocess_intervals(intervals, from_time, till_time):
@@ -57,13 +57,13 @@ def preprocess_intervals(intervals, from_time, till_time):
         intervals = intervals[mask]
         events_in_intervals = events_in_intervals[mask]
     
-    _intervals = []
-    _events_in_intervals = []
+    I = []
+    E = []
     for i in range(1, len(intervals)):
-        _intervals.append([intervals[i - 1], intervals[i]])
-        _events_in_intervals.append(events_in_intervals[i])
+        I.append([intervals[i - 1], intervals[i]])
+        E.append(events_in_intervals[i])
 
-    return _intervals, np.array(_events_in_intervals)
+    return np.array(I), np.array(E)
 
 
 def crop_events(events, from_time, till_time):
@@ -176,7 +176,6 @@ def get_labels(video: Video, from_time, till_time) -> np.ndarray:
 
 
 def get_signal_length(signal, config):
-    # in this project we assume that the loaded signal has 44100 samples in one second
     return len(signal) // config.sr
 
 
@@ -196,7 +195,6 @@ def create_dataset_from_files(datapool: DataPool, part=Part.TRAINING, offset: fl
         for k, v in labels.items():
             all_labels[k].extend(v)
 
-        # all_labels['domain'].extend([i] * len(v))
         all_samples.extend(samples)
 
     return all_samples, all_labels

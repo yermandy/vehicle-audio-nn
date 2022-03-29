@@ -19,15 +19,18 @@ class Video():
         self.views = src.load_views_from_csv(self.csv)
         self.category = src.load_category_from_csv(self.csv)
         self.events_start_time, self.events_end_time = src.load_event_time_from_csv(self.csv)
-        self.intervals = src.load_intervals(file)[:, 1]
+        self.intervals = src.load_intervals(file)
         self.signal_length = len(self.signal) / self.sr
         self._split(config.window_length, config.split_ratio)
 
     def _split(self, window_length: float, split_ratio: float):
-        split_at = self.signal_length * split_ratio
-        idx = np.abs(self.intervals - split_at).argmin()
-        split_time = self.intervals[idx]
-        split_time = np.round(split_time / window_length) * window_length
+        if len(self.intervals) > 0:
+            split_at = self.signal_length * split_ratio
+            idx = np.abs(self.intervals[:-1, 1] - split_at).argmin()
+            split_time = self.intervals[idx, 1]
+            split_time = np.round(split_time / window_length) * window_length
+        else:
+            split_time = 0
 
         self.trn_from_time = 0
         self.trn_till_time = split_time

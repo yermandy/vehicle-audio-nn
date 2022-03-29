@@ -28,3 +28,7 @@ heads:
 
 # interence function
 inference_function: simple
+
+# architecture
+# ResNet18 | WaveCNN
+architecture: ResNet18

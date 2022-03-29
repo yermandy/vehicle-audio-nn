@@ -41,34 +41,34 @@ class Video():
             print(f' --> trn time {self.trn_from_time} : {self.trn_till_time}\n --> val time {self.val_from_time} : {self.val_till_time}')
 
     def get_events(self, part: Part) -> np.ndarray:
-        if part.is_trn():
+        if part.is_left():
             return src.crop_events(self.events, self.trn_from_time, self.trn_till_time)
-        elif part.is_val():
+        elif part.is_right():
             return src.crop_events(self.events, self.val_from_time, self.val_till_time)
         else:
             return self.events
 
     def get_signal(self, part: Part) -> torch.Tensor:
-        if part.is_trn():
+        if part.is_left():
             return src.crop_signal(self.signal, self.sr, self.trn_from_time, self.trn_till_time)
-        elif part.is_val():
+        elif part.is_right():
             return src.crop_signal(self.signal, self.sr, self.val_from_time, self.val_till_time)
         else:
             return self.signal
 
     def get_from_till_time(self, part: Part) -> Tuple[float, float]:
-        if part.is_trn():
+        if part.is_left():
             return self.trn_from_time, self.trn_till_time
-        elif part.is_val():
+        elif part.is_right():
             return self.val_from_time, self.val_till_time
         else:
             return self.trn_from_time, self.val_till_time
 
     def get_events_count(self, part: Part) -> int:
         events = self.events
-        if part.is_trn():
+        if part.is_left():
             return  np.sum((events >= self.trn_from_time) & (events < self.trn_till_time))
-        elif part.is_val():
+        elif part.is_right():
             return np.sum((events >= self.val_from_time) & (events < self.val_till_time))
         else:
             return len(events)

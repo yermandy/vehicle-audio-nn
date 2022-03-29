@@ -44,7 +44,7 @@ def create_feature_augmentations(config):
     )
 
 
-def create_transformation(config: Config, part: Part = Part.TEST):
+def create_transformation(config: Config, part: Part = Part.WHOLE):
     # apply logarithmic compression: https://arxiv.org/pdf/1709.01922.pdf
     amplitude_to_DB = T.AmplitudeToDB('energy')
     
@@ -111,13 +111,13 @@ def create_transformation(config: Config, part: Part = Part.TEST):
         else:
             raise Exception('unknown normalization')
 
-        if config.feature_augmentation and part.is_trn():
+        if config.feature_augmentation and part.is_left():
             features = augmentations(features)
 
         if config.gaussian_blur:
             features = gaussian_blur(features)
 
-        if config.image_augmentations and part.is_trn():
+        if config.image_augmentations and part.is_left():
             features = image_augmentations(features)
             
         return features

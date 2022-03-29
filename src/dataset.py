@@ -7,7 +7,7 @@ class VehicleDataset(Dataset):
 
     def __init__(self,
             datapool: DataPool,
-            part: bool = Part.TRAINING,
+            part: bool = Part.WHOLE,
             config: EasyDict = EasyDict(),
             offset: int = 0):
             

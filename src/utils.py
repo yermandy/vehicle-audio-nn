@@ -179,7 +179,7 @@ def get_signal_length(signal, config):
     return len(signal) // config.sr
 
 
-def create_dataset_from_files(datapool: DataPool, part=Part.TRAINING, offset: float=0):
+def create_dataset_from_files(datapool: DataPool, part=Part.LEFT, offset: float=0):
     all_samples = []
     all_labels = defaultdict(lambda: [])
 

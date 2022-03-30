@@ -1,14 +1,7 @@
-from torch.optim import Adam
+from torch.optim import Adam, AdamW
 from torch.utils.data import DataLoader
 
 from src import *
-from omegaconf import DictConfig, OmegaConf
-
-import hydra
-import sys
-import pickle
-import yaml
-import argparse
 
 
 def forward(loader, model, loss, config, optim=None, is_train=False):
@@ -55,22 +48,25 @@ def forward(loader, model, loss, config, optim=None, is_train=False):
                 optim.step()
 
     # weighted rvce by head weight
-    rvce = 0
+    rvce = []
     for head, head_weight in config.heads.items():
-        rvce += head_weight * np.mean([
+        head_rvce = head_weight * np.mean([
             abs(n_events_true[head][d] - n_events_pred[head][d]) / n_events_true[head][d] 
             for d in n_events_true[head] 
             if n_events_true[head][d] != 0
         ])
+        rvce.append(head_rvce)
+    rvce = np.mean(rvce)
 
     # weighted mae by head weight
-    mae = np.sum([
+    mae = np.mean([
         config.heads[head] * np.mean(head_abs_errors) 
         for head, head_abs_errors 
         in abs_errors.items()
     ])
     
     return loss_sum, mae, rvce
+
 
 
 @hydra.main(config_path='config', config_name='default')
@@ -96,25 +92,38 @@ def run(config):
     # set device
     device = get_device(config.cuda)
 
-    # initialize training datapool
-    trn_datapool = DataPool(config.training_files, config)
+    use_testing_files = len(config.testing_files) > 0
+    use_validation_files = len(config.validation_files) > 0
+
+    # initialize training and validation datapool
+    val_datapool = trn_datapool = DataPool(config.training_files, config)
+
+    if use_validation_files:
+        val_datapool = DataPool(config.validation_files, config)
+
+    if use_testing_files:
+        tst_datapool = DataPool(config.testing_files, config)
+
+    trn_part = Part.WHOLE if use_validation_files else Part.LEFT
+    val_part = Part.WHOLE if use_validation_files else Part.RIGHT
 
     # initialize training dataset
-    trn_dataset = VehicleDataset(trn_datapool, part=Part.TRAINING, config=config)
+    trn_dataset = VehicleDataset(trn_datapool, part=trn_part, config=config)
     trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=True)
 
     # initialize validation dataset
-    val_dataset = VehicleDataset(trn_datapool, part=Part.VALIDATION, config=config)
+    val_dataset = VehicleDataset(val_datapool, part=val_part, config=config)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, num_workers=config.num_workers)
 
     # initialize model
-    model = ResNet18(config).to(device)
+    model = get_model(config).to(device)
 
     # initialize loss function
     loss = nn.CrossEntropyLoss()
 
     # initialize optimizer
-    optim = Adam(model.parameters(), lr=config.lr)
+    # optim = Adam(model.parameters(), lr=config.lr)
+    optim = AdamW(model.parameters(), lr=config.lr)
 
     config.n_trn_samples = len(trn_dataset)
     config.n_val_samples = len(val_dataset)
@@ -125,9 +134,14 @@ def run(config):
     val_loss_best = float('inf')
     val_mae_best = float('inf')
     val_rvce_best = float('inf')
+    tst_rvce_best = float('inf')
+    tst_mae_best = float('inf')
+    tst_summary = None
 
     with open(f'outputs/{uuid}/config.pickle', 'wb') as f:
         pickle.dump(config, f)
+
+    shutil.make_archive(f'outputs/{uuid}/src', 'zip', 'src')
 
     training_loop = tqdm(range(config.n_epochs))
     for iteration in training_loop:
@@ -136,23 +150,27 @@ def run(config):
         trn_loss, trn_mae, trn_rvce = forward(trn_loader, model, loss, config, optim, True)
 
         ## validation
-        # trn_loss, trn_mae, trn_rvce = forward(trn_loader, model, loss, config,)
+        # trn_loss, trn_mae, trn_rvce = forward(trn_loader, model, loss, config)
         val_loss, val_mae, val_rvce = forward(val_loader, model, loss, config)
 
-        if val_loss <= val_loss_best:
+        ## testing
+        if use_testing_files:
+            tst_summary = validate_datapool(tst_datapool, model, config, Part.WHOLE)
+
+        if val_loss < val_loss_best:
             val_loss_best = val_loss
 
-        if val_mae <= val_mae_best:
+        if val_mae < val_mae_best:
             val_mae_best = val_mae
             torch.save(model.state_dict(), f'outputs/{uuid}/weights/mae.pth')
 
-        if val_rvce <= val_rvce_best:
+        if val_rvce < val_rvce_best:
             val_rvce_best = val_rvce
             torch.save(model.state_dict(), f'outputs/{uuid}/weights/rvce.pth')
 
         torch.save(model.state_dict(), f'outputs/{uuid}/weights/last.pth')
 
-        wandb.log({
+        log = {
             "trn loss": trn_loss,
             "val loss": val_loss,
             "val loss best": val_loss_best,
@@ -164,7 +182,27 @@ def run(config):
             "trn rvce": trn_rvce,
             "val rvce": val_rvce,
             "val rvce best": val_rvce_best,
-        })
+        }
+
+        if tst_summary != None:
+            tst_rvce = tst_summary['rvce: n_counts']
+            tst_mae = tst_summary['mae: n_counts']
+
+            tst_rvce = np.mean(list(map(float, tst_rvce[:-1])))
+            tst_mae = np.mean(list(map(float, tst_mae[:-1])))
+
+            if tst_rvce < tst_rvce_best:
+                tst_rvce_best = tst_rvce
+
+            if tst_mae < tst_mae_best:
+                tst_mae_best = tst_mae
+
+            log['tst rvce'] = tst_rvce
+            log['tst rvce best'] = tst_rvce_best
+            log['tst mae'] = tst_mae
+            log['tst mae best'] = tst_mae_best
+
+        wandb.log(log)
 
         training_loop.set_description(f'trn loss {trn_loss:.2f} | val loss {val_loss:.2f} | best loss {val_loss_best:.2f}')
 
@@ -178,16 +216,15 @@ def run(config):
 
     os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)
     
-    validate_and_save(uuid, trn_datapool, 'val', Part.VALIDATION, 'rvce')
-    validate_and_save(uuid, trn_datapool, 'val', Part.VALIDATION, 'mae')
+    validate_and_save(uuid, val_datapool, 'val', val_part, 'rvce')
+    validate_and_save(uuid, val_datapool, 'val', val_part, 'mae')
     
-    validate_and_save(uuid, trn_datapool, 'trn', Part.TRAINING, 'rvce')
-    validate_and_save(uuid, trn_datapool, 'trn', Part.TRAINING, 'mae')
+    validate_and_save(uuid, trn_datapool, 'trn', trn_part, 'rvce')
+    validate_and_save(uuid, trn_datapool, 'trn', trn_part, 'mae')
 
-    if len(config.testing_files) > 0:
-        tst_datapool = DataPool(config.testing_files, config)
-        validate_and_save(uuid, tst_datapool, 'tst', Part.TEST, 'rvce')
-        validate_and_save(uuid, tst_datapool, 'tst', Part.TEST, 'mae')
+    if use_testing_files:
+        validate_and_save(uuid, tst_datapool, 'tst', Part.WHOLE, 'rvce')
+        validate_and_save(uuid, tst_datapool, 'tst', Part.WHOLE, 'mae')
 
     wandb_run.finish()
 

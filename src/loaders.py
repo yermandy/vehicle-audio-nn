@@ -4,12 +4,13 @@ import numpy as np
 from collections import defaultdict, Counter
 import pickle
 import os
-from .model import ResNet18
+from .model import ResNet18, WaveCNN
 import torchaudio.transforms as T
 from .constants import *
 from .config import *
 
 from typing import Tuple, Any
+from glob import glob
 
 
 def time_to_sec(time):
@@ -18,17 +19,80 @@ def time_to_sec(time):
     return sec
 
 
-def load_csv(name, folder='data/csv/*.csv', preprocess=True):
-    import glob
-    batch = []
-    for file in glob.glob(folder):
-        if file.find(name) != -1:
-            table = np.genfromtxt(file, dtype=str, delimiter=';', skip_header=1)
-            batch.append(table)
-    batch = np.concatenate(batch)
+def get_file_name(path):
+    return path.split('/')[-1].split('.')[0]
+
+
+def find_file(file, folder, raise_exception=False):
+    for path in glob(folder, recursive=True):
+        # TODO replace get_file_name(file) with something better
+        # this requires all files to have unique names
+        if get_file_name(file) == get_file_name(path):
+            return path
+    if raise_exception:
+        raise Exception(f'file "{file}" does not exist')
+    else:
+        return None
+
+
+def load_csv(file, folder='data/csv/**/*.csv', preprocess=True):
+    file_path = find_file(file, folder, True)
+    csv = np.genfromtxt(file_path, dtype=str, delimiter=';', skip_header=1)
+    csv = np.atleast_2d(csv)
+    if csv.size == 0:
+        return []
     if preprocess:
-        batch = preprocess_csv(batch)
-    return batch
+        return preprocess_csv(csv)
+    return csv
+
+
+def load_audio_wav(path, return_sr=False):
+    signal, sr = torchaudio.load(path)
+    assert sr == 44100, 'sampling rate of the device is not 44100'
+    signal = signal.mean(0)
+    if return_sr:
+        return signal, sr
+    return signal
+
+
+def load_audio_tensor(path, return_sr=False):
+    signal, sr = torch.load(path)
+    assert sr == 44100, 'sampling rate of the device is not 44100'
+    if return_sr:
+        return signal, sr
+    return signal
+
+
+def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
+    wav_file_path = find_file(file, 'data/audio/**/*.wav', False)
+    pt_file_path = find_file(file, 'data/audio_tensors/**/*.pt', False)
+    if pt_file_path:
+        signal, sr = load_audio_tensor(pt_file_path, True)
+    elif wav_file_path:
+        signal, sr = load_audio_wav(wav_file_path, True)
+    else:
+        raise Exception(f'file "{file}" does not exist')
+    if sr != resample_sr:
+        signal = T.Resample(sr, resample_sr).forward(signal)
+    # round to the last second
+    seconds = len(signal) // resample_sr
+    signal = signal[:seconds * resample_sr]
+    if return_sr:
+        return signal, resample_sr
+    return signal
+
+
+def load_events(file):
+    file_path = find_file(file, 'data/labels/**/*.txt', True)
+    return np.loadtxt(file_path)
+
+
+def load_intervals(file):
+    file_path = find_file(file, 'data/intervals/**/*.txt', False)
+    if file_path:
+        return np.loadtxt(file_path)
+    else:
+        return []
 
 
 def find_clusters(X, delta=1*60):
@@ -111,46 +175,6 @@ def preprocess_csv(csv):
     return rows
 
 
-def load_audio_wav(file, return_sr=False):
-    signal, sr = torchaudio.load(file)
-    assert sr == 44100, 'sampling rate of the device is not 44100'
-    signal = signal.mean(0)
-    if return_sr:
-        return signal, sr
-    return signal
-
-
-def load_audio_tensor(file, return_sr=False):
-    signal, sr = torch.load(file)
-    assert sr == 44100, 'sampling rate of the device is not 44100'
-    if return_sr:
-        return signal, sr
-    return signal
-
-
-def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
-    if os.path.exists(f'data/audio_tensors/{file}.MP4.pt'):
-        signal, sr = load_audio_tensor(f'data/audio_tensors/{file}.MP4.pt', True)
-    else:
-        signal, sr = load_audio_wav(f'data/audio/{file}.MP4.wav', True)
-    if sr != resample_sr:
-        signal = T.Resample(sr, resample_sr).forward(signal)
-    # round to the last second
-    seconds = len(signal) // resample_sr
-    signal = signal[:seconds * resample_sr]
-    if return_sr:
-        return signal, resample_sr
-    return signal
-
-
-def load_events(file):
-    return np.loadtxt(f'data/labels/{file}.MP4.txt')
-
-
-def load_intervals(file):
-    return np.loadtxt(f'data/intervals/{file}.MP4.txt')
-
-
 def load_intervals_and_n_events(file):
     events = load_events(file)
     intervals = load_intervals(file)
@@ -204,6 +228,7 @@ def load_event_time_from_csv(csv):
     return np.array(start_times), np.array(end_times)
 
 
+# TODO Fix
 def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device=None, classification=True):
     import wandb
     from easydict import EasyDict
@@ -233,13 +258,20 @@ def load_config_locally(uuid) -> Config:
         return pickle.load(f)
 
 
+def get_model(config):
+    return {
+        'WaveCNN': WaveCNN(config),
+        'ResNet18': ResNet18(config)
+    }[config.architecture]
+
+
 def load_model_locally(uuid, model_name='mae', device=None) -> Tuple[Any, Config]:
     if device is None:
         device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
 
     config = load_config_locally(uuid)
     weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
-    model = ResNet18(config).to(device)
+    model = get_model(config).to(device)
     model.load_state_dict(weights)
     model.eval()
 

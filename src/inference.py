@@ -69,7 +69,7 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
     return to_return if len(to_return) > 1 else to_return[0]
 
 
-def validate_datapool(datapool: DataPool, model, config: Config, part=Part.TEST):
+def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE):
     dict = defaultdict(list)
     files = []
     times = []
@@ -123,7 +123,7 @@ def append_summary(dict, times, files):
     dict['file'] = files
 
 
-def validate_and_save(uuid, datapool, prefix='tst', part=Part.TEST, model_name='rvce', config=None):
+def validate_and_save(uuid, datapool, prefix='tst', part=Part.WHOLE, model_name='rvce', config=None):
     model, _config = load_model_locally(uuid, model_name)
     if config is None:
         config = _config

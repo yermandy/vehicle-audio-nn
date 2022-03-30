@@ -65,18 +65,18 @@ class Transformation(str, Enum):
 
 
 class Part(str, Enum):
-    TRAINING = 'trn'
-    VALIDATION = 'val'
-    TEST = 'tst'
+    LEFT = 'left'
+    RIGHT = 'right'
+    WHOLE = 'whole'
 
     def __str__(self) -> str:
         return str.__str__(self)
 
-    def is_trn(self) -> bool:
-        return self == self.TRAINING
+    def is_left(self) -> bool:
+        return self == self.LEFT
 
-    def is_val(self) -> bool:
-        return self == self.VALIDATION
+    def is_right(self) -> bool:
+        return self == self.RIGHT
 
-    def is_tst(self) -> bool:
-        return self == self.TEST
+    def is_whole(self) -> bool:
+        return self == self.WHOLE

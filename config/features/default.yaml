@@ -1,5 +1,8 @@
 # sampling rate [samples]
 sr: 22050
+
+# whether to use raw signal as an input
+raw_signal: false
  
 # stft | mel | mfcc
 transformation: stft

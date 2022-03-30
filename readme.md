@@ -31,40 +31,34 @@ ln -s ~/data/MultiDo/CVUTFD/result/* data/csv/
 
 #### Preprocess files
 
-Use `preprocess_data.py` to generate `data/audio`, `data/audio` and `data/intervals` 
+Use `preprocess_data.py` to generate `data/audio`, `data/audio_tensors`, `data/labels` and `data/intervals` 
 
-Notice, `config/config.yaml` defines the dataset which will be processed
-
-```
-defaults:
- - dataset: dataset_26.11.2021 
-```
-
-where `dataset_26.11.2021` is the list of files which are going to be preprocessed and is placed in
+Example:
 
 ```
-./config/dataset/dataset_26.11.2021.yaml
-````
-
+preprocess_data.py config/dataset/dataset.yaml
 ```
 
+where `config/dataset/dataset.yaml` is the path to yaml list with files to be preprocessed
+
+```
 Converting videos by ffmpeg:
 $ ffmpeg -i input_video.mts -c:v copy -c:a aac -b:a 256k output_video.mp4
-````
+```
 
 
 #### Wandb account
 
-To visualize training curves, create [wandb](https://wandb.ai/) account and add new project. Add your wandb project name and account name to `config/config.yaml`.
+To visualize training curves, create [wandb](https://wandb.ai/) account and add new project. Add your wandb project name and account name to `config/wandb/wandb.yaml`.
 
 #### Training
 
-Change training configurations in `config/config.yaml` and run `train_classification.py`
+Change training configurations in `config/model/default.yaml.yaml` and run `train_classification.py`
 
-Specify another config file
+To override run configuration, use:
 ```
-python train_classification.py --config-name config_name
-python cross_validation.py --config-name config_name
+python train_classification.py experiment=
+python cross_validation.py experiment=
 ```
 
 #### Resources

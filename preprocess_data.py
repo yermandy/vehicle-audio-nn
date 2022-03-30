@@ -118,7 +118,7 @@ def extract_intevals(file, empty_interval_in_s=10):
     events = np.linspace(events_start_times, events_end_times, num=100).flatten()
     events = np.sort(events)
     
-    next_cut = 0
+    cut_at = next_cut = 0
     intervals = []
     for i in range(1, len(events)):
         diff = events[i] - events[i - 1]
@@ -126,6 +126,11 @@ def extract_intevals(file, empty_interval_in_s=10):
             cut_at = events[i] - diff / 2
             intervals.append([f'{next_cut:.2f}', f'{cut_at:.2f}'])
             next_cut = cut_at
+
+    signal, sr = load_audio(file, return_sr=True)
+    end = len(signal) // sr
+
+    intervals.append([f'{cut_at:.2f}', f'{end:.2f}'])
     
     np.savetxt(intervals_file, intervals, fmt='%s')
     print(labels_file, len(intervals))

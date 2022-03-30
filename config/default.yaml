@@ -6,6 +6,7 @@ defaults:
   - wandb: wandb
   - testing_files: default
   - training_files: default
+  - validation_files: default
   - features@_here_: default
   - model@_here_: default
   - experiment@_here_: null

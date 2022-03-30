@@ -88,6 +88,12 @@ class ModelConfig(object):
 
     inference_function = InferenceFunction.SIMPLE
 
+    raw_signal: bool = False
+
+    # architecture:
+    # ResNet18 | WaveCNN
+    architecture: str = 'ResNet18'
+
 
 @dataclass
 class WandbConfig:
@@ -103,6 +109,7 @@ class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, object):
     n_samples_in_window: int = None
     training_files: tuple = ('12_RX100',)
     testing_files: tuple = ('12_RX100',)
+    validation_files: tuple = ('12_RX100',)
 
     def __init__(self, config=None, **kwargs):
         super(Config, self).__init__(config, **kwargs)

@@ -104,8 +104,8 @@ def run(config):
     if use_testing_files:
         tst_datapool = DataPool(config.testing_files, config)
 
-    trn_part = Part.TEST if use_validation_files else Part.TRAINING
-    val_part = Part.TEST if use_validation_files else Part.VALIDATION
+    trn_part = Part.WHOLE if use_validation_files else Part.LEFT
+    val_part = Part.WHOLE if use_validation_files else Part.RIGHT
 
     # initialize training dataset
     trn_dataset = VehicleDataset(trn_datapool, part=trn_part, config=config)
@@ -155,7 +155,7 @@ def run(config):
 
         ## testing
         if use_testing_files:
-            tst_summary = validate_datapool(tst_datapool, model, config, Part.TEST)
+            tst_summary = validate_datapool(tst_datapool, model, config, Part.WHOLE)
 
         if val_loss < val_loss_best:
             val_loss_best = val_loss
@@ -223,8 +223,8 @@ def run(config):
     validate_and_save(uuid, trn_datapool, 'trn', trn_part, 'mae')
 
     if use_testing_files:
-        validate_and_save(uuid, tst_datapool, 'tst', Part.TEST, 'rvce')
-        validate_and_save(uuid, tst_datapool, 'tst', Part.TEST, 'mae')
+        validate_and_save(uuid, tst_datapool, 'tst', Part.WHOLE, 'rvce')
+        validate_and_save(uuid, tst_datapool, 'tst', Part.WHOLE, 'mae')
 
     wandb_run.finish()
 

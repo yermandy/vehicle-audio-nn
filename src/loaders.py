@@ -20,7 +20,7 @@ def time_to_sec(time):
 
 
 def get_file_name(path):
-    return path.split('/')[-1].split('.')[0]
+    return os.path.basename(path).split('.')[0]
 
 
 def find_file(file, folder, raise_exception=False):
@@ -231,7 +231,6 @@ def load_event_time_from_csv(csv):
 # TODO Fix
 def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device=None, classification=True):
     import wandb
-    from easydict import EasyDict
 
     if device is None:
         device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -245,12 +244,36 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device
             break
     
     weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
-    num_classes = len(weights['model.fc.bias'])
-    model = ResNet18(num_classes=num_classes).to(device)
+    model = get_model(config).to(device)
     model.load_state_dict(weights)
     model.eval()
     
     return model, config
+
+
+def load_config_wandb(uuid, wandb_entity, wandb_project) -> Config:
+    import wandb
+    
+    api = wandb.Api()
+    runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
+
+    for run in runs: 
+        if run.name == str(uuid):
+            config = Config()
+            for k, v in run.config.items():
+                config.k = v
+            return config
+
+
+def load_run_wandb(uuid, wandb_entity, wandb_project) -> Config:
+    import wandb
+    
+    api = wandb.Api()
+    runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
+
+    for run in runs: 
+        if run.name == str(uuid):
+            return run
 
 
 def load_config_locally(uuid) -> Config:

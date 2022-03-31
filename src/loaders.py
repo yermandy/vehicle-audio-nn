@@ -23,20 +23,25 @@ def get_file_name(path):
     return os.path.basename(path).split('.')[0]
 
 
-def find_file(file, folder, raise_exception=False):
-    for path in glob(folder, recursive=True):
-        # TODO replace get_file_name(file) with something better
-        # this requires all files to have unique names
-        if get_file_name(file) == get_file_name(path):
-            return path
-    if raise_exception:
-        raise Exception(f'file "{file}" does not exist')
+def get_file_extension(path):
+    return os.path.basename(path).split('.')[-1]
+
+
+def find_path(query, raise_exception=False):
+    results = glob(query, recursive=True)
+    if len(results) == 0:
+        if raise_exception:
+            raise Exception(f'file "{query}" does not exist')
+        else:
+            return None
+    elif len(results) == 1:
+        return results[0]
     else:
-        return None
+        raise Exception(f'found multiple results for "{query}"')
 
 
-def load_csv(file, folder='data/csv/**/*.csv', preprocess=True):
-    file_path = find_file(file, folder, True)
+def load_csv(file, preprocess=True):
+    file_path = find_path(f'data/csv/**/{file}.csv', True)
     csv = np.genfromtxt(file_path, dtype=str, delimiter=';', skip_header=1)
     csv = np.atleast_2d(csv)
     if csv.size == 0:
@@ -64,8 +69,8 @@ def load_audio_tensor(path, return_sr=False):
 
 
 def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
-    wav_file_path = find_file(file, 'data/audio/**/*.wav', False)
-    pt_file_path = find_file(file, 'data/audio_tensors/**/*.pt', False)
+    wav_file_path = find_path(f'data/audio_wav/**/{file}.wav')
+    pt_file_path = find_path(f'data/audio_pt/**/{file}.pt')
     if pt_file_path:
         signal, sr = load_audio_tensor(pt_file_path, True)
     elif wav_file_path:
@@ -83,14 +88,14 @@ def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
 
 
 def load_events(file):
-    file_path = find_file(file, 'data/labels/**/*.txt', True)
+    file_path = find_path(f'data/labels/**/{file}.txt', True)
     return np.loadtxt(file_path)
 
 
 def load_intervals(file):
-    file_path = find_file(file, 'data/intervals/**/*.txt', False)
+    file_path = find_path(f'data/intervals/**/{file}.txt', False)
     if file_path:
-        return np.loadtxt(file_path)
+        return np.atleast_2d(np.loadtxt(file_path))
     else:
         return []
 

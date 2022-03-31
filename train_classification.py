@@ -51,9 +51,9 @@ def forward(loader, model, loss, config, optim=None, is_train=False):
     rvce = []
     for head, head_weight in config.heads.items():
         head_rvce = head_weight * np.mean([
-            abs(n_events_true[head][d] - n_events_pred[head][d]) / n_events_true[head][d] 
-            for d in n_events_true[head] 
-            if n_events_true[head][d] != 0
+            abs(n_events_true[head][domain] - n_events_pred[head][domain]) / n_events_true[head][domain] 
+            for domain in n_events_true[head] 
+            if n_events_true[head][domain] != 0
         ])
         rvce.append(head_rvce)
     rvce = np.mean(rvce)

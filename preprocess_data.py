@@ -1,33 +1,42 @@
 from src import *
 
 
-os.makedirs('data/audio', exist_ok=True)
-os.makedirs('data/audio_tensors', exist_ok=True)
+os.makedirs('data/audio_wav', exist_ok=True)
+os.makedirs('data/audio_pt', exist_ok=True)
 os.makedirs('data/labels', exist_ok=True)
 os.makedirs('data/intervals', exist_ok=True)
 
 
 def extract_audio(file):
-    audio_tensor_file = f'data/audio_tensors/{file}.MP4.pt'
-    if os.path.exists(audio_tensor_file):
-        print(f'file {audio_tensor_file} exists')
+    path_pt = find_path(f'data/audio_pt/**/{file}.pt')
+    path_wav = find_path(f'data/audio_wav/**/{file}.wav')
+    
+    if path_pt != None and path_wav != None:
+        print(f'file {path_pt} exists')
+        print(f'file {path_wav} exists')
         return
+
+    path_pt = f'data/audio_pt/{file}.pt'
+    path_wav = f'data/audio_wav/{file}.wav'
+    
     import moviepy.editor as mp
-    video = mp.VideoFileClip(f"data/video/{file}.MP4")
-    video.audio.write_audiofile(f"data/audio/{file}.MP4.wav")
-    signal, sr = load_audio(file, return_sr=True)
-    torch.save([signal, sr], audio_tensor_file)
+    path_video = find_path(f'data/video/**/{file}.*', True)
+    video = mp.VideoFileClip(path_video)
+    video.audio.write_audiofile(path_wav)
+
+    signal, sr = load_audio(path_wav, return_sr=True)
+    torch.save([signal, sr], path_pt)
 
 
-def optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=True, window_len=0.5):
+def optimize(views, events_start_time, events_end_time, energy_per_second, energy, is_rear=True, window_len=0.5):
     if is_rear:
         mask = views == 'rear'
-        subset = events_start_time[mask] * e_p_s
+        subset = events_start_time[mask] * energy_per_second
     else:
         mask = views != 'rear'
-        subset = events_end_time[mask] * e_p_s
+        subset = events_end_time[mask] * energy_per_second
 
-    window_len = window_len * e_p_s
+    window_len = window_len * energy_per_second
 
     delta_best = None
     sum_of_energies_best = 0
@@ -35,7 +44,7 @@ def optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=T
     deltas = np.arange(0, 5.1, 0.1)
 
     for delta in deltas:
-        delta = delta * e_p_s
+        delta = delta * energy_per_second
 
         if is_rear:
             window_from = subset - delta - window_len
@@ -59,17 +68,19 @@ def optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=T
             # compensate for half of window length
             delta_best = delta + window_len / 2
 
-    return delta_best / e_p_s
+    return delta_best / energy_per_second
 
 
 def extract_labels(file):
-    labels_file_name = f'data/labels/{file}.MP4.txt'
-    if os.path.exists(labels_file_name):
-        print(f'file {labels_file_name} exists')
+    path = find_path(f'data/labels/**/{file}.txt')
+    if path:
+        print(f'file {path} exists')
         return
+    else:
+        path = f'data/labels/{file}.txt'
     signal, sr = load_audio(file, return_sr=True)
     signal_length = len(signal) // sr
-    csv = load_csv(f'{file}.MP4')
+    csv = load_csv(file)
     views = load_views_from_csv(csv)
     events_start_time, events_end_time = load_event_time_from_csv(csv)
 
@@ -80,15 +91,23 @@ def extract_labels(file):
     energy = s[..., 0].pow(2)
     energy = energy.sum(0)
 
-    e_p_s = len(energy) / signal_length
+    energy_per_second = len(energy) / signal_length
     
     mask = views == 'rear'
-    output_rear = optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=True)
-    estimated_labels_1 = events_start_time[mask] - output_rear
+    if mask.sum() != 0:
+        output_rear = optimize(views, events_start_time, events_end_time, energy_per_second, energy, is_rear=True)
+        estimated_labels_1 = events_start_time[mask] - output_rear
+    else:
+        output_rear = 0
+        estimated_labels_1 = []
 
     mask = views != 'rear'
-    output_front = optimize(views, events_start_time, events_end_time, e_p_s, energy, is_rear=False)
-    estimated_labels_2 = events_end_time[mask] + output_front
+    if mask.sum() != 0:
+        output_front = optimize(views, events_start_time, events_end_time, energy_per_second, energy, is_rear=False)
+        estimated_labels_2 = events_end_time[mask] + output_front
+    else:
+        output_front = 0
+        estimated_labels_2 = []
     
     print(f'{file}: {output_rear:.2f}, {output_front:.2f}')
     
@@ -98,17 +117,17 @@ def extract_labels(file):
     estimated_labels = np.round(estimated_labels, 2)
     estimated_labels.tolist()
     
-    np.savetxt(labels_file_name, estimated_labels, fmt='%s')
+    np.savetxt(path, estimated_labels, fmt='%s')
 
 
 def extract_intevals(file, empty_interval_in_s=10):
-    intervals_file = f'data/intervals/{file}.MP4.txt'
-    if os.path.exists(intervals_file):
-        print(f'file {intervals_file} exists')
+    path = find_path(f'data/intervals/**/{file}.txt')
+    if path:
+        print(f'file {path} exists')
         return
-
-    labels_file = f'data/labels/{file}.MP4.txt'
-    csv = load_csv(f'{file}.MP4')
+    else:
+        path = f'data/intervals/{file}.txt'
+    csv = load_csv(file)
     events_start_times = csv[:, 8]
     events_end_times = csv[:, 9]
 
@@ -132,8 +151,8 @@ def extract_intevals(file, empty_interval_in_s=10):
 
     intervals.append([f'{cut_at:.2f}', f'{end:.2f}'])
     
-    np.savetxt(intervals_file, intervals, fmt='%s')
-    print(labels_file, len(intervals))
+    np.savetxt(path, intervals, fmt='%s')
+    print(path, len(intervals))
 
 
 def preprocess(files):    

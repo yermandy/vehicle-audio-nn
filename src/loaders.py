@@ -293,6 +293,13 @@ def get_model(config):
     }[config.architecture]
 
 
+def get_optimizer(model, config):
+    return {
+        'Adam': torch.optim.Adam,
+        'AdamW': torch.optim.AdamW
+    }[config.optimizer](model.parameters(), lr=config.lr)
+
+
 def load_model_locally(uuid, model_name='mae', device=None) -> Tuple[Any, Config]:
     if device is None:
         device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')

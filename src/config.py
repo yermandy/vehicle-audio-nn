@@ -93,6 +93,10 @@ class ModelConfig(object):
     # architecture:
     # ResNet18 | WaveCNN
     architecture: str = 'ResNet18'
+    
+    # optimizer
+    # Adam | AdamW
+    optimizer: str = 'AdamW'
 
 
 @dataclass

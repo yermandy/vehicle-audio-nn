@@ -8,7 +8,7 @@ import matplotlib.ticker as tick
 import warnings
 
 from .transformation import create_transformation
-from .utils import get_signal_length
+from .utils import crop_signal, get_signal_length
 
 warnings.filterwarnings("ignore")
 
@@ -47,15 +47,14 @@ def show(config, signal, best_detection_frame=None,
     def formatter(x, y):
         return f'{x // 60:02.0f}:{x % 60:02.0f}'
     
-    print(f'{formatter(from_time, None)} - {formatter(till_time, None)}')
-    
-    signal = signal[from_time * config.sr: till_time * config.sr]
-    
+    signal = crop_signal(signal, config.sr, from_time, till_time)
     signal_length = get_signal_length(signal, config)
 
     if till_time > signal_length:
         print('till_time > signal_length')
         till_time = signal_length
+
+    print(f'{formatter(from_time, None)} - {formatter(till_time, None)}')
 
     nrows = 3
     if predictions is not None:
@@ -183,5 +182,5 @@ def show(config, signal, best_detection_frame=None,
     if save is not None and save is not False:
         plt.tight_layout()
         plt.savefig(save, dpi=100)
-        
+
     plt.show()

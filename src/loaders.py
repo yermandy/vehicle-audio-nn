@@ -20,23 +20,28 @@ def time_to_sec(time):
 
 
 def get_file_name(path):
-    return path.split('/')[-1].split('.')[0]
+    return os.path.basename(path).split('.')[0]
 
 
-def find_file(file, folder, raise_exception=False):
-    for path in glob(folder, recursive=True):
-        # TODO replace get_file_name(file) with something better
-        # this requires all files to have unique names
-        if get_file_name(file) == get_file_name(path):
-            return path
-    if raise_exception:
-        raise Exception(f'file "{file}" does not exist')
+def get_file_extension(path):
+    return os.path.basename(path).split('.')[-1]
+
+
+def find_path(query, raise_exception=False):
+    results = glob(query, recursive=True)
+    if len(results) == 0:
+        if raise_exception:
+            raise Exception(f'file "{query}" does not exist')
+        else:
+            return None
+    elif len(results) == 1:
+        return results[0]
     else:
-        return None
+        raise Exception(f'found multiple results for "{query}"')
 
 
-def load_csv(file, folder='data/csv/**/*.csv', preprocess=True):
-    file_path = find_file(file, folder, True)
+def load_csv(file, preprocess=True):
+    file_path = find_path(f'data/csv/**/{file}.csv', True)
     csv = np.genfromtxt(file_path, dtype=str, delimiter=';', skip_header=1)
     csv = np.atleast_2d(csv)
     if csv.size == 0:
@@ -64,8 +69,8 @@ def load_audio_tensor(path, return_sr=False):
 
 
 def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
-    wav_file_path = find_file(file, 'data/audio/**/*.wav', False)
-    pt_file_path = find_file(file, 'data/audio_tensors/**/*.pt', False)
+    wav_file_path = find_path(f'data/audio_wav/**/{file}.wav')
+    pt_file_path = find_path(f'data/audio_pt/**/{file}.pt')
     if pt_file_path:
         signal, sr = load_audio_tensor(pt_file_path, True)
     elif wav_file_path:
@@ -83,14 +88,14 @@ def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
 
 
 def load_events(file):
-    file_path = find_file(file, 'data/labels/**/*.txt', True)
+    file_path = find_path(f'data/labels/**/{file}.txt', True)
     return np.loadtxt(file_path)
 
 
 def load_intervals(file):
-    file_path = find_file(file, 'data/intervals/**/*.txt', False)
+    file_path = find_path(f'data/intervals/**/{file}.txt', False)
     if file_path:
-        return np.loadtxt(file_path)
+        return np.atleast_2d(np.loadtxt(file_path))
     else:
         return []
 
@@ -231,7 +236,6 @@ def load_event_time_from_csv(csv):
 # TODO Fix
 def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device=None, classification=True):
     import wandb
-    from easydict import EasyDict
 
     if device is None:
         device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -245,12 +249,36 @@ def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device
             break
     
     weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
-    num_classes = len(weights['model.fc.bias'])
-    model = ResNet18(num_classes=num_classes).to(device)
+    model = get_model(config).to(device)
     model.load_state_dict(weights)
     model.eval()
     
     return model, config
+
+
+def load_config_wandb(uuid, wandb_entity, wandb_project) -> Config:
+    import wandb
+    
+    api = wandb.Api()
+    runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
+
+    for run in runs: 
+        if run.name == str(uuid):
+            config = Config()
+            for k, v in run.config.items():
+                config.k = v
+            return config
+
+
+def load_run_wandb(uuid, wandb_entity, wandb_project) -> Config:
+    import wandb
+    
+    api = wandb.Api()
+    runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
+
+    for run in runs: 
+        if run.name == str(uuid):
+            return run
 
 
 def load_config_locally(uuid) -> Config:
@@ -263,6 +291,13 @@ def get_model(config):
         'WaveCNN': WaveCNN(config),
         'ResNet18': ResNet18(config)
     }[config.architecture]
+
+
+def get_optimizer(model, config):
+    return {
+        'Adam': torch.optim.Adam,
+        'AdamW': torch.optim.AdamW
+    }[config.optimizer](model.parameters(), lr=config.lr)
 
 
 def load_model_locally(uuid, model_name='mae', device=None) -> Tuple[Any, Config]:

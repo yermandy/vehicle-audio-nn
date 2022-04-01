@@ -93,6 +93,10 @@ class ModelConfig(object):
     # architecture:
     # ResNet18 | WaveCNN
     architecture: str = 'ResNet18'
+    
+    # optimizer
+    # Adam | AdamW
+    optimizer: str = 'AdamW'
 
 
 @dataclass
@@ -103,7 +107,14 @@ class WandbConfig:
 
 
 @dataclass
-class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, object):
+class CrossValidation:
+    splits_from: int = 0
+    n_splits: int = 0
+    cross_validation_folder: str = None
+
+
+@dataclass
+class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation, object):
     uuid: str = None
     n_samples_in_nn_hop: int = None
     n_samples_in_window: int = None

@@ -24,7 +24,9 @@ class Video():
         self._split(config.window_length, config.split_ratio)
 
     def _split(self, window_length: float, split_ratio: float):
-        if len(self.intervals) > 0:
+        if len(self.intervals) == 1:
+            split_time = self.intervals[0, 1]
+        elif len(self.intervals) > 1:
             split_at = self.signal_length * split_ratio
             idx = np.abs(self.intervals[:-1, 1] - split_at).argmin()
             split_time = self.intervals[idx, 1]

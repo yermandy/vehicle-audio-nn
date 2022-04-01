@@ -51,9 +51,9 @@ def forward(loader, model, loss, config, optim=None, is_train=False):
     rvce = []
     for head, head_weight in config.heads.items():
         head_rvce = head_weight * np.mean([
-            abs(n_events_true[head][d] - n_events_pred[head][d]) / n_events_true[head][d] 
-            for d in n_events_true[head] 
-            if n_events_true[head][d] != 0
+            abs(n_events_true[head][domain] - n_events_pred[head][domain]) / n_events_true[head][domain] 
+            for domain in n_events_true[head] 
+            if n_events_true[head][domain] != 0
         ])
         rvce.append(head_rvce)
     rvce = np.mean(rvce)
@@ -93,19 +93,19 @@ def run(config):
     device = get_device(config.cuda)
 
     use_testing_files = len(config.testing_files) > 0
-    use_validation_files = len(config.validation_files) > 0
+    use_different_validation_files = len(config.validation_files) > 0
 
     # initialize training and validation datapool
     val_datapool = trn_datapool = DataPool(config.training_files, config)
 
-    if use_validation_files:
+    if use_different_validation_files:
         val_datapool = DataPool(config.validation_files, config)
 
     if use_testing_files:
         tst_datapool = DataPool(config.testing_files, config)
 
-    trn_part = Part.WHOLE if use_validation_files else Part.LEFT
-    val_part = Part.WHOLE if use_validation_files else Part.RIGHT
+    trn_part = Part.WHOLE if use_different_validation_files else Part.LEFT
+    val_part = Part.WHOLE if use_different_validation_files else Part.RIGHT
 
     # initialize training dataset
     trn_dataset = VehicleDataset(trn_datapool, part=trn_part, config=config)
@@ -122,13 +122,10 @@ def run(config):
     loss = nn.CrossEntropyLoss()
 
     # initialize optimizer
-    # optim = Adam(model.parameters(), lr=config.lr)
-    optim = AdamW(model.parameters(), lr=config.lr)
+    optim = get_optimizer(model, config)
 
     config.n_trn_samples = len(trn_dataset)
     config.n_val_samples = len(val_dataset)
-    config.model = model.__class__.__name__
-    config.optim = optim.__class__.__name__
     wandb.config.update(config)
 
     val_loss_best = float('inf')

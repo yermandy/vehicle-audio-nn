@@ -31,11 +31,9 @@ def generate_cross_validation_table(uuids, model_name='rvce', prefix='tst'):
 
 
 @hydra.main(config_path='config', config_name='default')
-def setup_globals(config: DictConfig):
-    global cross_validation_folder, root_uuid, n_splits
-    cross_validation_folder = config['cross_validation_folder']
-    root_uuid = config['uuid']
-    n_splits = config['n_splits']
+def setup_globals(_config):
+    global config
+    config = Config(_config)
 
 
 def setup_hydra():
@@ -49,16 +47,20 @@ def cross_validate():
     setup_hydra()
     setup_globals()
 
+    global config
+
     uuids = []
-    for split in range(n_splits):
-        split_uuid = f'{root_uuid}/{split}'
+    for split in range(config.splits_from, config.n_splits):
+        print(split)
+        split_uuid = f'{config.uuid}/{split}'
         uuids.append(split_uuid)
         sys.argv.append(f'++split={split}')
-        sys.argv.append(f'++root_uuid={root_uuid}')
+        sys.argv.append(f'++root_uuid={config.uuid}')
         sys.argv.append(f'uuid={split_uuid}')
         sys.argv.append(f'hydra.run.dir=outputs/{split_uuid}')
-        sys.argv.append(f'training_files={cross_validation_folder}/{split}')
-        sys.argv.append(f'testing_files={cross_validation_folder}/{split}')
+        sys.argv.append(f'training_files={config.cross_validation_folder}/{split}')
+        sys.argv.append(f'testing_files={config.cross_validation_folder}/{split}')
+        sys.argv.append(f'validation_files={config.cross_validation_folder}/{split}')
         run()
     
     generate_cross_validation_table(uuids, 'rvce')

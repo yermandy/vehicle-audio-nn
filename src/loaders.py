@@ -14,6 +14,30 @@ from typing import Tuple, Any
 from glob import glob
 
 
+def find_wav(file):
+    return find_path(f'data/audio_wav/**/{file}.wav')
+
+
+def find_pt(file):
+    return find_path(f'data/audio_pt/**/{file}.pt')
+
+
+def find_csv(file):
+    return find_path(f'data/csv/**/{file}.csv', True)
+    
+
+def find_labels(file):
+    return find_path(f'data/labels/**/{file}.txt', True)
+
+
+def find_intervals(file):
+    return find_path(f'data/intervals/**/{file}.txt')
+
+
+def find_video(file):
+    return find_path(f'data/video/**/{file}.*', True)
+
+
 def time_to_sec(time):
     h, m, s = map(float, time.split(':'))
     sec = h * 3600 + m * 60 + s
@@ -42,7 +66,7 @@ def find_path(query, raise_exception=False):
 
 
 def load_csv(file, preprocess=True):
-    file_path = find_path(f'data/csv/**/{file}.csv', True)
+    file_path = find_csv(file)
     csv = np.genfromtxt(file_path, dtype=str, delimiter=';', skip_header=1)
     csv = np.atleast_2d(csv)
     if csv.size == 0:
@@ -70,8 +94,8 @@ def load_audio_tensor(path, return_sr=False):
 
 
 def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
-    wav_file_path = find_path(f'data/audio_wav/**/{file}.wav')
-    pt_file_path = find_path(f'data/audio_pt/**/{file}.pt')
+    wav_file_path = find_wav(file)
+    pt_file_path = find_pt(file)
     if pt_file_path:
         signal, sr = load_audio_tensor(pt_file_path, True)
     elif wav_file_path:
@@ -89,12 +113,11 @@ def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
 
 
 def load_events(file):
-    file_path = find_path(f'data/labels/**/{file}.txt', True)
-    return np.loadtxt(file_path)
+    return np.loadtxt(find_labels(file))
 
 
 def load_intervals(file):
-    file_path = find_path(f'data/intervals/**/{file}.txt', False)
+    file_path = find_intervals(file)
     if file_path:
         return np.atleast_2d(np.loadtxt(file_path))
     else:
@@ -305,7 +328,7 @@ def get_optimizer(model, config):
 def load_files_from_dataset(dataset_name):
     file_path = find_path(f'config/dataset/**/{dataset_name}.yaml', True)
     with open(file_path, 'r') as stream:
-        return yaml.safe_load(stream)
+        return sorted(yaml.safe_load(stream))
 
 
 def load_model_locally(uuid, model_name='mae', device=None) -> Tuple[Any, Config]:

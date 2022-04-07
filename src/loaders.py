@@ -4,7 +4,8 @@ import numpy as np
 from collections import defaultdict, Counter
 import pickle
 import os
-from .model import ResNet18, WaveCNN
+import yaml
+from .model import ResNet18, ResNet1D, WaveCNN
 import torchaudio.transforms as T
 from .constants import *
 from .config import *
@@ -289,7 +290,8 @@ def load_config_locally(uuid) -> Config:
 def get_model(config):
     return {
         'WaveCNN': WaveCNN(config),
-        'ResNet18': ResNet18(config)
+        'ResNet18': ResNet18(config),
+        'ResNet1D': ResNet1D(config)
     }[config.architecture]
 
 
@@ -298,6 +300,12 @@ def get_optimizer(model, config):
         'Adam': torch.optim.Adam,
         'AdamW': torch.optim.AdamW
     }[config.optimizer](model.parameters(), lr=config.lr)
+
+
+def load_files_from_dataset(dataset_name):
+    file_path = find_path(f'config/dataset/**/{dataset_name}.yaml', True)
+    with open(file_path, 'r') as stream:
+        return yaml.safe_load(stream)
 
 
 def load_model_locally(uuid, model_name='mae', device=None) -> Tuple[Any, Config]:

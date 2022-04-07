@@ -17,8 +17,7 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
     if till_time is None:
         till_time = get_signal_length(signal, config)
 
-    if from_time is not None and till_time is not None:
-        signal = crop_signal(signal, config.sr, from_time, till_time)
+    signal = crop_signal(signal, config.sr, from_time, till_time)
         
     device = next(model.parameters()).device
 
@@ -80,7 +79,16 @@ def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE
         files.append(video.file)
         times.append(f'{from_time:.0f}: {till_time:.0f}')
 
-        probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time, classification=True)
+        # in case of ensembling, we get the predictions for each model
+        if type(model) == list:
+            probs = defaultdict(int)
+            for m in model:
+                P = validate_video(video, m, return_preds=False, from_time=from_time, till_time=till_time, classification=True)
+                for head, p in P.items():
+                    probs[head] = p / p.sum(1, keepdims=True)
+        else:
+            probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time, classification=True)
+
         preds, n_predicted = inference(probs, config)
         labels = get_labels(video, from_time, till_time)
 

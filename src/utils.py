@@ -1,4 +1,5 @@
 import os
+from typing import Callable
 import wandb
 import math
 from tabulate import tabulate
@@ -124,7 +125,8 @@ def get_directions_dict() -> dict:
         'n_outgoing': 'rear',
     }
 
-def get_categories_dict() -> dict:
+
+def get_categories_dict() -> Dict[str, str]:
     return {
         'n_BUS': 'BUS',
         'n_CAR': 'CAR',
@@ -145,19 +147,30 @@ def get_categories_dict() -> dict:
     }
 
 
+def get_categories_functions_dict() -> Dict[str, Callable]:
+    return {
+        'n_NOT_CAR': lambda array: array != 'CAR'
+    }
+
+
 def _extract_labels(video: Video, labels, mask):
     n_counts = mask.sum()
     labels['n_counts'].append(n_counts)
     labels['domain'].append(video.domain)
 
-    for head_name, categoty_name in get_directions_dict().items():
+    for head_name, category_name in get_directions_dict().items():
         if head_name in video.config.heads:
-            label = np.sum(video.views[mask] == categoty_name)
+            label = np.sum(video.views[mask] == category_name)
             labels[head_name].append(label)
 
-    for head_name, categoty_name in get_categories_dict().items():
+    for head_name, category_name in get_categories_dict().items():
         if head_name in video.config.heads:
-            label = np.sum(video.category[mask] == categoty_name)
+            label = np.sum(video.category[mask] == category_name)
+            labels[head_name].append(label)
+
+    for head_name, category_function in get_categories_functions_dict().items():
+        if head_name in video.config.heads:
+            label = np.sum(category_function(video.category[mask]))
             labels[head_name].append(label)
 
 

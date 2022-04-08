@@ -188,8 +188,11 @@ def get_labels(video: Video, from_time, till_time) -> np.ndarray:
     return labels
 
 
-def get_signal_length(signal, config):
-    return len(signal) // config.sr
+def get_signal_length(signal, sr_or_config):
+    if type(sr_or_config) == Config:
+        return len(signal) // sr_or_config.sr
+    else:
+        return len(signal) // sr_or_config
 
 
 def create_dataset_from_files(datapool: DataPool, part=Part.LEFT, offset: float=0):

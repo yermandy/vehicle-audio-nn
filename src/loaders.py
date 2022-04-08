@@ -14,28 +14,28 @@ from typing import Tuple, Any
 from glob import glob
 
 
-def find_wav(file):
-    return find_path(f'data/audio_wav/**/{file}.wav')
+def find_wav(file, raise_exception=False):
+    return find_path(f'data/audio_wav/**/{file}.wav', raise_exception)
 
 
-def find_pt(file):
-    return find_path(f'data/audio_pt/**/{file}.pt')
+def find_pt(file, raise_exception=False):
+    return find_path(f'data/audio_pt/**/{file}.pt', raise_exception)
 
 
-def find_csv(file):
-    return find_path(f'data/csv/**/{file}.csv', True)
+def find_csv(file, raise_exception=False):
+    return find_path(f'data/csv/**/{file}.csv', raise_exception)
     
 
-def find_labels(file):
-    return find_path(f'data/labels/**/{file}.txt', True)
+def find_labels(file, raise_exception=False):
+    return find_path(f'data/labels/**/{file}.txt', raise_exception)
 
 
-def find_intervals(file):
-    return find_path(f'data/intervals/**/{file}.txt')
+def find_intervals(file, raise_exception=False):
+    return find_path(f'data/intervals/**/{file}.txt', raise_exception)
 
 
-def find_video(file):
-    return find_path(f'data/video/**/{file}.*', True)
+def find_video(file, raise_exception=False):
+    return find_path(f'data/video/**/{file}.*', raise_exception)
 
 
 def time_to_sec(time):
@@ -66,7 +66,7 @@ def find_path(query, raise_exception=False):
 
 
 def load_csv(file, preprocess=True):
-    file_path = find_csv(file)
+    file_path = find_csv(file, True)
     csv = np.genfromtxt(file_path, dtype=str, delimiter=';', skip_header=1)
     csv = np.atleast_2d(csv)
     if csv.size == 0:

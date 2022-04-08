@@ -48,7 +48,7 @@ class Video():
         elif part.is_right():
             return src.crop_events(self.events, self.right_from_time, self.right_till_time)
         else:
-            return src.crop_events(self.events, self.right_from_time, self.left_till_time)
+            return src.crop_events(self.events, self.left_from_time, self.right_till_time)
 
     def get_signal(self, part: Part) -> torch.Tensor:
         if part.is_left():

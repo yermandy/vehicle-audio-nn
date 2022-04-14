@@ -178,11 +178,20 @@ def get_labels(video: Video, from_time, till_time) -> np.ndarray:
     n_hops = get_n_hops(video.config, from_time, till_time)
     labels = defaultdict(lambda: [])
 
+    mod_events = np.mod(video.events, 6)
+    center = video.config.window_length / 2
+
     for i in range(n_hops):
         sample_from = from_time + i * video.config.nn_hop_length
         sample_till = sample_from + video.config.window_length
         mask = (video.events >= sample_from) & (video.events < sample_till)
         _extract_labels(video, labels, mask)
+        
+        dist_to_center = np.abs(mod_events[mask] - center)
+        if len(dist_to_center) > 0:
+            labels['dist_to_center'].append(dist_to_center.max())
+        else:
+            labels['dist_to_center'].append(-1)
     
     labels = {k: np.array(v) for k, v in labels.items()}
     return labels
@@ -242,27 +251,6 @@ def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
 
     return samples, labels
 
-
-def create_fancy_table(outputs):
-    rvce = outputs[:, 0].astype(float)
-    error = outputs[:, 1].astype(int)
-    n_events = outputs[:, 2].astype(int)
-    mae = outputs[:, 3].astype(float)
-
-    header = ['rvce', 'error', 'n_events', 'mae', 'time', 'file']
-    footer = [
-        f'{rvce.mean():.2f} ± {rvce.std():.2f}',
-        f'{error.mean():.2f} ± {error.std():.2f}',
-        f'{n_events.mean():.2f} ± {n_events.std():.2f}',
-        f'{mae.mean():.2f} ± {mae.std():.2f}',
-        '',
-        'summary'
-    ]
-    
-    table = np.vstack(([header], outputs, [footer]))
-    fancy_table = tabulate(table, headers='firstrow', tablefmt='fancy_grid', showindex=True)
-
-    return table, fancy_table
 
 def print_config(config):
     table = [] 

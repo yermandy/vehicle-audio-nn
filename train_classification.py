@@ -68,6 +68,13 @@ def forward(loader, model, loss, config, optim=None, is_train=False):
     return loss_sum, mae, rvce
 
 
+def replace(i, path, model_name):
+    if i < 0:
+        return
+    if os.path.exists(f'{path}/{model_name}_{i}.pth'):
+        shutil.copy2(f'{path}/{model_name}_{i}.pth', f'{path}/{model_name}_{i + 1}.pth')
+    replace(i - 1, path, model_name)
+
 
 @hydra.main(config_path='config', config_name='default')
 def run(config):
@@ -92,7 +99,7 @@ def run(config):
     # set device
     device = get_device(config.cuda)
 
-    use_testing_files = len(config.testing_files) > 0
+    use_testing_files = True
     use_different_validation_files = len(config.validation_files) > 0
 
     # initialize training and validation datapool
@@ -101,8 +108,7 @@ def run(config):
     if use_different_validation_files:
         val_datapool = DataPool(config.validation_files, config)
 
-    if use_testing_files:
-        tst_datapool = DataPool(config.testing_files, config)
+    tst_datapool = DataPool(config.testing_files, config)
 
     trn_part = Part.WHOLE if use_different_validation_files else Part.LEFT
     val_part = Part.WHOLE if use_different_validation_files else Part.RIGHT
@@ -163,6 +169,9 @@ def run(config):
 
         if val_rvce < val_rvce_best:
             val_rvce_best = val_rvce
+            #! To save more than one model, uncomment the following line
+            # replace(4, f'outputs/{uuid}/weights', 'rvce')
+            # torch.save(model.state_dict(), f'outputs/{uuid}/weights/rvce_0.pth')
             torch.save(model.state_dict(), f'outputs/{uuid}/weights/rvce.pth')
 
         torch.save(model.state_dict(), f'outputs/{uuid}/weights/last.pth')
@@ -219,9 +228,8 @@ def run(config):
     validate_and_save(uuid, trn_datapool, 'trn', trn_part, 'rvce')
     validate_and_save(uuid, trn_datapool, 'trn', trn_part, 'mae')
 
-    if use_testing_files:
-        validate_and_save(uuid, tst_datapool, 'tst', Part.WHOLE, 'rvce')
-        validate_and_save(uuid, tst_datapool, 'tst', Part.WHOLE, 'mae')
+    validate_and_save(uuid, tst_datapool, 'tst', Part.WHOLE, 'rvce')
+    validate_and_save(uuid, tst_datapool, 'tst', Part.WHOLE, 'mae')
 
     wandb_run.finish()
 

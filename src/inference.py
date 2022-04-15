@@ -2,6 +2,7 @@ from typing import Callable, Dict, Tuple
 from .utils import *
 from .transformation import *
 from scipy.special import logsumexp
+from .seqevents import Events as SeqEvents
 
 
 def validate_video(video: Video, model, return_probs=True, return_preds=True,
@@ -17,8 +18,7 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
     if till_time is None:
         till_time = get_signal_length(signal, config)
 
-    if from_time is not None and till_time is not None:
-        signal = crop_signal(signal, config.sr, from_time, till_time)
+    signal = crop_signal(signal, config.sr, from_time, till_time)
         
     device = next(model.parameters()).device
 
@@ -69,6 +69,30 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
     return to_return if len(to_return) > 1 else to_return[0]
 
 
+def change_probs_for_doubled_inference(probs_1, probs_2):
+    n_events = 17
+
+    Px1 = probs_1['n_counts'][:, :n_events].T
+    Px2 = probs_2['n_counts'][:, :n_events].T
+
+    Pc = np.empty((Px1.shape[0], Px1.shape[1] + Px2.shape[1]))
+    Pc[:, 0::2] = Px1
+    Pc[:, 1::2] = Px2
+
+    Pc = Pc / Pc.sum(0)
+
+    return {'n_counts': Pc}
+
+
+def collect_probs_from_models(video, models, from_time, till_time):
+    probs = defaultdict(int)
+    for m in models:
+        P = validate_video(video, m, return_preds=False, from_time=from_time, till_time=till_time)
+        for head, p in P.items():
+            probs[head] = p / p.sum(1, keepdims=True)
+    return probs
+
+
 def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE):
     dict = defaultdict(list)
     files = []
@@ -80,7 +104,15 @@ def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE
         files.append(video.file)
         times.append(f'{from_time:.0f}: {till_time:.0f}')
 
-        probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time, classification=True)
+        # in case of ensembling, we get the predictions for each model
+        if type(model) == list:
+            probs = collect_probs_from_models(video, model, from_time, till_time)
+        else:
+            probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time)
+            if config.inference_function.is_doubled():
+                probs_2 = validate_video(video, model, return_preds=False, from_time=config.window_length / 2, till_time=till_time)
+                probs = change_probs_for_doubled_inference(probs, probs_2)
+
         preds, n_predicted = inference(probs, config)
         labels = get_labels(video, from_time, till_time)
 
@@ -190,8 +222,22 @@ def inference_optimal_rvce(probs: Dict[str, np.ndarray]):
     return None, n_predicted
 
 
+def inference_doubled(probs: Dict[str, np.ndarray]):
+    print('doubled')
+    n_predicted = {}
+    for head, head_probs in probs.items():
+        n_events, seq_len = head_probs.shape
+        A = SeqEvents(n_events // 2, seq_len + 1)
+        est_Px, est_Pc, kl_hist = A.deconv(head_probs, 50)
+        n_predicted[head] = est_Px.argmax(0).sum()
+
+    return None, n_predicted
+
+
 def inference(preds: Dict[str, np.ndarray], config: Config) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
     if config.inference_function.is_simple():
         return inference_simple(preds)
     elif config.inference_function.is_optimal_rvce():
         return inference_optimal_rvce(preds)
+    elif config.inference_function.is_doubled():
+        return inference_doubled(preds)

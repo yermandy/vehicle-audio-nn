@@ -4,13 +4,38 @@ import numpy as np
 from collections import defaultdict, Counter
 import pickle
 import os
-from .model import ResNet18, WaveCNN
+import yaml
+from .model import ResNet18, ResNet1D, WaveCNN
 import torchaudio.transforms as T
 from .constants import *
 from .config import *
 
 from typing import Tuple, Any
 from glob import glob
+
+
+def find_wav(file, raise_exception=False):
+    return find_path(f'data/audio_wav/**/{file}.wav', raise_exception)
+
+
+def find_pt(file, raise_exception=False):
+    return find_path(f'data/audio_pt/**/{file}.pt', raise_exception)
+
+
+def find_csv(file, raise_exception=False):
+    return find_path(f'data/csv/**/{file}.csv', raise_exception)
+    
+
+def find_labels(file, raise_exception=False):
+    return find_path(f'data/labels/**/{file}.txt', raise_exception)
+
+
+def find_intervals(file, raise_exception=False):
+    return find_path(f'data/intervals/**/{file}.txt', raise_exception)
+
+
+def find_video(file, raise_exception=False):
+    return find_path(f'data/video/**/{file}.*', raise_exception)
 
 
 def time_to_sec(time):
@@ -41,7 +66,7 @@ def find_path(query, raise_exception=False):
 
 
 def load_csv(file, preprocess=True):
-    file_path = find_path(f'data/csv/**/{file}.csv', True)
+    file_path = find_csv(file, True)
     csv = np.genfromtxt(file_path, dtype=str, delimiter=';', skip_header=1)
     csv = np.atleast_2d(csv)
     if csv.size == 0:
@@ -69,8 +94,8 @@ def load_audio_tensor(path, return_sr=False):
 
 
 def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
-    wav_file_path = find_path(f'data/audio_wav/**/{file}.wav')
-    pt_file_path = find_path(f'data/audio_pt/**/{file}.pt')
+    wav_file_path = find_wav(file)
+    pt_file_path = find_pt(file)
     if pt_file_path:
         signal, sr = load_audio_tensor(pt_file_path, True)
     elif wav_file_path:
@@ -88,12 +113,11 @@ def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
 
 
 def load_events(file):
-    file_path = find_path(f'data/labels/**/{file}.txt', True)
-    return np.loadtxt(file_path)
+    return np.loadtxt(find_labels(file))
 
 
 def load_intervals(file):
-    file_path = find_path(f'data/intervals/**/{file}.txt', False)
+    file_path = find_intervals(file)
     if file_path:
         return np.atleast_2d(np.loadtxt(file_path))
     else:
@@ -289,7 +313,8 @@ def load_config_locally(uuid) -> Config:
 def get_model(config):
     return {
         'WaveCNN': WaveCNN(config),
-        'ResNet18': ResNet18(config)
+        'ResNet18': ResNet18(config),
+        'ResNet1D': ResNet1D(config)
     }[config.architecture]
 
 
@@ -298,6 +323,12 @@ def get_optimizer(model, config):
         'Adam': torch.optim.Adam,
         'AdamW': torch.optim.AdamW
     }[config.optimizer](model.parameters(), lr=config.lr)
+
+
+def load_files_from_dataset(dataset_name):
+    file_path = find_path(f'config/dataset/**/{dataset_name}.yaml', True)
+    with open(file_path, 'r') as stream:
+        return sorted(yaml.safe_load(stream))
 
 
 def load_model_locally(uuid, model_name='mae', device=None) -> Tuple[Any, Config]:

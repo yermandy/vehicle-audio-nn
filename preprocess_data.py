@@ -8,8 +8,8 @@ os.makedirs('data/intervals', exist_ok=True)
 
 
 def extract_audio(file):
-    path_pt = find_path(f'data/audio_pt/**/{file}.pt')
-    path_wav = find_path(f'data/audio_wav/**/{file}.wav')
+    path_pt = find_pt(file)
+    path_wav = find_wav(file)
     
     if path_pt != None and path_wav != None:
         print(f'file {path_pt} exists')
@@ -20,7 +20,7 @@ def extract_audio(file):
     path_wav = f'data/audio_wav/{file}.wav'
     
     import moviepy.editor as mp
-    path_video = find_path(f'data/video/**/{file}.*', True)
+    path_video = find_video(file)
     video = mp.VideoFileClip(path_video)
     video.audio.write_audiofile(path_wav)
 
@@ -72,7 +72,7 @@ def optimize(views, events_start_time, events_end_time, energy_per_second, energ
 
 
 def extract_labels(file):
-    path = find_path(f'data/labels/**/{file}.txt')
+    path = find_labels(file)
     if path:
         print(f'file {path} exists')
         return
@@ -121,7 +121,7 @@ def extract_labels(file):
 
 
 def extract_intevals(file, empty_interval_in_s=10):
-    path = find_path(f'data/intervals/**/{file}.txt')
+    path = find_intervals(file)
     if path:
         print(f'file {path} exists')
         return

@@ -20,7 +20,7 @@ num_classes: 50
 # length of one hop in seconds
 nn_hop_length: 6.0
 # length of one window in seconds
-
+window_length: 6.0
 
 # list of neural network heads
 heads: 

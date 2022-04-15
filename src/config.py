@@ -86,7 +86,11 @@ class ModelConfig(object):
     # heads: Dict[str, float] = {'n_counts' : 1.0}
     heads: Dict[str, float] = None
 
+    # inference type
     inference_function = InferenceFunction.SIMPLE
+
+    # if inference is structured - specify which labels are coupled
+    coupled_labels: list = None
 
     raw_signal: bool = False
 
@@ -97,6 +101,8 @@ class ModelConfig(object):
     # optimizer
     # Adam | AdamW
     optimizer: str = 'AdamW'
+
+
 
 
 @dataclass

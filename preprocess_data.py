@@ -11,8 +11,11 @@ def extract_audio(file):
     path_pt = find_pt(file)
     path_wav = find_wav(file)
     
-    if path_pt != None and path_wav != None:
+    if path_pt != None:
         print(f'file {path_pt} exists')
+        return
+
+    if path_wav != None:
         print(f'file {path_wav} exists')
         return
 
@@ -20,7 +23,7 @@ def extract_audio(file):
     path_wav = f'data/audio_wav/{file}.wav'
     
     import moviepy.editor as mp
-    path_video = find_video(file)
+    path_video = find_video(file, True)
     video = mp.VideoFileClip(path_video)
     video.audio.write_audiofile(path_wav)
 

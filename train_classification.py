@@ -114,7 +114,7 @@ def run(config):
     val_part = Part.WHOLE if use_different_validation_files else Part.RIGHT
 
     # initialize training dataset
-    trn_dataset = VehicleDataset(trn_datapool, part=trn_part, config=config)
+    trn_dataset = VehicleDataset(trn_datapool, part=trn_part, config=config, is_trn=True)
     trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=True)
 
     # initialize validation dataset
@@ -217,7 +217,10 @@ def run(config):
             break
 
         if config.use_offset:
-            offset = (config.offset_length * iteration) % config.window_length
+            if config.use_random_offset:
+                offset = np.random.rand(1)[0] * config.window_length
+            else:
+                offset = (config.offset_length * iteration) % config.window_length
             trn_dataset.create_with_offset(offset)
 
     os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)

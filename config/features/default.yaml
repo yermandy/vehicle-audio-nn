@@ -44,3 +44,6 @@ resize_size: [128, 128]
 # zero mean, unit variance feature normalization:
 # none | row-wise | column-wise | global
 normalization: global
+
+# zero mean, unit variance signal normalization
+signal_normalization: false

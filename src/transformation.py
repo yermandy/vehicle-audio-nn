@@ -44,7 +44,16 @@ def create_feature_augmentations(config):
     )
 
 
-def create_transformation(config: Config, part: Part = Part.WHOLE):
+def create_image_augmentations():
+    return TV.RandomChoice([
+        lambda x: x,
+        TV.GaussianBlur(3),
+        TV.GaussianBlur(5),
+        TV.GaussianBlur(7)
+    ])
+
+
+def create_transformation(config: Config, is_trn=False):
     # apply logarithmic compression: https://arxiv.org/pdf/1709.01922.pdf
     amplitude_to_DB = T.AmplitudeToDB('energy')
     
@@ -67,12 +76,7 @@ def create_transformation(config: Config, part: Part = Part.WHOLE):
         resize = TV.Resize(config.resize_size)
 
     if config.image_augmentations:
-        image_augmentations = TV.RandomChoice([
-            lambda x: x,
-            TV.GaussianBlur(3),
-            TV.GaussianBlur(5),
-            TV.GaussianBlur(7)
-        ])
+        image_augmentations = create_image_augmentations()
 
     def transform(signal) -> torch.Tensor:
         if config.raw_signal:
@@ -111,13 +115,13 @@ def create_transformation(config: Config, part: Part = Part.WHOLE):
         else:
             raise Exception('unknown normalization')
 
-        if config.feature_augmentation and part.is_left():
+        if config.feature_augmentation and is_trn:
             features = augmentations(features)
 
         if config.gaussian_blur:
             features = gaussian_blur(features)
 
-        if config.image_augmentations and part.is_left():
+        if config.image_augmentations and is_trn:
             features = image_augmentations(features)
             
         return features

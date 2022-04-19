@@ -54,6 +54,9 @@ class FeaturesConfig():
     # none | row-wise | column-wise | global
     normalization: Normalization = Normalization.GLOBAL
 
+    # zero mean, unit variance signal normalization
+    signal_normalization: bool = False
+
 
 @dataclass
 class ModelConfig(object):
@@ -71,6 +74,8 @@ class ModelConfig(object):
     split_ratio: float = 0.75
     # use new offset after each epoch
     use_offset: bool = True
+    # use random offset each time
+    use_random_offset: bool = False
     # offset length in sec
     offset_length: float = 0.25
     # number of classes to predict
@@ -102,6 +107,8 @@ class ModelConfig(object):
     # Adam | AdamW
     optimizer: str = 'AdamW'
 
+    rawnet_layers: list = None
+    rawnet_filters: list = None
 
 
 

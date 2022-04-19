@@ -10,6 +10,7 @@ from .inference import *
 from .transformation import *
 from .dataset import VehicleDataset
 from .model import ResNet18, WaveCNN, ResNet1D
+from .rawnet import RawNet2Architecture
 
 import os
 import sys

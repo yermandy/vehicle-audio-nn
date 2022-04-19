@@ -9,14 +9,15 @@ class VehicleDataset(Dataset):
             datapool: DataPool,
             part: bool = Part.WHOLE,
             config: EasyDict = EasyDict(),
-            offset: int = 0):
+            offset: int = 0,
+            is_trn: bool = False):
             
         self.datapool = datapool
         self.config = config
         self.window_length = config.window_length
         self.part = part
         self.create_with_offset(offset)
-        self.transform = create_transformation(config, part)
+        self.transform = create_transformation(config, is_trn)
     
     def create_with_offset(self, offset):
         self.samples, self.labels = create_dataset_from_files(self.datapool, self.part, offset)

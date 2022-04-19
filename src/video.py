@@ -13,7 +13,7 @@ class Video():
         self.file = file
         self.config = config
         self.domain = 0
-        self.signal, self.sr = src.load_audio(file, resample_sr=config.sr, return_sr=True)
+        self.signal, self.sr = src.load_audio(file, resample_sr=config.sr, return_sr=True, normalize=config.signal_normalization)
         self.events = src.load_events(file)
         self.csv = src.load_csv(file)
         self.views = src.load_views_from_csv(self.csv)

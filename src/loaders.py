@@ -5,6 +5,8 @@ from collections import defaultdict, Counter
 import pickle
 import os
 import yaml
+
+from .rawnet import RawNet2Architecture
 from .model import ResNet18, ResNet1D, WaveCNN
 import torchaudio.transforms as T
 from .constants import *
@@ -93,7 +95,7 @@ def load_audio_tensor(path, return_sr=False):
     return signal
 
 
-def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
+def load_audio(file, resample_sr=44100, return_sr=False, normalize=False) -> torch.Tensor:
     wav_file_path = find_wav(file)
     pt_file_path = find_pt(file)
     if pt_file_path:
@@ -107,6 +109,8 @@ def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
     # round to the last second
     seconds = len(signal) // resample_sr
     signal = signal[:seconds * resample_sr]
+    if normalize:
+        signal = (signal - signal.mean()) / signal.std()
     if return_sr:
         return signal, resample_sr
     return signal
@@ -314,7 +318,8 @@ def get_model(config):
     return {
         'WaveCNN': WaveCNN(config),
         'ResNet18': ResNet18(config),
-        'ResNet1D': ResNet1D(config)
+        'ResNet1D': ResNet1D(config),
+        'RawNet2': RawNet2Architecture(config)
     }[config.architecture]
 
 
@@ -331,7 +336,7 @@ def load_files_from_dataset(dataset_name):
         return sorted(yaml.safe_load(stream))
 
 
-def load_model_locally(uuid, model_name='mae', device=None) -> Tuple[Any, Config]:
+def load_model_locally(uuid, model_name='rvce', device=None) -> Tuple[Any, Config]:
     if device is None:
         device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
 

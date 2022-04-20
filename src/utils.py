@@ -234,6 +234,9 @@ def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
     if till_time is None or till_time > max_time:
         till_time = max_time
 
+    if from_time == None and till_time == None:
+         from_time, till_time = video.get_from_till_time(Part.WHOLE)
+
     samples = []
     labels = defaultdict(lambda: [])
 

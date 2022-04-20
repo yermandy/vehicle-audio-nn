@@ -76,6 +76,23 @@ def replace(i, path, model_name):
     replace(i - 1, path, model_name)
 
 
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2 ** 32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
 @hydra.main(config_path='config', config_name='default')
 def run(config):
     # make config type and attribute safe
@@ -113,9 +130,13 @@ def run(config):
     trn_part = Part.WHOLE if use_different_validation_files else Part.LEFT
     val_part = Part.WHOLE if use_different_validation_files else Part.RIGHT
 
+    set_seed(config.seed)
+    g = torch.Generator()
+    g.manual_seed(config.seed)
+
     # initialize training dataset
     trn_dataset = VehicleDataset(trn_datapool, part=trn_part, config=config, is_trn=True)
-    trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=True)
+    trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=True, drop_last=True, worker_init_fn=seed_worker, generator=g)
 
     # initialize validation dataset
     val_dataset = VehicleDataset(val_datapool, part=val_part, config=config)

@@ -129,6 +129,7 @@ class CrossValidation:
 @dataclass
 class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation, object):
     uuid: str = None
+    seed: int = 42
     n_samples_in_nn_hop: int = None
     n_samples_in_window: int = None
     training_files: tuple = ('12_RX100',)

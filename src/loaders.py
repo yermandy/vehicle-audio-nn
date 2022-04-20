@@ -7,7 +7,7 @@ import os
 import yaml
 
 from .rawnet import RawNet2Architecture
-from .model import ResNet18, ResNet1D, WaveCNN
+from .model import ResNet18, ResNet34, ResNet50, ResNet1D, WaveCNN
 import torchaudio.transforms as T
 from .constants import *
 from .config import *
@@ -318,6 +318,8 @@ def get_model(config):
     return {
         'WaveCNN': WaveCNN(config),
         'ResNet18': ResNet18(config),
+        'ResNet34': ResNet34(config),
+        'ResNet50': ResNet50(config),
         'ResNet1D': ResNet1D(config),
         'RawNet2': RawNet2Architecture(config)
     }[config.architecture]

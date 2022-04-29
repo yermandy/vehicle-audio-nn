@@ -5,6 +5,7 @@ from collections import defaultdict, Counter
 import pickle
 import os
 import yaml
+import torch.nn as nn
 
 from .rawnet import RawNet2Architecture
 from .model import ResNet18, ResNet34, ResNet50, ResNet1D, Transformer, WaveCNN
@@ -343,6 +344,26 @@ def get_optimizer(model, config):
         'Adam': torch.optim.Adam,
         'AdamW': torch.optim.AdamW
     }[config.optimizer](model.parameters(), lr=config.lr)
+
+
+def get_loss(config, trn_dataset, device):
+    if config.loss == 'ClassBalancedCrossEntropy':
+        if len(config.heads) > 1:
+            raise Exception('Class-Balanced Cross Entropy is not supported for multi-head training.')
+        else:
+            # https://arxiv.org/pdf/1901.05555.pdf
+            classes, samples = np.unique(trn_dataset.labels['n_counts'], return_counts=True)
+            samples_per_class = np.ones(config.num_classes)
+            samples_per_class[classes] = samples
+            effective_num = 1.0 - np.power(config.loss_cbce_beta, samples_per_class)
+            weights = (1.0 - config.loss_cbce_beta) / np.array(effective_num)
+            weights = weights / np.sum(weights) * len(samples_per_class)
+            weights = torch.from_numpy(weights).float().to(device)
+            print('ClassBalancedCrossEntropy')
+            loss = nn.CrossEntropyLoss(weights)
+    else:
+        loss = nn.CrossEntropyLoss()
+    return loss
 
 
 def load_files_from_dataset(dataset_name):

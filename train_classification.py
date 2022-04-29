@@ -120,15 +120,14 @@ def run(config):
 
     # initialize training and validation datapool
     val_datapool = trn_datapool = DataPool(config.training_files, config)
-
     if use_different_validation_files:
         val_datapool = DataPool(config.validation_files, config)
-
     tst_datapool = DataPool(config.testing_files, config)
 
     trn_part = Part.WHOLE if use_different_validation_files else Part.LEFT
     val_part = Part.WHOLE if use_different_validation_files else Part.RIGHT
 
+    # set seed
     set_seed(config.seed)
     g = torch.Generator()
     g.manual_seed(config.seed)

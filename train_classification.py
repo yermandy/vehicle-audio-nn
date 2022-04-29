@@ -116,7 +116,6 @@ def run(config):
     # set device
     device = get_device(config.cuda)
 
-    use_testing_files = True
     use_different_validation_files = len(config.validation_files) > 0
 
     # initialize training and validation datapool
@@ -146,7 +145,23 @@ def run(config):
     model = get_model(config).to(device)
 
     # initialize loss function
-    loss = nn.CrossEntropyLoss()
+    if config.loss == 'ClassBalancedCrossEntropy':
+        if len(config.heads) > 1:
+            raise Exception('Class-Balanced Cross Entropy is not supported for multi-head training.')
+        else:
+            # https://arxiv.org/pdf/1901.05555.pdf
+            classes, samples = np.unique(trn_dataset.labels['n_counts'], return_counts=True)
+            samples_per_class = np.ones(config.num_classes)
+            samples_per_class[classes] = samples
+            effective_num = 1.0 - np.power(config.loss_cbce_beta, samples_per_class)
+            weights = (1.0 - config.loss_cbce_beta) / np.array(effective_num)
+            weights = weights / np.sum(weights) * len(samples_per_class)
+            weights = torch.from_numpy(weights).float().to(device)
+            print('ClassBalancedCrossEntropy')
+            loss = nn.CrossEntropyLoss(weights)
+    else:
+        loss = nn.CrossEntropyLoss()
+            
 
     # initialize optimizer
     optim = get_optimizer(model, config)
@@ -177,8 +192,11 @@ def run(config):
         # trn_loss, trn_mae, trn_rvce = forward(trn_loader, model, loss, config)
         val_loss, val_mae, val_rvce = forward(val_loader, model, loss, config)
 
+        # val_summary = validate_datapool(tst_datapool, model, config, val_part)
+        # val_loss, val_mae, val_rvce = 0, val_summary['mae: n_counts'], val_summary['rvce: n_counts']
+
         ## testing
-        if use_testing_files:
+        if config.use_testing_files:
             tst_summary = validate_datapool(tst_datapool, model, config, Part.WHOLE)
 
         if val_loss < val_loss_best:

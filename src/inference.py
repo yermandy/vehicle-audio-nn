@@ -84,13 +84,16 @@ def change_probs_for_doubled_inference(probs_1, probs_2):
     return {'n_counts': Pc}
 
 
-def collect_probs_from_models(video, models, from_time, till_time):
-    probs = defaultdict(int)
-    for m in models:
-        P = validate_video(video, m, return_preds=False, from_time=from_time, till_time=till_time)
-        for head, p in P.items():
-            probs[head] = p / p.sum(1, keepdims=True)
-    return probs
+def collect_probs_from_models(video: Video, models, from_time, till_time):
+    probs_ensembled = defaultdict(int)
+    for model in models:
+        probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time)
+        for head, head_probs in probs.items():
+            probs_ensembled[head] += head_probs / head_probs.sum(1, keepdims=True)
+    # make a valid probablility distribution
+    for head in video.config.heads:
+        probs_ensembled[head] = probs_ensembled[head] / probs_ensembled[head].sum(1, keepdims=True)
+    return probs_ensembled
 
 
 def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE):
@@ -99,6 +102,7 @@ def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE
     times = []
 
     for video in tqdm(datapool):
+        video: Video = video
         from_time, till_time = video.get_from_till_time(part)
 
         files.append(video.file)
@@ -106,6 +110,7 @@ def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE
 
         # in case of ensembling, we get the predictions for each model
         if type(model) == list:
+            print('Ensembling')
             probs = collect_probs_from_models(video, model, from_time, till_time)
         else:
             probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time)
@@ -118,7 +123,11 @@ def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE
 
         for head in config.heads:
             head_labels = labels[head]
-            head_n_events = head_labels.sum()
+
+            if config.use_manual_counts and head == 'n_counts':
+                head_n_events = video.manual_counts
+            else:
+                head_n_events = head_labels.sum()
 
             if preds is not None:
                 head_preds = preds[head]
@@ -140,19 +149,6 @@ def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE
     append_summary(dict, times, files)
     
     return dict
-
-
-def append_summary(dict, times, files):
-    for k, v in dict.items():
-        v = np.array(v).astype(float)
-        stats = f'{v.mean():.2f} ± {v.std():.2f}'
-        dict[k].append(stats)
-
-    times.append('')
-    files.append('summary')
-
-    dict['time'] = times
-    dict['file'] = files
 
 
 def validate_and_save(uuid, datapool, prefix='tst', part=Part.WHOLE, model_name='rvce', config=None):
@@ -271,14 +267,14 @@ def inference_doubled(probs: Dict[str, np.ndarray]):
     for head, head_probs in probs.items():
         n_events, seq_len = head_probs.shape
         A = SeqEvents(n_events // 2, seq_len + 1)
-        est_Px, est_Pc, kl_hist = A.deconv(head_probs, 50)
+        est_Px, est_Pc, kl_hist = A.deconv(head_probs, n_events)
         n_predicted[head] = est_Px.argmax(0).sum()
 
     return None, n_predicted
 
 
 def inference_structured(probs: Dict[str, np.ndarray], config: Config):
-    print('coupled')
+    print('structured')
     preds = {}
     n_predicted = {}
 

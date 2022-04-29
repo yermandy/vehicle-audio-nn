@@ -49,6 +49,9 @@ class FeaturesConfig():
 
     # image augmentations for training
     image_augmentations: bool = False
+    random_gaussian_blur: bool = False
+    random_erasing: bool = False
+    random_resized_crop: bool = False
 
     # zero mean, unit variance feature normalization:
     # none | row-wise | column-wise | global
@@ -56,6 +59,10 @@ class FeaturesConfig():
 
     # zero mean, unit variance signal normalization
     signal_normalization: bool = False
+
+
+    add_gaussian_noise: bool = False
+    add_pitch_shift: bool = False
 
 
 @dataclass
@@ -110,6 +117,19 @@ class ModelConfig(object):
     rawnet_layers: list = None
     rawnet_filters: list = None
 
+    loss: str = 'CrossEntropy'
+    
+    loss_cbce_beta: float = 0.999
+
+    # Transormer parameters
+    transformer_dim: int = 1024
+    transformer_patch_size: int = 16
+    transformer_depth: int = 3
+    transformer_heads: int = 10
+    transformer_mlp_dim: int = 512
+    transformer_dropout: float = 0.1
+    transformer_emb_dropout: float = 0.1
+
 
 
 @dataclass
@@ -135,6 +155,9 @@ class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation
     training_files: tuple = ('12_RX100',)
     testing_files: tuple = ('12_RX100',)
     validation_files: tuple = ('12_RX100',)
+
+    use_testing_files: bool = True
+    use_manual_counts: bool = False
 
     def __init__(self, config=None, **kwargs):
         super(Config, self).__init__(config, **kwargs)

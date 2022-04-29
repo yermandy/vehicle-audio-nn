@@ -9,7 +9,7 @@ from .config import *
 from .inference import *
 from .transformation import *
 from .dataset import VehicleDataset
-from .model import ResNet18, ResNet34, WaveCNN, ResNet1D
+from .model import ResNet18, ResNet34, WaveCNN, ResNet1D, Transformer
 from .rawnet import RawNet2Architecture
 
 import os

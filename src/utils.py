@@ -282,3 +282,45 @@ def save_dict_txt(name: str, dict: Dict[str, np.ndarray]):
     with open(name, 'w') as file:
         table = tabulate(dict, headers='keys', tablefmt='fancy_grid', showindex=True)
         file.write(table)
+
+
+def generate_cross_validation_table(uuids, model_name='rvce', prefix='tst'):
+    root_uuid = uuids[0].split('/')[0]
+    table = []
+    header = []
+    dict = {}
+    for uuid in uuids:
+        results = np.genfromtxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', delimiter=',', skip_footer=1, dtype=str)
+        header = results[0]
+        results = results[1:]
+        results = np.atleast_2d(results)
+        table.extend(results)
+    table = np.array(table).T
+    times = []
+    files = []
+    for i in range(len(header)):
+        column_name = header[i]
+        column = table[i].tolist()
+        if column_name == 'file':
+            files = column
+        elif column_name == 'time':
+            times = column
+        else:
+            dict[column_name] = column
+
+    append_summary(dict, times, files)
+    save_dict_csv(f'outputs/{root_uuid}/{prefix}_{model_name}_output.csv', dict)
+    save_dict_txt(f'outputs/{root_uuid}/{prefix}_{model_name}_output.txt', dict)
+
+
+def append_summary(dict, times, files):
+    for k, v in dict.items():
+        v = np.array(v).astype(float)
+        stats = f'{v.mean():.2f} ± {v.std():.2f}'
+        dict[k].append(stats)
+
+    times.append('')
+    files.append('summary')
+
+    dict['time'] = times
+    dict['file'] = files

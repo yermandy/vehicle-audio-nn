@@ -7,7 +7,7 @@ import os
 import yaml
 
 from .rawnet import RawNet2Architecture
-from .model import ResNet18, ResNet34, ResNet50, ResNet1D, WaveCNN
+from .model import ResNet18, ResNet34, ResNet50, ResNet1D, Transformer, WaveCNN
 import torchaudio.transforms as T
 from .constants import *
 from .config import *
@@ -30,6 +30,10 @@ def find_csv(file, raise_exception=False):
 
 def find_labels(file, raise_exception=False):
     return find_path(f'data/labels/**/{file}.txt', raise_exception)
+
+
+def find_manual_counts(file, raise_exception=False):
+    return find_path(f'data/manual_counts/**/{file}.txt', raise_exception)
 
 
 def find_intervals(file, raise_exception=False):
@@ -114,6 +118,14 @@ def load_audio(file, resample_sr=44100, return_sr=False, normalize=False) -> tor
     if return_sr:
         return signal, resample_sr
     return signal
+
+
+def load_manual_counts(file) -> int:
+    file_path = find_manual_counts(file)
+    if file_path != None:
+        return int(np.loadtxt(file_path))
+    else:
+        return None
 
 
 def load_events(file):
@@ -316,13 +328,14 @@ def load_config_locally(uuid) -> Config:
 
 def get_model(config):
     return {
-        'WaveCNN': WaveCNN(config),
-        'ResNet18': ResNet18(config),
-        'ResNet34': ResNet34(config),
-        'ResNet50': ResNet50(config),
-        'ResNet1D': ResNet1D(config),
-        'RawNet2': RawNet2Architecture(config)
-    }[config.architecture]
+        'WaveCNN': WaveCNN,
+        'ResNet18': ResNet18,
+        'ResNet34': ResNet34,
+        'ResNet50': ResNet50,
+        'ResNet1D': ResNet1D,
+        'RawNet2': RawNet2Architecture,
+        'Transformer': Transformer
+    }[config.architecture](config)
 
 
 def get_optimizer(model, config):
@@ -335,7 +348,7 @@ def get_optimizer(model, config):
 def load_files_from_dataset(dataset_name):
     file_path = find_path(f'config/dataset/**/{dataset_name}.yaml', True)
     with open(file_path, 'r') as stream:
-        return sorted(yaml.safe_load(stream))
+        return np.array(sorted(yaml.safe_load(stream)))
 
 
 def load_model_locally(uuid, model_name='rvce', device=None) -> Tuple[Any, Config]:

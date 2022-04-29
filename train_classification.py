@@ -76,6 +76,23 @@ def replace(i, path, model_name):
     replace(i - 1, path, model_name)
 
 
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2 ** 32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
 @hydra.main(config_path='config', config_name='default')
 def run(config):
     # make config type and attribute safe
@@ -99,23 +116,25 @@ def run(config):
     # set device
     device = get_device(config.cuda)
 
-    use_testing_files = True
     use_different_validation_files = len(config.validation_files) > 0
 
     # initialize training and validation datapool
     val_datapool = trn_datapool = DataPool(config.training_files, config)
-
     if use_different_validation_files:
         val_datapool = DataPool(config.validation_files, config)
-
     tst_datapool = DataPool(config.testing_files, config)
 
     trn_part = Part.WHOLE if use_different_validation_files else Part.LEFT
     val_part = Part.WHOLE if use_different_validation_files else Part.RIGHT
 
+    # set seed
+    set_seed(config.seed)
+    g = torch.Generator()
+    g.manual_seed(config.seed)
+
     # initialize training dataset
-    trn_dataset = VehicleDataset(trn_datapool, part=trn_part, config=config)
-    trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=True)
+    trn_dataset = VehicleDataset(trn_datapool, part=trn_part, config=config, is_trn=True)
+    trn_loader = DataLoader(trn_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=True, drop_last=True, worker_init_fn=seed_worker, generator=g)
 
     # initialize validation dataset
     val_dataset = VehicleDataset(val_datapool, part=val_part, config=config)
@@ -125,7 +144,7 @@ def run(config):
     model = get_model(config).to(device)
 
     # initialize loss function
-    loss = nn.CrossEntropyLoss()
+    loss = get_loss(config, trn_dataset, device)            
 
     # initialize optimizer
     optim = get_optimizer(model, config)
@@ -156,8 +175,11 @@ def run(config):
         # trn_loss, trn_mae, trn_rvce = forward(trn_loader, model, loss, config)
         val_loss, val_mae, val_rvce = forward(val_loader, model, loss, config)
 
+        # val_summary = validate_datapool(tst_datapool, model, config, val_part)
+        # val_loss, val_mae, val_rvce = 0, val_summary['mae: n_counts'], val_summary['rvce: n_counts']
+
         ## testing
-        if use_testing_files:
+        if config.use_testing_files:
             tst_summary = validate_datapool(tst_datapool, model, config, Part.WHOLE)
 
         if val_loss < val_loss_best:
@@ -217,7 +239,10 @@ def run(config):
             break
 
         if config.use_offset:
-            offset = (config.offset_length * iteration) % config.window_length
+            if config.use_random_offset:
+                offset = np.random.rand(1)[0] * config.window_length
+            else:
+                offset = (config.offset_length * iteration) % config.window_length
             trn_dataset.create_with_offset(offset)
 
     os.makedirs(f'outputs/{uuid}/results/', exist_ok=True)

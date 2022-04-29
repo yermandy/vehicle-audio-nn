@@ -5,7 +5,10 @@ from collections import defaultdict, Counter
 import pickle
 import os
 import yaml
-from .model import ResNet18, ResNet1D, WaveCNN
+import torch.nn as nn
+
+from .rawnet import RawNet2Architecture
+from .model import ResNet18, ResNet34, ResNet50, ResNet1D, Transformer, WaveCNN
 import torchaudio.transforms as T
 from .constants import *
 from .config import *
@@ -28,6 +31,10 @@ def find_csv(file, raise_exception=False):
 
 def find_labels(file, raise_exception=False):
     return find_path(f'data/labels/**/{file}.txt', raise_exception)
+
+
+def find_manual_counts(file, raise_exception=False):
+    return find_path(f'data/manual_counts/**/{file}.txt', raise_exception)
 
 
 def find_intervals(file, raise_exception=False):
@@ -93,7 +100,7 @@ def load_audio_tensor(path, return_sr=False):
     return signal
 
 
-def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
+def load_audio(file, resample_sr=44100, return_sr=False, normalize=False) -> torch.Tensor:
     wav_file_path = find_wav(file)
     pt_file_path = find_pt(file)
     if pt_file_path:
@@ -107,9 +114,19 @@ def load_audio(file, resample_sr=44100, return_sr=False) -> torch.Tensor:
     # round to the last second
     seconds = len(signal) // resample_sr
     signal = signal[:seconds * resample_sr]
+    if normalize:
+        signal = (signal - signal.mean()) / signal.std()
     if return_sr:
         return signal, resample_sr
     return signal
+
+
+def load_manual_counts(file) -> int:
+    file_path = find_manual_counts(file)
+    if file_path != None:
+        return int(np.loadtxt(file_path))
+    else:
+        return None
 
 
 def load_events(file):
@@ -312,10 +329,14 @@ def load_config_locally(uuid) -> Config:
 
 def get_model(config):
     return {
-        'WaveCNN': WaveCNN(config),
-        'ResNet18': ResNet18(config),
-        'ResNet1D': ResNet1D(config)
-    }[config.architecture]
+        'WaveCNN': WaveCNN,
+        'ResNet18': ResNet18,
+        'ResNet34': ResNet34,
+        'ResNet50': ResNet50,
+        'ResNet1D': ResNet1D,
+        'RawNet2': RawNet2Architecture,
+        'Transformer': Transformer
+    }[config.architecture](config)
 
 
 def get_optimizer(model, config):
@@ -325,13 +346,33 @@ def get_optimizer(model, config):
     }[config.optimizer](model.parameters(), lr=config.lr)
 
 
+def get_loss(config, trn_dataset, device):
+    if config.loss == 'ClassBalancedCrossEntropy':
+        if len(config.heads) > 1:
+            raise Exception('Class-Balanced Cross Entropy is not supported for multi-head training.')
+        else:
+            # https://arxiv.org/pdf/1901.05555.pdf
+            classes, samples = np.unique(trn_dataset.labels['n_counts'], return_counts=True)
+            samples_per_class = np.ones(config.num_classes)
+            samples_per_class[classes] = samples
+            effective_num = 1.0 - np.power(config.loss_cbce_beta, samples_per_class)
+            weights = (1.0 - config.loss_cbce_beta) / np.array(effective_num)
+            weights = weights / np.sum(weights) * len(samples_per_class)
+            weights = torch.from_numpy(weights).float().to(device)
+            print('ClassBalancedCrossEntropy')
+            loss = nn.CrossEntropyLoss(weights)
+    else:
+        loss = nn.CrossEntropyLoss()
+    return loss
+
+
 def load_files_from_dataset(dataset_name):
     file_path = find_path(f'config/dataset/**/{dataset_name}.yaml', True)
     with open(file_path, 'r') as stream:
-        return sorted(yaml.safe_load(stream))
+        return np.array(sorted(yaml.safe_load(stream)))
 
 
-def load_model_locally(uuid, model_name='mae', device=None) -> Tuple[Any, Config]:
+def load_model_locally(uuid, model_name='rvce', device=None) -> Tuple[Any, Config]:
     if device is None:
         device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
 

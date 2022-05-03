@@ -13,6 +13,8 @@ class CsvColumnID(IntEnum):
 class InferenceFunction(str, Enum):
     SIMPLE = 'simple'
     OPTIMAL_RVCE = 'optimal_rvce'
+    DOUBLED = 'doubled'
+    STRUCTURED = 'structured'
 
     def __str__(self) -> str:
         return str.__str__(self)
@@ -22,6 +24,12 @@ class InferenceFunction(str, Enum):
 
     def is_optimal_rvce(self) -> bool:
         return self == self.OPTIMAL_RVCE
+
+    def is_doubled(self) -> bool:
+        return self == self.DOUBLED
+
+    def is_structured(self) -> bool:
+        return self == self.STRUCTURED
 
 
 class Normalization(str, Enum):

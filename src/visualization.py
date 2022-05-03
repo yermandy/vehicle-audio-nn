@@ -42,7 +42,12 @@ def show(config, signal, best_detection_frame=None,
          events=None, directions=None, views=None,
          from_time=0, till_time=86400,
          save=None,
-         plot_true_features=False):
+         plot_true_features=False,
+         width_multiplier=4):
+
+    if till_time > get_signal_length(signal, config):
+        print('till_time > signal_length')
+        till_time = signal_length
 
     def formatter(x, y):
         return f'{x // 60:02.0f}:{x % 60:02.0f}'
@@ -50,16 +55,12 @@ def show(config, signal, best_detection_frame=None,
     signal = crop_signal(signal, config.sr, from_time, till_time)
     signal_length = get_signal_length(signal, config)
 
-    if till_time > signal_length:
-        print('till_time > signal_length')
-        till_time = signal_length
-
     print(f'{formatter(from_time, None)} - {formatter(till_time, None)}')
 
     nrows = 3
     if predictions is not None:
         nrows += 1 
-    width = (till_time - from_time) // 4
+    width = (till_time - from_time) // width_multiplier
     height = 4 * nrows
     fig, axes = plt.subplots(nrows=nrows, figsize=(width, height))
     
@@ -124,7 +125,7 @@ def show(config, signal, best_detection_frame=None,
         x_axis_time = get_time(config, from_time, till_time)
         #! introduce dummy ending
         predictions = np.append(predictions, 0)
-        ax3.step(x_axis_time, predictions, where='post', linewidth=3.0, c='tab:red')
+        ax3.step(x_axis_time, predictions, where='post', linewidth=3.0, c='tab:green')
         
         max_output = int(np.max(predictions))
         ax3.hlines(np.arange(1, max_output + 1), x_axis_time[0], x_axis_time[-1], color='k', linestyle='dotted', linewidth=1.0)
@@ -134,10 +135,14 @@ def show(config, signal, best_detection_frame=None,
         if probabilities is not None:
             x_axis_time = get_time(config, from_time, till_time)
             for x, p in zip(x_axis_time[:-1], probabilities):
-                predicted_class = np.argmax(p)
-                for i, p_i in zip(range(predicted_class + 1), p):
-                    ax3.text(x + 0.5, i + 0.25, f'{i} : {p_i:.4f}', fontsize=13)    
+                
+                # predicted_class = np.argmax(p)
+                # for i, p_i in zip(range(predicted_class + 1), p):
+                #     ax3.text(x + 0.5, i + 0.25, f'{i} : {p_i:.4f}', fontsize=13)    
                 # ax3.text(x + 0.5, 0.25, f'{np.argmax(p)} : {np.max(p):.4f}', fontsize=13)
+
+                for i, p_i in zip(range(max_output), p):
+                    ax3.text(x + 0.5, i + 0.25, f'{i} : {p_i:.4f}', fontsize=13)    
 
         if events is not None:
             events_in_windows = []
@@ -148,6 +153,9 @@ def show(config, signal, best_detection_frame=None,
             #! introduce dummy ending
             events_in_windows.append(0)
             ax3.step(x_axis_time, events_in_windows, where='post', linewidth=3.0, linestyle='dotted', c='black')
+
+        ax3.yaxis.set_major_locator(tick.MaxNLocator(integer=True))
+        ax3.set_xlabel('time [min:sec]')
 
     # plot signal amplitude
     each = 16
@@ -182,5 +190,11 @@ def show(config, signal, best_detection_frame=None,
     if save is not None and save is not False:
         plt.tight_layout()
         plt.savefig(save, dpi=100)
+
+    # yint = []
+    # locs, labels = ax3.yticks()
+    # for each in locs:
+    #     yint.append(int(each))
+    # ax3.yticks(yint)
 
     plt.show()

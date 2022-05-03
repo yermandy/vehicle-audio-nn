@@ -49,10 +49,20 @@ class FeaturesConfig():
 
     # image augmentations for training
     image_augmentations: bool = False
+    random_gaussian_blur: bool = False
+    random_erasing: bool = False
+    random_resized_crop: bool = False
 
     # zero mean, unit variance feature normalization:
     # none | row-wise | column-wise | global
     normalization: Normalization = Normalization.GLOBAL
+
+    # zero mean, unit variance signal normalization
+    signal_normalization: bool = False
+
+
+    add_gaussian_noise: bool = False
+    add_pitch_shift: bool = False
 
 
 @dataclass
@@ -71,6 +81,8 @@ class ModelConfig(object):
     split_ratio: float = 0.75
     # use new offset after each epoch
     use_offset: bool = True
+    # use random offset each time
+    use_random_offset: bool = False
     # offset length in sec
     offset_length: float = 0.25
     # number of classes to predict
@@ -86,7 +98,11 @@ class ModelConfig(object):
     # heads: Dict[str, float] = {'n_counts' : 1.0}
     heads: Dict[str, float] = None
 
+    # inference type
     inference_function = InferenceFunction.SIMPLE
+
+    # if inference is structured - specify which labels are coupled
+    coupled_labels: list = None
 
     raw_signal: bool = False
 
@@ -97,6 +113,23 @@ class ModelConfig(object):
     # optimizer
     # Adam | AdamW
     optimizer: str = 'AdamW'
+
+    rawnet_layers: list = None
+    rawnet_filters: list = None
+
+    loss: str = 'CrossEntropy'
+    
+    loss_cbce_beta: float = 0.999
+
+    # Transormer parameters
+    transformer_dim: int = 1024
+    transformer_patch_size: int = 16
+    transformer_depth: int = 3
+    transformer_heads: int = 10
+    transformer_mlp_dim: int = 512
+    transformer_dropout: float = 0.1
+    transformer_emb_dropout: float = 0.1
+
 
 
 @dataclass
@@ -116,11 +149,15 @@ class CrossValidation:
 @dataclass
 class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation, object):
     uuid: str = None
+    seed: int = 42
     n_samples_in_nn_hop: int = None
     n_samples_in_window: int = None
     training_files: tuple = ('12_RX100',)
     testing_files: tuple = ('12_RX100',)
     validation_files: tuple = ('12_RX100',)
+
+    use_testing_files: bool = True
+    use_manual_counts: bool = False
 
     def __init__(self, config=None, **kwargs):
         super(Config, self).__init__(config, **kwargs)

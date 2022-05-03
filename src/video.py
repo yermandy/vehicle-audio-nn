@@ -13,7 +13,8 @@ class Video():
         self.file = file
         self.config = config
         self.domain = 0
-        self.signal, self.sr = src.load_audio(file, resample_sr=config.sr, return_sr=True)
+        self.signal, self.sr = src.load_audio(file, resample_sr=config.sr, return_sr=True, normalize=config.signal_normalization)
+        self.manual_counts = src.load_manual_counts(file)
         self.events = src.load_events(file)
         self.csv = src.load_csv(file)
         self.views = src.load_views_from_csv(self.csv)
@@ -34,46 +35,46 @@ class Video():
         else:
             split_time = 0
 
-        self.trn_from_time = 0
-        self.trn_till_time = split_time
-        self.val_from_time = split_time
-        self.val_till_time = (self.signal_length // window_length) * window_length
+        self.left_from_time = 0
+        self.left_till_time = split_time
+        self.right_from_time = split_time
+        self.right_till_time = (self.signal_length // window_length) * window_length
 
         if not self.silent:
-            print(f' --> trn time {self.trn_from_time} : {self.trn_till_time}\n --> val time {self.val_from_time} : {self.val_till_time}')
+            print(f' --> trn time {self.left_from_time} : {self.left_till_time}\n --> val time {self.right_from_time} : {self.right_till_time}')
 
     def get_events(self, part: Part) -> np.ndarray:
         if part.is_left():
-            return src.crop_events(self.events, self.trn_from_time, self.trn_till_time)
+            return src.crop_events(self.events, self.left_from_time, self.left_till_time)
         elif part.is_right():
-            return src.crop_events(self.events, self.val_from_time, self.val_till_time)
+            return src.crop_events(self.events, self.right_from_time, self.right_till_time)
         else:
-            return self.events
+            return src.crop_events(self.events, self.left_from_time, self.right_till_time)
 
     def get_signal(self, part: Part) -> torch.Tensor:
         if part.is_left():
-            return src.crop_signal(self.signal, self.sr, self.trn_from_time, self.trn_till_time)
+            return src.crop_signal(self.signal, self.sr, self.left_from_time, self.left_till_time)
         elif part.is_right():
-            return src.crop_signal(self.signal, self.sr, self.val_from_time, self.val_till_time)
+            return src.crop_signal(self.signal, self.sr, self.right_from_time, self.right_till_time)
         else:
-            return self.signal
+            return src.crop_signal(self.signal, self.sr, self.left_from_time, self.right_till_time)
 
     def get_from_till_time(self, part: Part) -> Tuple[float, float]:
         if part.is_left():
-            return self.trn_from_time, self.trn_till_time
+            return self.left_from_time, self.left_till_time
         elif part.is_right():
-            return self.val_from_time, self.val_till_time
+            return self.right_from_time, self.right_till_time
         else:
-            return self.trn_from_time, self.val_till_time
+            return self.left_from_time, self.right_till_time
 
     def get_events_count(self, part: Part) -> int:
         events = self.events
         if part.is_left():
-            return  np.sum((events >= self.trn_from_time) & (events < self.trn_till_time))
+            return np.sum((events >= self.left_from_time) & (events < self.left_till_time))
         elif part.is_right():
-            return np.sum((events >= self.val_from_time) & (events < self.val_till_time))
+            return np.sum((events >= self.right_from_time) & (events < self.right_till_time))
         else:
-            return len(events)
+            return np.sum((events >= self.left_from_time) & (events < self.right_till_time))
 
     def __str__(self) -> str:
-        return f'{self.file} ({int(self.trn_from_time)}:{int(self.trn_till_time)}) ({int(self.val_from_time)}:{int(self.val_till_time)})'
+        return f'{self.file} ({int(self.left_from_time)}:{int(self.left_till_time)}) ({int(self.right_from_time)}:{int(self.right_till_time)})'

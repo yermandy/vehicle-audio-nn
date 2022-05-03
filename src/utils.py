@@ -1,4 +1,5 @@
 import os
+from typing import Callable
 import wandb
 import math
 from tabulate import tabulate
@@ -124,7 +125,8 @@ def get_directions_dict() -> dict:
         'n_outgoing': 'rear',
     }
 
-def get_categories_dict() -> dict:
+
+def get_categories_dict() -> Dict[str, str]:
     return {
         'n_BUS': 'BUS',
         'n_CAR': 'CAR',
@@ -145,19 +147,30 @@ def get_categories_dict() -> dict:
     }
 
 
+def get_categories_functions_dict() -> Dict[str, Callable]:
+    return {
+        'n_NOT_CAR': lambda array: array != 'CAR'
+    }
+
+
 def _extract_labels(video: Video, labels, mask):
     n_counts = mask.sum()
     labels['n_counts'].append(n_counts)
     labels['domain'].append(video.domain)
 
-    for head_name, categoty_name in get_directions_dict().items():
+    for head_name, category_name in get_directions_dict().items():
         if head_name in video.config.heads:
-            label = np.sum(video.views[mask] == categoty_name)
+            label = np.sum(video.views[mask] == category_name)
             labels[head_name].append(label)
 
-    for head_name, categoty_name in get_categories_dict().items():
+    for head_name, category_name in get_categories_dict().items():
         if head_name in video.config.heads:
-            label = np.sum(video.category[mask] == categoty_name)
+            label = np.sum(video.category[mask] == category_name)
+            labels[head_name].append(label)
+
+    for head_name, category_function in get_categories_functions_dict().items():
+        if head_name in video.config.heads:
+            label = np.sum(category_function(video.category[mask]))
             labels[head_name].append(label)
 
 
@@ -165,18 +178,30 @@ def get_labels(video: Video, from_time, till_time) -> np.ndarray:
     n_hops = get_n_hops(video.config, from_time, till_time)
     labels = defaultdict(lambda: [])
 
+    mod_events = np.mod(video.events, 6)
+    center = video.config.window_length / 2
+
     for i in range(n_hops):
         sample_from = from_time + i * video.config.nn_hop_length
         sample_till = sample_from + video.config.window_length
         mask = (video.events >= sample_from) & (video.events < sample_till)
         _extract_labels(video, labels, mask)
+        
+        dist_to_center = np.abs(mod_events[mask] - center)
+        if len(dist_to_center) > 0:
+            labels['dist_to_center'].append(dist_to_center.max())
+        else:
+            labels['dist_to_center'].append(-1)
     
     labels = {k: np.array(v) for k, v in labels.items()}
     return labels
 
 
-def get_signal_length(signal, config):
-    return len(signal) // config.sr
+def get_signal_length(signal, sr_or_config):
+    if type(sr_or_config) == Config:
+        return len(signal) // sr_or_config.sr
+    else:
+        return len(signal) // sr_or_config
 
 
 def create_dataset_from_files(datapool: DataPool, part=Part.LEFT, offset: float=0):
@@ -209,6 +234,9 @@ def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
     if till_time is None or till_time > max_time:
         till_time = max_time
 
+    if from_time == None and till_time == None:
+         from_time, till_time = video.get_from_till_time(Part.WHOLE)
+
     samples = []
     labels = defaultdict(lambda: [])
 
@@ -226,27 +254,6 @@ def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
 
     return samples, labels
 
-
-def create_fancy_table(outputs):
-    rvce = outputs[:, 0].astype(float)
-    error = outputs[:, 1].astype(int)
-    n_events = outputs[:, 2].astype(int)
-    mae = outputs[:, 3].astype(float)
-
-    header = ['rvce', 'error', 'n_events', 'mae', 'time', 'file']
-    footer = [
-        f'{rvce.mean():.2f} ± {rvce.std():.2f}',
-        f'{error.mean():.2f} ± {error.std():.2f}',
-        f'{n_events.mean():.2f} ± {n_events.std():.2f}',
-        f'{mae.mean():.2f} ± {mae.std():.2f}',
-        '',
-        'summary'
-    ]
-    
-    table = np.vstack(([header], outputs, [footer]))
-    fancy_table = tabulate(table, headers='firstrow', tablefmt='fancy_grid', showindex=True)
-
-    return table, fancy_table
 
 def print_config(config):
     table = [] 
@@ -275,3 +282,45 @@ def save_dict_txt(name: str, dict: Dict[str, np.ndarray]):
     with open(name, 'w') as file:
         table = tabulate(dict, headers='keys', tablefmt='fancy_grid', showindex=True)
         file.write(table)
+
+
+def generate_cross_validation_table(uuids, model_name='rvce', prefix='tst'):
+    root_uuid = uuids[0].split('/')[0]
+    table = []
+    header = []
+    dict = {}
+    for uuid in uuids:
+        results = np.genfromtxt(f'outputs/{uuid}/results/{prefix}_{model_name}_output.csv', delimiter=',', skip_footer=1, dtype=str)
+        header = results[0]
+        results = results[1:]
+        results = np.atleast_2d(results)
+        table.extend(results)
+    table = np.array(table).T
+    times = []
+    files = []
+    for i in range(len(header)):
+        column_name = header[i]
+        column = table[i].tolist()
+        if column_name == 'file':
+            files = column
+        elif column_name == 'time':
+            times = column
+        else:
+            dict[column_name] = column
+
+    append_summary(dict, times, files)
+    save_dict_csv(f'outputs/{root_uuid}/{prefix}_{model_name}_output.csv', dict)
+    save_dict_txt(f'outputs/{root_uuid}/{prefix}_{model_name}_output.txt', dict)
+
+
+def append_summary(dict, times, files):
+    for k, v in dict.items():
+        v = np.array(v).astype(float)
+        stats = f'{v.mean():.2f} ± {v.std():.2f}'
+        dict[k].append(stats)
+
+    times.append('')
+    files.append('summary')
+
+    dict['time'] = times
+    dict['file'] = files

@@ -5,6 +5,7 @@ import torchvision
 import torchaudio.transforms as T
 import torchvision.transforms.functional as F
 import torchvision.transforms as TV
+import torch_audiomentations as TA
 from .config import Config
 
 from .constants import *
@@ -48,12 +49,29 @@ def create_feature_augmentations(config: Config):
 def create_image_augmentations(config: Config):
     transforms = []
     if config.random_gaussian_blur:
-        transforms.append(TV.GaussianBlur(3))
+        transforms.append(TV.RandomApply([TV.GaussianBlur(3)], p=0.5))
     if config.random_erasing:
-        transforms.append(TV.RandomErasing())
+        # applies with probability 0.5 by default
+        transforms.append(TV.RandomErasing(inplace=True))
     if config.random_resized_crop:
-        transforms.append(TV.RandomResizedCrop(config.resize_size))
-    return TV.Compose(transforms)
+        transforms.append(TV.RandomApply([TV.RandomResizedCrop(config.resize_size)], p=0.5))
+    return TV.RandomChoice(transforms)
+
+
+def create_audio_augmentations(config: Config):
+    transforms = []
+    if config.random_colored_noise:
+        transforms.append(TA.AddColoredNoise())
+    if config.random_pitch_shift:
+        transforms.append(TA.PitchShift(config.sr))
+    if config.random_gain:
+        transforms.append(TA.Gain())
+    if config.random_low_pass_filter:
+        transforms.append(TA.LowPassFilter())
+    if config.random_high_pass_filter:
+        transforms.append(TA.HighPassFilter())
+    # return TA.Compose(transforms)
+    return TA.OneOf(transforms)
 
 
 def create_transformation(config: Config, is_trn=False):
@@ -81,18 +99,15 @@ def create_transformation(config: Config, is_trn=False):
     if config.image_augmentations:
         image_augmentations = create_image_augmentations(config)
 
-    if config.add_gaussian_noise:
-        audio_gaussian_noise = AddGaussianNoise(min_amplitude=0.001, max_amplitude=0.015, p=0.5)
-
-    if config.add_pitch_shift:
-        audio_pitch_shift = PitchShift(min_semitones=-4, max_semitones=4, p=0.5)
+    if config.audio_augmentations:
+        audio_augmentations = create_audio_augmentations(config)
 
     def transform(signal) -> torch.Tensor:
-        if config.add_gaussian_noise:
-            signal = torch.from_numpy(audio_gaussian_noise(signal.numpy(), config.sr))
 
-        if config.add_pitch_shift:
-            signal = torch.from_numpy(audio_pitch_shift(signal.numpy(), config.sr))
+        if config.audio_augmentations and is_trn:
+            signal = signal.reshape(1, 1, -1)
+            signal = audio_augmentations(signal, config.sr)
+            signal = signal.squeeze()
 
         if config.raw_signal:
             return signal.unsqueeze(0)

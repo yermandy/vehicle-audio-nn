@@ -53,16 +53,20 @@ class FeaturesConfig():
     random_erasing: bool = False
     random_resized_crop: bool = False
 
+    # audio augmentations for training
+    audio_augmentations: bool = False
+    random_colored_noise: bool = False
+    random_pitch_shift: bool = False
+    random_gain: bool = False
+    random_low_pass_filter: bool = False
+    random_high_pass_filter: bool = False
+
     # zero mean, unit variance feature normalization:
     # none | row-wise | column-wise | global
     normalization: Normalization = Normalization.GLOBAL
 
     # zero mean, unit variance signal normalization
     signal_normalization: bool = False
-
-
-    add_gaussian_noise: bool = False
-    add_pitch_shift: bool = False
 
 
 @dataclass

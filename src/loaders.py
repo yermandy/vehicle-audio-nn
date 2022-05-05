@@ -68,8 +68,13 @@ def find_path(query, raise_exception=False):
             return None
     elif len(results) == 1:
         return results[0]
-    else:
+    elif raise_exception:
         raise Exception(f'found multiple results for "{query}"')
+    else:
+        print(f'found multiple results for "{query}"')
+        print(results)
+        return results[0]
+
 
 
 def load_csv(file, preprocess=True):

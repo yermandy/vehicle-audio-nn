@@ -8,7 +8,7 @@ import matplotlib.ticker as tick
 import warnings
 
 from .transformation import create_transformation
-from .utils import crop_signal, get_signal_length
+from .utils import crop_signal, get_n_hops, get_signal_length
 
 warnings.filterwarnings("ignore")
 
@@ -74,10 +74,15 @@ def show(config, signal, best_detection_frame=None,
         
     x_axis = np.arange(from_time, till_time + 1)
     ax0.plot(x_axis, np.zeros(len(x_axis)), marker='o', markersize=3, color='black')
+    ax0.get_yaxis().set_visible(False)
 
     ax0.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
     ax0.set_xticks(np.arange(x_axis[0], x_axis[-1] + 1, config.window_length))
-    ax0.set_xlabel('time [min:sec]')
+    # ax0.set_xlabel('time [min:sec]')
+
+    # show windows
+    # x_axis = np.linspace(from_time, till_time, get_n_hops(config, from_time, till_time) + 1)
+    # ax0.vlines(x_axis, 0, 1, color='tab:red', linestyle='--', linewidth=2.0)
     
     # show best detection frame from eyedea engine
     if best_detection_frame is not None:
@@ -117,6 +122,7 @@ def show(config, signal, best_detection_frame=None,
 
     # plot predictions
     if predictions is not None:
+        x_axis = np.arange(from_time, till_time + 1)
         if signal_length % config.window_length != 0:
             print(f'interval is not divisible by {config.window_length}')
         ax3.xaxis.set_major_formatter(tick.FuncFormatter(formatter))
@@ -142,7 +148,7 @@ def show(config, signal, best_detection_frame=None,
                 # ax3.text(x + 0.5, 0.25, f'{np.argmax(p)} : {np.max(p):.4f}', fontsize=13)
 
                 for i, p_i in zip(range(max_output), p):
-                    ax3.text(x + 0.5, i + 0.25, f'{i} : {p_i:.4f}', fontsize=13)    
+                    ax3.text(x + 1, i + 0.25, f'{i} : {p_i:.4f}', fontsize=13)    
 
         if events is not None:
             events_in_windows = []
@@ -155,11 +161,13 @@ def show(config, signal, best_detection_frame=None,
             ax3.step(x_axis_time, events_in_windows, where='post', linewidth=3.0, linestyle='dotted', c='black')
 
         ax3.yaxis.set_major_locator(tick.MaxNLocator(integer=True))
-        ax3.set_xlabel('time [min:sec]')
+        # ax3.set_xlabel('time [min:sec]')
+        ax3.get_yaxis().set_visible(False)
 
     # plot signal amplitude
     each = 16
-    ax1.plot(signal[::each], alpha=0.5)
+    smaller_signal = signal[::each]
+    ax1.plot(smaller_signal, alpha=0.5)
     
     features = torch.stft(signal, n_fft=config.n_fft, hop_length=config.hop_length)
     energy = features[..., 0].pow(2)
@@ -169,10 +177,19 @@ def show(config, signal, best_detection_frame=None,
     energy /= energy.max()
 
     # plot signal energy
-    x_axis = np.linspace(0, len(signal[::each]), len(energy))
+    x_axis = np.linspace(0, len(smaller_signal), len(energy))
     ax1_1 = ax1.twinx()
     ax1_1.plot(x_axis, energy, c='black')
-    ax1.set_xlabel('number of samples')
+    # ax1.set_xlabel('number of samples')
+    
+
+    # plot windows
+    x_axis = np.linspace(0, len(smaller_signal), get_n_hops(config, from_time, till_time) + 1)
+    ax1.vlines(x_axis, -1, 1, color='k', linestyle='--', linewidth=2.0, alpha=0.5)
+    ax1.get_yaxis().set_visible(False)
+    ax1.get_xaxis().set_visible(False)
+    ax1_1.get_yaxis().set_visible(False)
+    
 
     # plot spectrogram
     if plot_true_features:
@@ -186,6 +203,12 @@ def show(config, signal, best_detection_frame=None,
 
     ax2.pcolormesh(features)
     ax2.set_xlabel('number of features')
+
+    # plot windows
+    x_axis = np.linspace(0, features.shape[1], get_n_hops(config, from_time, till_time) + 1)
+    ax2.vlines(x_axis, 0, features.shape[0], color='k', linestyle='--', linewidth=2.0)
+    ax2.get_xaxis().set_visible(False)
+    ax2.get_yaxis().set_visible(False)
         
     if save is not None and save is not False:
         plt.tight_layout()

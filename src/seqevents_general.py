@@ -4,7 +4,6 @@
 # %%
 import numpy as np
 from tqdm import tqdm
-import numba
 
 class Events:
     
@@ -103,7 +102,6 @@ class Events:
                 ind = np.unravel_index( z, self.dims )
                 self.alpha[z,i] = self.alpha[z,i] / norm_const[ np.sum(ind) ]
     
-    @numba.jit(nopython=True)
     def m_step( self ):
     
         self.Px.fill(0)

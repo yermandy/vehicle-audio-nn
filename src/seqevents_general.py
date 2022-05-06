@@ -8,6 +8,7 @@ from tqdm import tqdm
 class Events:
     
     def __init__(self, W ):
+        self.generator = np.random.RandomState(42)
         self.W = W
 
     def deconv( self, Pc, n_epochs = 50 ):
@@ -25,7 +26,7 @@ class Events:
         self.alpha = np.zeros( [(self.Kx+1)**self.W, self.N-self.W+1] )
 
         # random init 
-        self.Px = np.random.rand( self.Kx+1,self.N)
+        self.Px = self.generator.rand( self.Kx+1,self.N)
         self.Px = self.Px / np.sum( self.Px, axis=0)
 
         self.Pc = np.zeros( Pc.shape )
@@ -102,8 +103,7 @@ class Events:
                 ind = np.unravel_index( z, self.dims )
                 self.alpha[z,i] = self.alpha[z,i] / norm_const[ np.sum(ind) ]
     
-    def m_step( self ):
-    
+    def m_step( self ):    
         self.Px.fill(0)
         for i in range( self.N-self.W+1):
             for w in range( self.W ):
@@ -113,17 +113,17 @@ class Events:
 
 # %%
 if __name__ == "__main__":
-    Kx = 5   # max num events per dense window; x1 is from {0,1,...,Kx}
-    N  = 100  # length of the dense sequence x1,...xN
+    Kx = 3   # max num events per dense window; x1 is from {0,1,...,Kx}
+    N  = 10  # length of the dense sequence x1,...xN
     W  = 2   # window size
 
+    np.random.seed(43)
     Px = np.random.rand(Kx + 1, N)
     Px /= Px.sum(0)
 
     A = Events(W)
     Pc = A.conv(Px)
 
-    Px_est, Pc_est, kl_hist = A.deconv(Pc, 200)
-
+    Px_est, Pc_est, kl_hist = A.deconv(Pc, 50)
 
 # %%

@@ -1,7 +1,7 @@
 ####################################################################
 # Probabilistic deconvolution for generic window size
 ####################################################################
-
+# %%
 import numpy as np
 from tqdm import tqdm
 import numba
@@ -102,7 +102,8 @@ class Events:
             for z in range( (self.Kx+1)**self.W ):
                 ind = np.unravel_index( z, self.dims )
                 self.alpha[z,i] = self.alpha[z,i] / norm_const[ np.sum(ind) ]
-
+    
+    @numba.jit(nopython=True)
     def m_step( self ):
     
         self.Px.fill(0)
@@ -112,3 +113,19 @@ class Events:
 
         self.Px = self.Px / np.sum( self.Px, axis=0 ) 
 
+# %%
+if __name__ == "__main__":
+    Kx = 5   # max num events per dense window; x1 is from {0,1,...,Kx}
+    N  = 100  # length of the dense sequence x1,...xN
+    W  = 2   # window size
+
+    Px = np.random.rand(Kx + 1, N)
+    Px /= Px.sum(0)
+
+    A = Events(W)
+    Pc = A.conv(Px)
+
+    Px_est, Pc_est, kl_hist = A.deconv(Pc, 200)
+
+
+# %%

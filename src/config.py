@@ -105,6 +105,10 @@ class ModelConfig(object):
     # inference type
     inference_function = InferenceFunction.SIMPLE
 
+    # if inference is dense – specify the number overpalling windows
+    n_windows_for_dense_inference: int = 3
+    n_events_per_dense_window: int = 5
+
     # if inference is structured - specify which labels are coupled
     coupled_labels: list = None
 

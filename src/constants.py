@@ -15,6 +15,7 @@ class InferenceFunction(str, Enum):
     OPTIMAL_RVCE = 'optimal_rvce'
     DOUBLED = 'doubled'
     STRUCTURED = 'structured'
+    DENSE = 'dense'
 
     def __str__(self) -> str:
         return str.__str__(self)
@@ -27,6 +28,9 @@ class InferenceFunction(str, Enum):
 
     def is_doubled(self) -> bool:
         return self == self.DOUBLED
+
+    def is_dense(self) -> bool:
+        return self == self.DENSE
 
     def is_structured(self) -> bool:
         return self == self.STRUCTURED

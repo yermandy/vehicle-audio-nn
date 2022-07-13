@@ -29,6 +29,9 @@ class ResNet(nn.Module):
         heads = {name: head(x) for name, head in self.heads.items()}
         return heads
 
+    def features(self, x):
+        return self.model(x)
+
     def forward_single_head(self, x):
         x = self.model(x)
         return self.heads['n_counts'](x)

@@ -226,6 +226,9 @@ def create_dataset_from_files(datapool: DataPool, part=Part.LEFT, offset: float=
 
 
 def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
+    if from_time == None and till_time == None:
+         from_time, till_time = video.get_from_till_time(Part.WHOLE)
+
     if from_time is None:
         from_time = 0
 
@@ -234,24 +237,21 @@ def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
     if till_time is None or till_time > max_time:
         till_time = max_time
 
-    if from_time == None and till_time == None:
-         from_time, till_time = video.get_from_till_time(Part.WHOLE)
-
     samples = []
     labels = defaultdict(lambda: [])
 
-    interval_time = till_time - from_time
-    n_samples = int(interval_time // video.config.window_length)
+    n_hops = get_n_hops(video.config, from_time, till_time) 
 
-    for i in range(n_samples):
-        sample_from = from_time + i * video.config.window_length
+    for i in range(n_hops):
+        sample_from = from_time + i * video.config.nn_hop_length
         sample_till = sample_from + video.config.window_length
+        
         mask = (video.events >= sample_from) & (video.events < sample_till)
         _extract_labels(video, labels, mask)
 
         sample = video.signal[int(sample_from * video.sr): int(sample_till * video.sr)]
         samples.append(sample)
-
+    
     return samples, labels
 
 

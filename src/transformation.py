@@ -116,10 +116,12 @@ def create_transformation(config: Config, is_trn=False):
             features = mfcc_transform(signal)
         elif config.transformation.is_stft():
             features = stft_transform(signal)
-            features = amplitude_to_DB(features)
+            if config.log_transformation:
+                features = amplitude_to_DB(features)
         elif config.transformation.is_mel():
             features = mel_transform(signal)
-            features = amplitude_to_DB(features)
+            if config.log_transformation:
+                features = amplitude_to_DB(features)
         else:
             raise Exception('unknown transformation')
 

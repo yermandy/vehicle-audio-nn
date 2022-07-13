@@ -110,7 +110,12 @@ def get_probs_for_dense_inference(video: Video, model, from_time, till_time, n_w
 def collect_probs_from_models(video: Video, models, from_time, till_time):
     probs_ensembled = defaultdict(int)
     for model in models:
-        probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time)
+        if video.config.inference_function.is_doubled():
+            probs = get_probs_for_dense_inference(video, model, from_time, till_time, 2)
+        elif video.config.inference_function.is_dense():
+            probs = get_probs_for_dense_inference(video, model, from_time, till_time, video.config.n_windows_for_dense_inference)
+        else:
+            probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time)
         for head, head_probs in probs.items():
             probs_ensembled[head] += head_probs / head_probs.sum(1, keepdims=True)
     # make a valid probablility distribution

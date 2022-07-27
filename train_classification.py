@@ -1,10 +1,10 @@
-from torch.optim import Adam, AdamW
+from torch.optim import Optimizer, Adam, AdamW
 from torch.utils.data import DataLoader
 
 from src import *
 
 
-def forward(loader, model, loss, config, optim=None, is_train=False):
+def forward(loader: DataLoader, model, loss, config: Config, optim: Optimizer = None, is_train: bool=False):
     device = next(model.parameters()).device
 
     loss_sum = 0
@@ -46,6 +46,12 @@ def forward(loader, model, loss, config, optim=None, is_train=False):
                 optim.zero_grad()
                 loss_value.backward()
                 optim.step()
+
+    # use true counts to evaluate RVCE
+    if config.use_manual_counts:
+        for i, video in enumerate(loader.dataset.datapool):
+            video: Video
+            n_events_true['n_counts'][i] = video.manual_counts
 
     # weighted rvce by head weight
     rvce = []

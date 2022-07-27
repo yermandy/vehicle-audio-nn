@@ -13,6 +13,8 @@ class FeaturesConfig():
     # stft | mel | mfcc
     transformation: Transformation = Transformation.STFT
 
+    log_transformation: bool = True
+
     #! stft parameters
     # size of FFT, creates n_fft // 2 + 1 bins
     n_fft: int = 1024
@@ -105,6 +107,10 @@ class ModelConfig(object):
     # inference type
     inference_function = InferenceFunction.SIMPLE
 
+    # if inference is dense – specify the number overpalling windows
+    n_windows_for_dense_inference: int = 3
+    n_events_per_dense_window: int = 5
+
     # if inference is structured - specify which labels are coupled
     coupled_labels: list = None
 
@@ -177,6 +183,14 @@ class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation
         for k, v in self.items():
             if isinstance(v, omegaconf.ListConfig):
                 self[k] = list(v)
+
+    def set_nn_hop_length(self, nn_hop_length):
+        self.nn_hop_length = nn_hop_length
+        self.n_samples_in_nn_hop = int(self.sr * self.nn_hop_length)
+
+    def set_window_length(self, window_length):
+        self.window_length = window_length
+        self.n_samples_in_window = int(self.sr * self.window_length)
 
     def __str__(self) -> str:
         return super().__str__()

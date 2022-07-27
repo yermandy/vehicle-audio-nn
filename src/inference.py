@@ -3,7 +3,7 @@ from .utils import *
 from .transformation import *
 from scipy.special import logsumexp
 from .seqevents import Events as SeqEvents
-
+from .seqevents_general import Events as SeqEventsGeneral
 
 def validate_video(video: Video, model, return_probs=True, return_preds=True,
                    from_time=None, till_time=None, classification=True):
@@ -84,10 +84,38 @@ def change_probs_for_doubled_inference(probs_1, probs_2):
     return {'n_counts': Pc}
 
 
+def get_probs_for_dense_inference(video: Video, model, from_time, till_time, n_windows_for_dense_inference: int):
+    Pxs = []
+
+    offset = video.config.window_length / n_windows_for_dense_inference
+
+    height = 0
+    width = 0
+    
+    for i in range(n_windows_for_dense_inference):
+        probs = validate_video(video, model, return_preds=False, from_time=from_time + offset, till_time=till_time)
+        probs = probs['n_counts']
+        height += probs.shape[0]
+        width = probs.shape[1]
+        Pxs.append(probs)
+
+    Pc = np.empty((height, width))
+
+    for i, Px in enumerate(Pxs):
+        Pc[i::n_windows_for_dense_inference] = Px
+
+    return {'n_counts': Pc}
+
+
 def collect_probs_from_models(video: Video, models, from_time, till_time):
     probs_ensembled = defaultdict(int)
     for model in models:
-        probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time)
+        if video.config.inference_function.is_doubled():
+            probs = get_probs_for_dense_inference(video, model, from_time, till_time, 2)
+        elif video.config.inference_function.is_dense():
+            probs = get_probs_for_dense_inference(video, model, from_time, till_time, video.config.n_windows_for_dense_inference)
+        else:
+            probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time)
         for head, head_probs in probs.items():
             probs_ensembled[head] += head_probs / head_probs.sum(1, keepdims=True)
     # make a valid probablility distribution
@@ -112,11 +140,12 @@ def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE
         if type(model) == list:
             print('Ensembling')
             probs = collect_probs_from_models(video, model, from_time, till_time)
+        elif config.inference_function.is_doubled():
+            probs = get_probs_for_dense_inference(video, model, from_time, till_time, 2)
+        elif config.inference_function.is_dense():
+            probs = get_probs_for_dense_inference(video, model, from_time, till_time, config.n_windows_for_dense_inference)
         else:
             probs = validate_video(video, model, return_preds=False, from_time=from_time, till_time=till_time)
-            if config.inference_function.is_doubled():
-                probs_2 = validate_video(video, model, return_preds=False, from_time=config.window_length / 2, till_time=till_time)
-                probs = change_probs_for_doubled_inference(probs, probs_2)
 
         preds, n_predicted = inference(probs, config)
         labels = get_labels(video, from_time, till_time)
@@ -265,11 +294,27 @@ def inference_doubled(probs: Dict[str, np.ndarray]):
     print('doubled')
     n_predicted = {}
     for head, head_probs in probs.items():
+        n_events_max = 17
+        head_probs = head_probs[:, :n_events_max].T
+        head_probs = head_probs / head_probs.sum(0)
         n_events, seq_len = head_probs.shape
         A = SeqEvents(n_events // 2, seq_len + 1)
-        est_Px, est_Pc, kl_hist = A.deconv(head_probs, n_events)
+        est_Px, est_Pc, kl_hist = A.deconv(head_probs)
         n_predicted[head] = est_Px.argmax(0).sum()
+    # TODO reconstruct predictions 
+    return None, n_predicted
 
+
+def inference_dense(probs: Dict[str, np.ndarray], config: Config):
+    print('dense')
+    n_predicted = {}
+    for head, head_probs in probs.items():
+        n_events = int(config.n_windows_for_dense_inference * config.n_events_per_dense_window + 1)
+        head_probs = head_probs[:, :n_events].T
+        head_probs = head_probs / head_probs.sum(0)
+        A = SeqEventsGeneral(config.n_windows_for_dense_inference)
+        est_Px, est_Pc, kl_hist = A.deconv(head_probs, 30)
+        n_predicted[head] = est_Px.argmax(0).sum()
     return None, n_predicted
 
 
@@ -306,5 +351,7 @@ def inference(preds: Dict[str, np.ndarray], config: Config) -> Tuple[Dict[str, n
         return inference_optimal_rvce(preds)
     elif config.inference_function.is_doubled():
         return inference_doubled(preds)
+    elif config.inference_function.is_dense():
+        return inference_dense(preds, config)
     elif config.inference_function.is_structured():
         return inference_structured(preds, config)

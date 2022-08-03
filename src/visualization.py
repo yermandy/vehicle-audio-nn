@@ -8,7 +8,7 @@ import matplotlib.ticker as tick
 import warnings
 
 from .transformation import create_transformation
-from .utils import crop_signal, get_n_hops, get_signal_length
+from .utils import crop_signal, get_n_hops, get_signal_length, create_samples
 
 warnings.filterwarnings("ignore")
 
@@ -195,7 +195,9 @@ def show(config, signal, best_detection_frame=None,
     # plot spectrogram
     if plot_true_features:
         transform = create_transformation(config)
-        features = transform(signal).squeeze()
+        samples = create_samples(config, signal, from_time, till_time)
+        features = [transform(sample).squeeze() for sample in samples]
+        features = torch.hstack(features)
     else:
         transform_signal = torchaudio.transforms.MelSpectrogram(sample_rate=config.sr, **get_melkwargs(config))
         transform_power = torchaudio.transforms.AmplitudeToDB(top_db=70)

@@ -225,6 +225,17 @@ def create_dataset_from_files(datapool: DataPool, part=Part.LEFT, offset: float=
     return all_samples, all_labels
 
 
+def create_samples(config: Config, signal, from_time, till_time):
+    samples = []
+    n_hops = get_n_hops(config, from_time, till_time) 
+    for i in range(n_hops):
+        sample_from = from_time + i * config.nn_hop_length
+        sample_till = sample_from + config.window_length
+        sample = signal[int(sample_from * config.sr): int(sample_till * config.sr)]
+        samples.append(sample)
+    return samples
+
+
 def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
     if from_time == None and till_time == None:
          from_time, till_time = video.get_from_till_time(Part.WHOLE)

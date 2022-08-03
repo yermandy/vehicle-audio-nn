@@ -8,7 +8,7 @@ import yaml
 import torch.nn as nn
 
 from .rawnet import RawNet2Architecture
-from .model import ResNet18, ResNet34, ResNet50, ResNet1D, Transformer, WaveCNN
+from .model import ResNet18, ResNet34, ResNet50, ResNet1D, Transformer, WaveCNN, MobileOne
 import torchaudio.transforms as T
 from .constants import *
 from .config import *
@@ -78,15 +78,18 @@ def find_path(query, raise_exception=False):
 
 
 def load_csv(file, preprocess=True):
-    file_path = find_csv(file, True)
-    csv = np.genfromtxt(file_path, dtype=str, delimiter=';', skip_header=1)
-    csv = np.atleast_2d(csv)
-    if csv.size == 0:
+    try:
+        file_path = find_csv(file, True)
+        csv = np.genfromtxt(file_path, dtype=str, delimiter=';', skip_header=1)
+        csv = np.atleast_2d(csv)
+        if csv.size == 0:
+            return []
+        if preprocess:
+            return preprocess_csv(csv)
+        return csv
+    except Exception as e:
+        print(e)
         return []
-    if preprocess:
-        return preprocess_csv(csv)
-    return csv
-
 
 def load_audio_wav(path, return_sr=False):
     signal, sr = torchaudio.load(path)
@@ -135,7 +138,11 @@ def load_manual_counts(file) -> int:
 
 
 def load_events(file):
-    return np.loadtxt(find_labels(file))
+    try:
+        return np.loadtxt(find_labels(file, True))
+    except Exception as e:
+        print(e)
+        return []
 
 
 def load_intervals(file):
@@ -340,7 +347,8 @@ def get_model(config):
         'ResNet50': ResNet50,
         'ResNet1D': ResNet1D,
         'RawNet2': RawNet2Architecture,
-        'Transformer': Transformer
+        'Transformer': Transformer,
+        'MobileOne': MobileOne
     }[config.architecture](config)
 
 

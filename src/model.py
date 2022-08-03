@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from vit_pytorch import ViT
 
 from .config import Config
+from .mobileone import mobileone
 
 
 class ResNet(nn.Module):
@@ -301,6 +302,33 @@ class Transformer(nn.Module):
     def forward_single_head(self, x):
         x = self.model(x)
         return self.heads['n_counts'](x)
+
+
+class MobileOne(nn.Module):
+    def __init__(self, config):
+        super(MobileOne, self).__init__()
+        self.num_classes = config.num_classes
+        self.model = mobileone(variant=config.mobile_one_variant, num_classes=self.num_classes)
+        self.in_features = self.model.linear.in_features
+        self.model.linear = nn.Identity()
+        self.heads = nn.ModuleDict()
+        for head in config.heads:
+            self.add_head(head)
+
+    def add_head(self, name):
+        self.heads.add_module(name, nn.Linear(self.in_features, self.num_classes))
+
+    def forward(self, x):
+        x = self.model(x)
+        heads = {name: head(x) for name, head in self.heads.items()}
+        return heads
+
+    def features(self, x):
+        return self.model(x)
+
+    def forward_single_head(self, x):
+        x = self.model(x)
+        return self.heads['n_counts']
 
 
 if __name__ == "__main__":

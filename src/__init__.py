@@ -8,7 +8,7 @@ from .constants import *
 from .config import *
 from .inference import *
 from .transformation import *
-from .dataset import VehicleDataset
+from .dataset import *
 from .model import *
 
 import os

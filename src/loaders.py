@@ -7,8 +7,7 @@ import os
 import yaml
 import torch.nn as nn
 
-from .rawnet import RawNet2Architecture
-from .model import ResNet18, ResNet34, ResNet50, ResNet1D, Transformer, WaveCNN, MobileOne
+from .model import *
 import torchaudio.transforms as T
 from .constants import *
 from .config import *
@@ -91,9 +90,9 @@ def load_csv(file, preprocess=True):
         print(e)
         return []
 
+
 def load_audio_wav(path, return_sr=False):
     signal, sr = torchaudio.load(path)
-    assert sr == 44100, 'sampling rate of the device is not 44100'
     signal = signal.mean(0)
     if return_sr:
         return signal, sr
@@ -102,21 +101,21 @@ def load_audio_wav(path, return_sr=False):
 
 def load_audio_tensor(path, return_sr=False):
     signal, sr = torch.load(path)
-    assert sr == 44100, 'sampling rate of the device is not 44100'
     if return_sr:
         return signal, sr
     return signal
 
 
 def load_audio(file, resample_sr=44100, return_sr=False, normalize=False) -> torch.Tensor:
-    wav_file_path = find_wav(file)
     pt_file_path = find_pt(file)
     if pt_file_path:
         signal, sr = load_audio_tensor(pt_file_path, True)
-    elif wav_file_path:
-        signal, sr = load_audio_wav(wav_file_path, True)
     else:
-        raise Exception(f'file "{file}" does not exist')
+        wav_file_path = find_wav(file)
+        if wav_file_path:
+            signal, sr = load_audio_wav(wav_file_path, True)
+        else:
+            raise Exception(f'file "{file}" does not exist')
     if sr != resample_sr:
         signal = T.Resample(sr, resample_sr).forward(signal)
     # round to the last second

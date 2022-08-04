@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-__all__ = ['MobileOne', 'mobileone', 'reparameterize_model']
+__all__ = ['MobileOneModel', 'mobileone', 'reparameterize_model']
 
 
 class SEBlock(nn.Module):
@@ -276,7 +276,7 @@ class MobileOneBlock(nn.Module):
         return mod_list
 
 
-class MobileOne(nn.Module):
+class MobileOneModel(nn.Module):
     """ MobileOne Model
 
         Pytorch implementation of `An Improved One millisecond Mobile Backbone` -
@@ -402,7 +402,7 @@ def mobileone(num_classes: int = 1000, inference_mode: bool = False,
     :param variant: Which type of model to generate.
     :return: MobileOne model. """
     variant_params = PARAMS[variant]
-    return MobileOne(num_classes=num_classes, inference_mode=inference_mode,
+    return MobileOneModel(num_classes=num_classes, inference_mode=inference_mode,
                      **variant_params)
 
 
@@ -420,3 +420,36 @@ def reparameterize_model(model: torch.nn.Module) -> nn.Module:
         if hasattr(module, 'reparameterize'):
             module.reparameterize()
     return model
+
+
+
+
+
+
+
+
+class MobileOne(nn.Module):
+    def __init__(self, config):
+        super(MobileOne, self).__init__()
+        self.num_classes = config.num_classes
+        self.model = mobileone(variant=config.mobile_one_variant, num_classes=self.num_classes)
+        self.in_features = self.model.linear.in_features
+        self.model.linear = nn.Identity()
+        self.heads = nn.ModuleDict()
+        for head in config.heads:
+            self.add_head(head)
+
+    def add_head(self, name):
+        self.heads.add_module(name, nn.Linear(self.in_features, self.num_classes))
+
+    def forward(self, x):
+        x = self.model(x)
+        heads = {name: head(x) for name, head in self.heads.items()}
+        return heads
+
+    def features(self, x):
+        return self.model(x)
+
+    def forward_single_head(self, x):
+        x = self.model(x)
+        return self.heads['n_counts']

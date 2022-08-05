@@ -24,33 +24,28 @@ def inference(root_uuid, prefix, model_name, inference_function, coupled_labels,
     generate_cross_validation_table(uuids, model_name=model_name, prefix=prefix)
 
 
-root_uuid = '035_RX100_resized_128_audio_image_augmentation_bs_512'
+root_uuid = '031_RX100_resized_128_sr_22050'
 prefix = 'tst'
-
-doubled = False
-dense = True
-
+inference_function = InferenceFunction.DOUBLED
 use_manual_counts = False
+
+
 coupled_labels = None
 nn_hop_length = None
 n_events_per_dense_window = None
+n_windows_for_dense_inference = None
 
-if doubled:
+if inference_function.is_doubled():
     prefix += '_doubled'
-    inference_function = InferenceFunction.DOUBLED
-    n_windows_for_dense_inference = 2
-    n_events_per_dense_window = 6
-elif dense:
+elif inference_function.is_dense():
     prefix += '_dense'
-    inference_function = InferenceFunction.DENSE
     n_windows_for_dense_inference = 6
     n_events_per_dense_window = 2
-else:
+elif inference_function.is_structured():
     prefix += '_structured'
     coupled_labels = [['n_incoming', 'n_outgoing'], ['n_CAR', 'n_NOT_CAR']]
     # coupled_labels = [['n_CAR', 'n_NOT_CAR']]
     # coupled_labels = [['n_incoming', 'n_outgoing']]
-    inference_function = InferenceFunction.STRUCTURED
 
 if use_manual_counts:
     prefix += '_manual'

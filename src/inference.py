@@ -15,8 +15,10 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
     if from_time is None:
         from_time = 0
 
-    if till_time is None:
-        till_time = get_signal_length(signal, config)
+    max_signal_length = get_signal_length(signal, config)
+    if till_time is None or till_time > max_signal_length:
+        print(f'Till time is {till_time} but max signal length is {max_signal_length}')
+        till_time = max_signal_length
 
     signal = crop_signal(signal, config.sr, from_time, till_time)
         

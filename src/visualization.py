@@ -8,7 +8,7 @@ import matplotlib.ticker as tick
 import warnings
 
 from .transformation import create_transformation
-from .utils import crop_signal, get_n_hops, get_signal_length
+from .utils import crop_signal, get_n_hops, get_signal_length, create_samples
 
 warnings.filterwarnings("ignore")
 
@@ -45,7 +45,8 @@ def show(config, signal, best_detection_frame=None,
          plot_true_features=False,
          width_multiplier=4):
 
-    if till_time > get_signal_length(signal, config):
+    signal_length = get_signal_length(signal, config)
+    if till_time > signal_length:
         print('till_time > signal_length')
         till_time = signal_length
 
@@ -100,12 +101,12 @@ def show(config, signal, best_detection_frame=None,
         ax0.vlines(best_detection_frame[mask], 0, 1, color=colors, linewidth=2.0)
                  
     # show annotations
-    if events is not None:
+    if events is not None and len(events) > 0:
         mask = (events >= from_time) & (events < till_time)
         ax0.vlines(events[mask], 0, 1, color='black', linestyle=':', linewidth=2.0)
         
     # show start and end time of events
-    if events_start_time is not None and events_end_time is not None:
+    if events_start_time != None and len(events_start_time) > 0 and events_end_time != None and len(events_end_time) > 0:
         colors = 'violet'
         
         # color code direction
@@ -194,7 +195,9 @@ def show(config, signal, best_detection_frame=None,
     # plot spectrogram
     if plot_true_features:
         transform = create_transformation(config)
-        features = transform(signal).squeeze()
+        samples = create_samples(config, signal, from_time, till_time)
+        features = [transform(sample).squeeze() for sample in samples]
+        features = torch.hstack(features)
     else:
         transform_signal = torchaudio.transforms.MelSpectrogram(sample_rate=config.sr, **get_melkwargs(config))
         transform_power = torchaudio.transforms.AmplitudeToDB(top_db=70)

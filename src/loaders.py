@@ -1,5 +1,7 @@
 import torch
 import torchaudio
+import torchaudio.transforms as T
+
 import numpy as np
 from collections import defaultdict, Counter
 import pickle
@@ -8,7 +10,6 @@ import yaml
 import torch.nn as nn
 
 from .model import *
-import torchaudio.transforms as T
 from .constants import *
 from .config import *
 

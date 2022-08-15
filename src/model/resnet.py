@@ -1,8 +1,11 @@
+import pyrootutils.root
+
 from torchvision.models import resnet18, resnet34, resnet50
 import torch.nn as nn
+from src.config import Config
 
 class ResNet(nn.Module):
-    def __init__(self, model_class, config, in_channels=1, pretrained=False):
+    def __init__(self, model_class, config: Config, in_channels=1, pretrained=False):
         super(ResNet, self).__init__()
         self.num_classes = config.num_classes
         self.model = model_class(pretrained=pretrained)
@@ -42,3 +45,13 @@ class ResNet34(ResNet):
 class ResNet50(ResNet):
     def __init__(self, config, in_channels=1, pretrained=False):
         super().__init__(resnet50, config, in_channels, pretrained)
+
+
+if __name__ == "__main__":
+    
+
+    config = Config()
+    print(config)
+    model = ResNet18(config)
+
+    print(model)

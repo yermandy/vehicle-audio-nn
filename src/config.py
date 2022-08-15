@@ -1,5 +1,7 @@
+import pyrootutils.root 
+
 from typing import Dict
-from .constants import *
+from src.constants import *
 from easydict import EasyDict
 from dataclasses import dataclass, field
 import omegaconf
@@ -194,3 +196,8 @@ class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation
 
     def __str__(self) -> str:
         return super().__str__()
+
+    
+if __name__ == '__main__':
+    config = Config()
+    print(config)

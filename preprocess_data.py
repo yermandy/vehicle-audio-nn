@@ -27,7 +27,7 @@ def extract_audio(file):
     video = mp.VideoFileClip(path_video)
     video.audio.write_audiofile(path_wav)
 
-    signal, sr = load_audio(path_wav, return_sr=True)
+    signal, sr = load_audio_wav(path_wav, return_sr=True)
     torch.save([signal, sr], path_pt)
 
 
@@ -81,9 +81,15 @@ def extract_labels(file):
         return
     else:
         path = f'data/labels/{file}.txt'
+    
+    csv = load_csv(file)
+    if csv == []:
+        print(f'csv file {file} not found')
+        return
+
     signal, sr = load_audio(file, return_sr=True)
     signal_length = len(signal) // sr
-    csv = load_csv(file)
+
     views = load_views_from_csv(csv)
     events_start_time, events_end_time = load_event_time_from_csv(csv)
 
@@ -130,7 +136,12 @@ def extract_intevals(file, empty_interval_in_s=10):
         return
     else:
         path = f'data/intervals/{file}.txt'
+    
     csv = load_csv(file)
+    if csv == []:
+        print(f'csv file {file} not found')
+        return
+
     events_start_times = csv[:, 8]
     events_end_times = csv[:, 9]
 
@@ -172,6 +183,8 @@ def preprocess(files):
 
 if __name__ == '__main__':
     assert len(sys.argv) == 2, 'first argument is the path to .yaml list with files'
+
+    # Provide path to .yaml file with list of files
 
     with open(sys.argv[1], 'r') as stream:
         files = yaml.safe_load(stream)

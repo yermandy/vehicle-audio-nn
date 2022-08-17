@@ -5,8 +5,14 @@ from scipy.special import logsumexp
 from .seqevents import Events as SeqEvents
 from .seqevents_general import Events as SeqEventsGeneral
 
-def validate_video(video: Video, model, return_probs=True, return_preds=True,
-                   from_time=None, till_time=None, classification=True):
+
+def validate_video(video: Video,
+                   model,
+                   return_probs=True,
+                   return_preds=True,
+                   from_time=None,
+                   till_time=None,
+                   classification=True):
 
     signal = video.signal
     config = video.config
@@ -21,14 +27,14 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
         till_time = max_signal_length
 
     signal = crop_signal(signal, config.sr, from_time, till_time)
-        
+
     device = next(model.parameters()).device
 
     batch = []
     preds = defaultdict(list)
     probs = defaultdict(list)
 
-    n_hops = get_n_hops(config, from_time, till_time) 
+    n_hops = get_n_hops(config, from_time, till_time)
 
     model.eval()
     with torch.no_grad():
@@ -38,12 +44,12 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
             x = signal[start: end]
             x = transform(x)
             batch.append(x)
-            
+
             if (k + 1) % config.batch_size == 0 or k + 1 == n_hops:
                 batch = torch.stack(batch, dim=0)
                 batch = batch.to(device)
                 heads = model(batch)
-                
+
                 for head, scores in heads.items():
                     if return_probs:
                         p = scores.softmax(1).tolist()
@@ -55,7 +61,7 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
                         else:
                             y = scores.flatten().tolist()
                         preds[head].extend(y)
-                
+
                 batch = []
 
     to_return = []
@@ -63,11 +69,11 @@ def validate_video(video: Video, model, return_probs=True, return_preds=True,
     if return_preds:
         preds = {k: np.array(v) for k, v in preds.items()}
         to_return.append(preds)
-    
+
     if return_probs:
         probs = {k: np.array(v) for k, v in probs.items()}
         to_return.append(probs)
-    
+
     return to_return if len(to_return) > 1 else to_return[0]
 
 
@@ -93,7 +99,7 @@ def get_probs_for_dense_inference(video: Video, model, from_time, till_time, n_w
 
     height = 0
     width = 0
-    
+
     for i in range(n_windows_for_dense_inference):
         probs = validate_video(video, model, return_preds=False, from_time=from_time + offset, till_time=till_time)
         probs = probs['n_counts']
@@ -164,7 +170,7 @@ def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE
                 head_preds = preds[head]
                 head_mae = np.abs(head_preds - head_labels).mean()
                 dict[f'mae: {head}'].append(f'{head_mae:.4f}')
-            
+
             if n_predicted is not None:
                 head_n_predicted = n_predicted[head]
                 # TODO think about it
@@ -178,7 +184,7 @@ def validate_datapool(datapool: DataPool, model, config: Config, part=Part.WHOLE
                 dict[f'error: {head}'].append(f'{head_error}')
 
     append_summary(dict, times, files)
-    
+
     return dict
 
 
@@ -208,7 +214,7 @@ def total_count_distribution(p_count):
 
     for s in range(n_labels):
         log_P[s, n_windows - 1] = np.log(p_count[s, n_windows - 1])
-        
+
     for i in range(n_windows - 2, -1, -1):
         for s in range((n_windows - i) * (n_labels - 1) + 1):
             a = []
@@ -216,7 +222,7 @@ def total_count_distribution(p_count):
                 a.append(log_p_count[c, i] + log_P[s - c, i + 1])
             log_P[s, i] = logsumexp(a)
 
-    return np.exp(log_P[:, 0]) 
+    return np.exp(log_P[:, 0])
 
 
 # by xfrancv
@@ -231,7 +237,7 @@ def struct_inference(log_Pc, log_P):
     """
     n_events = log_Pc.shape[0]-1
     n_wins = log_Pc.shape[1]
-    
+
     phi = []
     arg_phi = []
     score = np.copy( log_Pc )
@@ -251,14 +257,14 @@ def struct_inference(log_Pc, log_P):
         arg_phi.append(arg_phi_ )
 
         score += phi_
-            
+
     c = np.argmax(score, axis=0)
-        
+
     lab = []
     for i in range( len(log_P) ):
         idx_row, idx_col = np.unravel_index( c*n_wins+np.arange(0,n_wins ), (n_events+1,n_wins))
         lab.append(arg_phi[i][idx_row,idx_col])
-     
+
     return c, lab
 
 
@@ -303,7 +309,7 @@ def inference_doubled(probs: Dict[str, np.ndarray]):
         A = SeqEvents(n_events // 2, seq_len + 1)
         est_Px, est_Pc, kl_hist = A.deconv(head_probs)
         n_predicted[head] = est_Px.argmax(0).sum()
-    # TODO reconstruct predictions 
+    # TODO reconstruct predictions
     return None, n_predicted
 
 
@@ -330,7 +336,7 @@ def inference_structured(probs: Dict[str, np.ndarray], config: Config):
     log_P = []
     for label_1, label_2 in config.coupled_labels:
         log_P.append([np.log(probs[label_1]).T, np.log(probs[label_2]).T])
-    
+
     c, lab = struct_inference(log_Pc, log_P)
 
     preds['n_counts'] = c

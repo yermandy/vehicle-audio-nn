@@ -4,12 +4,15 @@ from torchvision.models import resnet18, resnet34, resnet50
 import torch.nn as nn
 from src.config import Config
 
+
 class ResNet(nn.Module):
     def __init__(self, model_class, config: Config, in_channels=1, pretrained=False):
         super(ResNet, self).__init__()
         self.num_classes = config.num_classes
         self.model = model_class(pretrained=pretrained)
-        self.model.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.model.conv1 = nn.Conv2d(
+            in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False
+        )
         self.in_features = self.model.fc.in_features
         self.model.fc = nn.Identity()
         self.heads = nn.ModuleDict()
@@ -29,8 +32,8 @@ class ResNet(nn.Module):
 
     def forward_single_head(self, x):
         x = self.model(x)
-        return self.heads['n_counts'](x)
-        
+        return self.heads["n_counts"](x)
+
 
 class ResNet18(ResNet):
     def __init__(self, config, in_channels=1, pretrained=False):
@@ -48,7 +51,6 @@ class ResNet50(ResNet):
 
 
 if __name__ == "__main__":
-    
 
     config = Config()
     print(config)

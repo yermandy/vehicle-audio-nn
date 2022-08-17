@@ -11,11 +11,11 @@ class CsvColumnID(IntEnum):
 
 
 class InferenceFunction(str, Enum):
-    SIMPLE = 'simple'
-    OPTIMAL_RVCE = 'optimal_rvce'
-    DOUBLED = 'doubled'
-    STRUCTURED = 'structured'
-    DENSE = 'dense'
+    SIMPLE = "simple"
+    OPTIMAL_RVCE = "optimal_rvce"
+    DOUBLED = "doubled"
+    STRUCTURED = "structured"
+    DENSE = "dense"
 
     def __str__(self) -> str:
         return str.__str__(self)
@@ -40,7 +40,7 @@ class Normalization(str, Enum):
     NONE = "none"
     ROW_WISE = "row-wise"
     COLUMN_WISE = "column-wise"
-    GLOBAL = 'global'
+    GLOBAL = "global"
 
     def __str__(self) -> str:
         return str.__str__(self)
@@ -77,9 +77,9 @@ class Transformation(str, Enum):
 
 
 class Part(str, Enum):
-    LEFT = 'left'
-    RIGHT = 'right'
-    WHOLE = 'whole'
+    LEFT = "left"
+    RIGHT = "right"
+    WHOLE = "whole"
 
     def __str__(self) -> str:
         return str.__str__(self)

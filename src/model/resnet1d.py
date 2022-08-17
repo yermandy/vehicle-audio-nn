@@ -11,70 +11,126 @@ class ResNet1D(nn.Module):
     def __init__(self, config: Config):
         super(ResNet1D, self).__init__()
         n_feature_maps = 64
-        
+
         # BLOCK 1
         kernel_size = 8
-        self.padding1_x = nn.ConstantPad1d((int((kernel_size-1)/2), math.ceil((kernel_size-1)/2)), 0)
-        self.conv1_x = torch.nn.Conv1d(in_channels=1, out_channels=n_feature_maps, kernel_size=kernel_size)
+        self.padding1_x = nn.ConstantPad1d(
+            (int((kernel_size - 1) / 2), math.ceil((kernel_size - 1) / 2)), 0
+        )
+        self.conv1_x = torch.nn.Conv1d(
+            in_channels=1, out_channels=n_feature_maps, kernel_size=kernel_size
+        )
         self.bn1_x = nn.BatchNorm1d(num_features=n_feature_maps)
         self.relu1_x = nn.ReLU()
 
         kernel_size = 5
-        self.padding1_y = nn.ConstantPad1d((int((kernel_size-1)/2), math.ceil((kernel_size-1)/2)), 0)
-        self.conv1_y = torch.nn.Conv1d(in_channels=n_feature_maps, out_channels=n_feature_maps, kernel_size=kernel_size)
+        self.padding1_y = nn.ConstantPad1d(
+            (int((kernel_size - 1) / 2), math.ceil((kernel_size - 1) / 2)), 0
+        )
+        self.conv1_y = torch.nn.Conv1d(
+            in_channels=n_feature_maps,
+            out_channels=n_feature_maps,
+            kernel_size=kernel_size,
+        )
         self.bn1_y = nn.BatchNorm1d(num_features=n_feature_maps)
         self.relu1_y = nn.ReLU()
 
         kernel_size = 3
-        self.padding1_z = nn.ConstantPad1d((int((kernel_size-1)/2), math.ceil((kernel_size-1)/2)), 0)
-        self.conv1_z = torch.nn.Conv1d(in_channels=n_feature_maps, out_channels=n_feature_maps, kernel_size=kernel_size)
+        self.padding1_z = nn.ConstantPad1d(
+            (int((kernel_size - 1) / 2), math.ceil((kernel_size - 1) / 2)), 0
+        )
+        self.conv1_z = torch.nn.Conv1d(
+            in_channels=n_feature_maps,
+            out_channels=n_feature_maps,
+            kernel_size=kernel_size,
+        )
         self.bn1_z = nn.BatchNorm1d(num_features=n_feature_maps)
 
-        self.conv1_sy = torch.nn.Conv1d(in_channels=1, out_channels=n_feature_maps, kernel_size=1)
+        self.conv1_sy = torch.nn.Conv1d(
+            in_channels=1, out_channels=n_feature_maps, kernel_size=1
+        )
         self.bn1_sy = nn.BatchNorm1d(num_features=n_feature_maps)
 
         # BLOCK 2
         kernel_size = 8
-        self.padding2_x = nn.ConstantPad1d((int((kernel_size-1)/2), math.ceil((kernel_size-1)/2)), 0)
-        self.conv2_x = torch.nn.Conv1d(in_channels=n_feature_maps, out_channels=n_feature_maps*2, kernel_size=kernel_size)
-        self.bn2_x = nn.BatchNorm1d(num_features=n_feature_maps*2)
+        self.padding2_x = nn.ConstantPad1d(
+            (int((kernel_size - 1) / 2), math.ceil((kernel_size - 1) / 2)), 0
+        )
+        self.conv2_x = torch.nn.Conv1d(
+            in_channels=n_feature_maps,
+            out_channels=n_feature_maps * 2,
+            kernel_size=kernel_size,
+        )
+        self.bn2_x = nn.BatchNorm1d(num_features=n_feature_maps * 2)
         self.relu2_x = nn.ReLU()
 
         kernel_size = 5
-        self.padding2_y = nn.ConstantPad1d((int((kernel_size-1)/2), math.ceil((kernel_size-1)/2)), 0)
-        self.conv2_y = torch.nn.Conv1d(in_channels=n_feature_maps*2, out_channels=n_feature_maps*2, kernel_size=kernel_size)
-        self.bn2_y = nn.BatchNorm1d(num_features=n_feature_maps*2)
+        self.padding2_y = nn.ConstantPad1d(
+            (int((kernel_size - 1) / 2), math.ceil((kernel_size - 1) / 2)), 0
+        )
+        self.conv2_y = torch.nn.Conv1d(
+            in_channels=n_feature_maps * 2,
+            out_channels=n_feature_maps * 2,
+            kernel_size=kernel_size,
+        )
+        self.bn2_y = nn.BatchNorm1d(num_features=n_feature_maps * 2)
         self.relu2_y = nn.ReLU()
 
         kernel_size = 3
-        self.padding2_z = nn.ConstantPad1d((int((kernel_size-1)/2), math.ceil((kernel_size-1)/2)), 0)
-        self.conv2_z = torch.nn.Conv1d(in_channels=n_feature_maps*2, out_channels=n_feature_maps*2, kernel_size=kernel_size)
-        self.bn2_z = nn.BatchNorm1d(num_features=n_feature_maps*2)
+        self.padding2_z = nn.ConstantPad1d(
+            (int((kernel_size - 1) / 2), math.ceil((kernel_size - 1) / 2)), 0
+        )
+        self.conv2_z = torch.nn.Conv1d(
+            in_channels=n_feature_maps * 2,
+            out_channels=n_feature_maps * 2,
+            kernel_size=kernel_size,
+        )
+        self.bn2_z = nn.BatchNorm1d(num_features=n_feature_maps * 2)
 
-        self.conv2_sy = torch.nn.Conv1d(in_channels=n_feature_maps, out_channels=n_feature_maps*2, kernel_size=1)
-        self.bn2_sy = nn.BatchNorm1d(num_features=n_feature_maps*2)
+        self.conv2_sy = torch.nn.Conv1d(
+            in_channels=n_feature_maps, out_channels=n_feature_maps * 2, kernel_size=1
+        )
+        self.bn2_sy = nn.BatchNorm1d(num_features=n_feature_maps * 2)
 
         # BLOCK 3
         kernel_size = 8
-        self.padding3_x = nn.ConstantPad1d((int((kernel_size-1)/2), math.ceil((kernel_size-1)/2)), 0)
-        self.conv3_x = torch.nn.Conv1d(in_channels=n_feature_maps*2, out_channels=n_feature_maps*2, kernel_size=kernel_size)
-        self.bn3_x = nn.BatchNorm1d(num_features=n_feature_maps*2)
+        self.padding3_x = nn.ConstantPad1d(
+            (int((kernel_size - 1) / 2), math.ceil((kernel_size - 1) / 2)), 0
+        )
+        self.conv3_x = torch.nn.Conv1d(
+            in_channels=n_feature_maps * 2,
+            out_channels=n_feature_maps * 2,
+            kernel_size=kernel_size,
+        )
+        self.bn3_x = nn.BatchNorm1d(num_features=n_feature_maps * 2)
         self.relu3_x = nn.ReLU()
 
         kernel_size = 5
-        self.padding3_y = nn.ConstantPad1d((int((kernel_size-1)/2), math.ceil((kernel_size-1)/2)), 0)
-        self.conv3_y = torch.nn.Conv1d(in_channels=n_feature_maps*2, out_channels=n_feature_maps*2, kernel_size=kernel_size)
-        self.bn3_y = nn.BatchNorm1d(num_features=n_feature_maps*2)
+        self.padding3_y = nn.ConstantPad1d(
+            (int((kernel_size - 1) / 2), math.ceil((kernel_size - 1) / 2)), 0
+        )
+        self.conv3_y = torch.nn.Conv1d(
+            in_channels=n_feature_maps * 2,
+            out_channels=n_feature_maps * 2,
+            kernel_size=kernel_size,
+        )
+        self.bn3_y = nn.BatchNorm1d(num_features=n_feature_maps * 2)
         self.relu3_y = nn.ReLU()
 
         kernel_size = 3
-        self.padding3_z = nn.ConstantPad1d((int((kernel_size-1)/2), math.ceil((kernel_size-1)/2)), 0)
-        self.conv3_z = torch.nn.Conv1d(in_channels=n_feature_maps*2, out_channels=n_feature_maps*2, kernel_size=kernel_size)
-        self.bn3_z = nn.BatchNorm1d(num_features=n_feature_maps*2)
+        self.padding3_z = nn.ConstantPad1d(
+            (int((kernel_size - 1) / 2), math.ceil((kernel_size - 1) / 2)), 0
+        )
+        self.conv3_z = torch.nn.Conv1d(
+            in_channels=n_feature_maps * 2,
+            out_channels=n_feature_maps * 2,
+            kernel_size=kernel_size,
+        )
+        self.bn3_z = nn.BatchNorm1d(num_features=n_feature_maps * 2)
 
         self.bn3_sy = nn.BatchNorm1d(num_features=n_feature_maps * 2)
 
-        self.averagepool = nn.AvgPool1d(kernel_size = config.n_samples_in_window)
+        self.averagepool = nn.AvgPool1d(kernel_size=config.n_samples_in_window)
         # self.hidden = nn.Linear(n_feature_maps * 2, config.num_classes)
 
         self.in_features = n_feature_maps * 2
@@ -88,7 +144,7 @@ class ResNet1D(nn.Module):
         self.heads.add_module(name, nn.Linear(self.in_features, self.num_classes))
 
     def forward(self, X):
-        #block1
+        # block1
         temp1 = self.padding1_x(X)
         temp1 = self.conv1_x(temp1)
         temp1 = self.bn1_x(temp1)

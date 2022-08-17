@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def discretize(time, events):
     closest = lambda array, value: np.abs(array - value).argmin()
     return np.array([closest(time, e) for e in events])
@@ -8,34 +9,37 @@ def discretize(time, events):
 def pairs(array):
     for i in range(len(array)):
         if i < len(array) - 1:
-            yield array[i: i + 2]
+            yield array[i : i + 2]
 
 
 def dist(t_plus_delta_0, t_plus_delta_1, cumsum, c, a=1):
     N = len(cumsum)
-    
+
     if t_plus_delta_0 < 0 or t_plus_delta_0 > N:
         return np.inf
-    
+
     if t_plus_delta_1 < 0 or t_plus_delta_1 > N:
         return np.inf
 
     if t_plus_delta_1 - t_plus_delta_0 <= 0:
         return np.inf
 
-    # return np.abs(cumsum[t_plus_delta_0: t_plus_delta_1] - c).sum() 
+    # return np.abs(cumsum[t_plus_delta_0: t_plus_delta_1] - c).sum()
     f = np.concatenate(([cumsum[0]], cumsum[1:] - cumsum[:-1]))
-    
-    return 1 * np.abs(cumsum[t_plus_delta_0: t_plus_delta_1] - c).sum() + a * f[t_plus_delta_0 + 1: t_plus_delta_1].sum()
+
+    return (
+        1 * np.abs(cumsum[t_plus_delta_0:t_plus_delta_1] - c).sum()
+        + a * f[t_plus_delta_0 + 1 : t_plus_delta_1].sum()
+    )
 
 
 def objective(discrete_events, cumsum):
     obj = dist(0, discrete_events[0], cumsum, 0)
-        
+
     for c, (i, j) in enumerate(pairs(discrete_events)):
         d = dist(i, j, cumsum, c + 1)
         obj += d
-    
+
     last = len(discrete_events)
     obj += dist(discrete_events[-1], len(cumsum), cumsum, last)
 
@@ -48,8 +52,8 @@ def backtrack(start, backtracking):
         start = backtracking[start, i + 1]
         backtracked.append(start)
     return backtracked[::-1]
-        
-    
+
+
 def dtw(discrete_events, cumsum, N=5):
     deltas = np.arange(-N, N + 1)
 
@@ -90,7 +94,7 @@ def dtw(discrete_events, cumsum, N=5):
         t_plus_delta_0 = t_n + delta_0
         prev_d = distances[i, -1]
         d = dist(t_plus_delta_0, end, cumsum, last)
-        distances[i, -1] = prev_d + d 
+        distances[i, -1] = prev_d + d
 
     start = np.argmin(distances[:, -1])
     backtracked = backtrack(start, backtracking)

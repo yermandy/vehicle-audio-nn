@@ -11,6 +11,7 @@ from .transformation import *
 from .dataset import *
 from .model import *
 
+from . import structured_predictor
 from rich import print
 import os
 import sys
@@ -26,4 +27,5 @@ from glob import glob
 from omegaconf import DictConfig, OmegaConf
 
 import matplotlib as mpl
-mpl.rcParams['agg.path.chunksize'] = 10000
+
+mpl.rcParams["agg.path.chunksize"] = 10000

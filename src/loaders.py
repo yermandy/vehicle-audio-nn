@@ -18,45 +18,45 @@ from glob import glob
 
 
 def find_wav(file, raise_exception=False):
-    return find_path(f'data/audio_wav/**/{file}.wav', raise_exception)
+    return find_path(f"data/audio_wav/**/{file}.wav", raise_exception)
 
 
 def find_pt(file, raise_exception=False):
-    return find_path(f'data/audio_pt/**/{file}.pt', raise_exception)
+    return find_path(f"data/audio_pt/**/{file}.pt", raise_exception)
 
 
 def find_csv(file, raise_exception=False):
-    return find_path(f'data/csv/**/{file}.csv', raise_exception)
-    
+    return find_path(f"data/csv/**/{file}.csv", raise_exception)
+
 
 def find_labels(file, raise_exception=False):
-    return find_path(f'data/labels/**/{file}.txt', raise_exception)
+    return find_path(f"data/labels/**/{file}.txt", raise_exception)
 
 
 def find_manual_counts(file, raise_exception=False):
-    return find_path(f'data/manual_counts/**/{file}.txt', raise_exception)
+    return find_path(f"data/manual_counts/**/{file}.txt", raise_exception)
 
 
 def find_intervals(file, raise_exception=False):
-    return find_path(f'data/intervals/**/{file}.txt', raise_exception)
+    return find_path(f"data/intervals/**/{file}.txt", raise_exception)
 
 
 def find_video(file, raise_exception=False):
-    return find_path(f'data/video/**/{file}.*', raise_exception)
+    return find_path(f"data/video/**/{file}.*", raise_exception)
 
 
 def time_to_sec(time):
-    h, m, s = map(float, time.split(':'))
+    h, m, s = map(float, time.split(":"))
     sec = h * 3600 + m * 60 + s
     return sec
 
 
 def get_file_name(path):
-    return os.path.basename(path).split('.')[0]
+    return os.path.basename(path).split(".")[0]
 
 
 def get_file_extension(path):
-    return os.path.basename(path).split('.')[-1]
+    return os.path.basename(path).split(".")[-1]
 
 
 def find_path(query, raise_exception=False):
@@ -76,11 +76,10 @@ def find_path(query, raise_exception=False):
         return results[0]
 
 
-
 def load_csv(file, preprocess=True):
     try:
         file_path = find_csv(file, True)
-        csv = np.genfromtxt(file_path, dtype=str, delimiter=';', skip_header=1)
+        csv = np.genfromtxt(file_path, dtype=str, delimiter=";", skip_header=1)
         csv = np.atleast_2d(csv)
         if csv.size == 0:
             return []
@@ -107,7 +106,9 @@ def load_audio_tensor(path, return_sr=False):
     return signal
 
 
-def load_audio(file, resample_sr=44100, return_sr=False, normalize=False) -> torch.Tensor:
+def load_audio(
+    file, resample_sr=44100, return_sr=False, normalize=False
+) -> torch.Tensor:
     pt_file_path = find_pt(file)
     if pt_file_path:
         signal, sr = load_audio_tensor(pt_file_path, True)
@@ -121,7 +122,7 @@ def load_audio(file, resample_sr=44100, return_sr=False, normalize=False) -> tor
         signal = T.Resample(sr, resample_sr).forward(signal)
     # round to the last second
     seconds = len(signal) // resample_sr
-    signal = signal[:seconds * resample_sr]
+    signal = signal[: seconds * resample_sr]
     if normalize:
         signal = (signal - signal.mean()) / signal.std()
     if return_sr:
@@ -153,7 +154,7 @@ def load_intervals(file):
         return []
 
 
-def find_clusters(X, delta=1*60):
+def find_clusters(X, delta=1 * 60):
     # X is a sorted array
     X = np.array(X)
     clusters = defaultdict(set)
@@ -174,20 +175,16 @@ def find_clusters(X, delta=1*60):
 
 def preprocess_csv(csv):
     licence_plates = defaultdict(list)
-    
+
     for row in csv:
         plate_id = row[1]
         start_time = row[CsvColumnID.START_TIME]
         end_time = row[CsvColumnID.END_TIME]
-        if start_time != '':
-            licence_plates[plate_id].append(
-                [time_to_sec(start_time), row]
-            )
-        if end_time != '':
-            licence_plates[plate_id].append(
-                [time_to_sec(end_time), row]
-            )
-    
+        if start_time != "":
+            licence_plates[plate_id].append([time_to_sec(start_time), row])
+        if end_time != "":
+            licence_plates[plate_id].append([time_to_sec(end_time), row])
+
     tracking_uuid = 0
     rows = []
     for key, values in licence_plates.items():
@@ -197,30 +194,40 @@ def preprocess_csv(csv):
         indices = np.argsort(car_times)
         car_times = car_times[indices]
         car_rows = car_rows[indices]
-        
+
         clusters = find_clusters(car_times)
-    
+
         for cluster_id, cluster_objects in clusters.items():
             traking_rows = np.array(car_rows[cluster_objects])
-            
-            most_common_view = Counter(item for item in traking_rows[:, CsvColumnID.VIEWS]).most_common(1)[0][0]
-            most_common_color = Counter(item for item in traking_rows[:, CsvColumnID.COLOR]).most_common(1)[0][0]
-            most_common_category = Counter(item for item in traking_rows[:, CsvColumnID.CATEGORY]).most_common(1)[0][0]
-            
-            modified_row = np.full_like(traking_rows[0], '')
-            
+
+            most_common_view = Counter(
+                item for item in traking_rows[:, CsvColumnID.VIEWS]
+            ).most_common(1)[0][0]
+            most_common_color = Counter(
+                item for item in traking_rows[:, CsvColumnID.COLOR]
+            ).most_common(1)[0][0]
+            most_common_category = Counter(
+                item for item in traking_rows[:, CsvColumnID.CATEGORY]
+            ).most_common(1)[0][0]
+
+            modified_row = np.full_like(traking_rows[0], "")
+
             start_times = traking_rows[:, CsvColumnID.START_TIME]
             end_times = traking_rows[:, CsvColumnID.END_TIME]
-            best_detection_frame_times = traking_rows[:, CsvColumnID.BEST_DETECTION_FRAME_TIME]
-            
+            best_detection_frame_times = traking_rows[
+                :, CsvColumnID.BEST_DETECTION_FRAME_TIME
+            ]
+
             times = np.concatenate([start_times, end_times])
             times = np.sort(times)
-            times = [t for t in times if t != '']
-            
+            times = [t for t in times if t != ""]
+
             modified_row[0] = tracking_uuid
             modified_row[1] = key
             tracking_uuid += 1
-            modified_row[CsvColumnID.BEST_DETECTION_FRAME_TIME] = best_detection_frame_times[-1]
+            modified_row[
+                CsvColumnID.BEST_DETECTION_FRAME_TIME
+            ] = best_detection_frame_times[-1]
             modified_row[CsvColumnID.START_TIME] = times[0]
             modified_row[CsvColumnID.END_TIME] = times[-1]
             modified_row[CsvColumnID.VIEWS] = most_common_view
@@ -239,9 +246,11 @@ def load_intervals_and_n_events(file):
 
     n_events_array = []
     for interval_from_time, interval_till_time in intervals:
-        n_events = np.sum((events >= interval_from_time) & (events < interval_till_time))
+        n_events = np.sum(
+            (events >= interval_from_time) & (events < interval_till_time)
+        )
         n_events_array.append(n_events)
-    
+
     combined = np.hstack([intervals, n_events_array])
     return combined
 
@@ -270,7 +279,7 @@ def load_event_time_from_csv(csv):
     for row in csv:
         detection_id, start_time, end_time = row[[0, 8, 9]]
         times[detection_id] = start_time, end_time
-    
+
     start_times = []
     end_times = []
     for k, v in times.items():
@@ -287,35 +296,46 @@ def load_event_time_from_csv(csv):
 
 
 # TODO Fix
-def load_model_wandb(uuid, wandb_entity, wandb_project, model_name='mae', device=None, classification=True):
+def load_model_wandb(
+    uuid,
+    wandb_entity,
+    wandb_project,
+    model_name="mae",
+    device=None,
+    classification=True,
+):
     import wandb
 
     if device is None:
-        device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
+        device = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
 
     api = wandb.Api()
-    runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
+    runs = api.runs(
+        f"{wandb_entity}/{wandb_project}", per_page=5000, order="config.uuid"
+    )
 
-    for run in runs: 
+    for run in runs:
         if run.name == str(uuid):
             config = EasyDict(run.config)
             break
-    
-    weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
+
+    weights = torch.load(f"outputs/{uuid}/weights/{model_name}.pth", device)
     model = get_model(config).to(device)
     model.load_state_dict(weights)
     model.eval()
-    
+
     return model, config
 
 
 def load_config_wandb(uuid, wandb_entity, wandb_project) -> Config:
     import wandb
-    
-    api = wandb.Api()
-    runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
 
-    for run in runs: 
+    api = wandb.Api()
+    runs = api.runs(
+        f"{wandb_entity}/{wandb_project}", per_page=5000, order="config.uuid"
+    )
+
+    for run in runs:
         if run.name == str(uuid):
             config = Config()
             for k, v in run.config.items():
@@ -325,38 +345,39 @@ def load_config_wandb(uuid, wandb_entity, wandb_project) -> Config:
 
 def load_run_wandb(uuid, wandb_entity, wandb_project) -> Config:
     import wandb
-    
-    api = wandb.Api()
-    runs = api.runs(f'{wandb_entity}/{wandb_project}', per_page=5000, order='config.uuid')
 
-    for run in runs: 
+    api = wandb.Api()
+    runs = api.runs(
+        f"{wandb_entity}/{wandb_project}", per_page=5000, order="config.uuid"
+    )
+
+    for run in runs:
         if run.name == str(uuid):
             return run
 
 
 def load_config_locally(uuid) -> Config:
-    with open(f'outputs/{uuid}/config.pickle', 'rb') as f:
+    with open(f"outputs/{uuid}/config.pickle", "rb") as f:
         return pickle.load(f)
 
 
 def get_model(config):
     return {
-        'WaveCNN': WaveCNN,
-        'ResNet18': ResNet18,
-        'ResNet34': ResNet34,
-        'ResNet50': ResNet50,
-        'ResNet1D': ResNet1D,
-        'RawNet2': RawNet2Architecture,
-        'Transformer': Transformer,
-        'MobileOne': MobileOne
+        "WaveCNN": WaveCNN,
+        "ResNet18": ResNet18,
+        "ResNet34": ResNet34,
+        "ResNet50": ResNet50,
+        "ResNet1D": ResNet1D,
+        "RawNet2": RawNet2Architecture,
+        "Transformer": Transformer,
+        "MobileOne": MobileOne,
     }[config.architecture](config)
 
 
 def get_optimizer(model, config):
-    return {
-        'Adam': torch.optim.Adam,
-        'AdamW': torch.optim.AdamW
-    }[config.optimizer](model.parameters(), lr=config.lr)
+    return {"Adam": torch.optim.Adam, "AdamW": torch.optim.AdamW}[config.optimizer](
+        model.parameters(), lr=config.lr
+    )
 
 
 def CB_loss(logits, labels, samples_per_cls, no_of_classes, beta, device):
@@ -378,7 +399,7 @@ def CB_loss(logits, labels, samples_per_cls, no_of_classes, beta, device):
     """
 
     import torch.nn.functional as F
-    
+
     effective_num = 1.0 - np.power(beta, samples_per_cls)
     weights = (1.0 - beta) / np.array(effective_num)
     weights = weights / np.sum(weights) * no_of_classes
@@ -392,38 +413,49 @@ def CB_loss(logits, labels, samples_per_cls, no_of_classes, beta, device):
     weights = weights.unsqueeze(1)
     weights = weights.repeat(1, no_of_classes)
 
-    pred = logits.softmax(dim = 1)
-    cb_loss = F.binary_cross_entropy(input = pred, target = labels_one_hot, weight = weights)
+    pred = logits.softmax(dim=1)
+    cb_loss = F.binary_cross_entropy(input=pred, target=labels_one_hot, weight=weights)
     return cb_loss
 
 
 def get_loss(config, trn_dataset, device):
-    if config.loss == 'ClassBalancedCrossEntropy':
+    if config.loss == "ClassBalancedCrossEntropy":
         if len(config.heads) > 1:
-            raise Exception('Class-Balanced Cross Entropy is not supported for multi-head training.')
+            raise Exception(
+                "Class-Balanced Cross Entropy is not supported for multi-head training."
+            )
         else:
             # https://arxiv.org/pdf/1901.05555.pdf
-            classes, samples = np.unique(trn_dataset.labels['n_counts'], return_counts=True)
-            samples_per_cls =  np.ones(config.num_classes)
+            classes, samples = np.unique(
+                trn_dataset.labels["n_counts"], return_counts=True
+            )
+            samples_per_cls = np.ones(config.num_classes)
             samples_per_cls[classes] = samples
-            loss = lambda logits, labels: CB_loss(logits, labels, samples_per_cls, config.num_classes, config.loss_cbce_beta, device)
+            loss = lambda logits, labels: CB_loss(
+                logits,
+                labels,
+                samples_per_cls,
+                config.num_classes,
+                config.loss_cbce_beta,
+                device,
+            )
     else:
         loss = nn.CrossEntropyLoss()
     return loss
 
 
 def load_files_from_dataset(dataset_name):
-    file_path = find_path(f'config/dataset/**/{dataset_name}.yaml', True)
-    with open(file_path, 'r') as stream:
+    file_path = find_path(f"config/dataset/**/{dataset_name}.yaml", True)
+    with open(file_path, "r") as stream:
         return np.array(sorted(yaml.safe_load(stream)))
 
 
-def load_model_locally(uuid, model_name='rvce', device=None) -> Tuple[Any, Config]:
+def load_model_locally(uuid, model_name="rvce", device=None) -> Tuple[Any, Config]:
     if device is None:
-        device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
+        device = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
 
     config = load_config_locally(uuid)
-    weights = torch.load(f'outputs/{uuid}/weights/{model_name}.pth', device)
+    weights = torch.load(f"outputs/{uuid}/weights/{model_name}.pth", device)
     model = get_model(config).to(device)
     model.load_state_dict(weights)
     model.eval()

@@ -42,8 +42,14 @@ class Events:
 
     # init alpha uniformly
     def init_alpha(self):
-        alpha = np.zeros([self.n_events + 1, self.n_events + 1,
-                         self.n_events * 2 + 1, self.seq_len - 1])
+        alpha = np.zeros(
+            [
+                self.n_events + 1,
+                self.n_events + 1,
+                self.n_events * 2 + 1,
+                self.seq_len - 1,
+            ]
+        )
 
         for i in range(self.seq_len - 1):
             for c in range(self.n_events * 2 + 1):
@@ -94,15 +100,21 @@ class Events:
 
     #
     def get_alpha(self, est_Px):
-        alpha = np.zeros([self.n_events + 1, self.n_events + 1,
-                         self.n_events * 2 + 1, self.seq_len - 1])
+        alpha = np.zeros(
+            [
+                self.n_events + 1,
+                self.n_events + 1,
+                self.n_events * 2 + 1,
+                self.seq_len - 1,
+            ]
+        )
 
         for i in range(self.seq_len - 1):
             for c in range(self.n_events * 2 + 1):
                 nf = 0
                 for x1 in range(self.n_events + 1):
                     for x2 in range(self.n_events + 1):
-                        if x1+x2 == c:
+                        if x1 + x2 == c:
                             alpha[x1, x2, c, i] = est_Px[x1, i] * est_Px[x2, i + 1]
                             nf = nf + alpha[x1, x2, c, i]
                 alpha[:, :, c, i] = alpha[:, :, c, i] / nf

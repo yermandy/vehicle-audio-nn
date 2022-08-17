@@ -10,29 +10,29 @@ class Transformer(nn.Module):
         self.num_classes = config.num_classes
 
         self.model = ViT(
-            image_size = config.resize_size[0],
-            patch_size = config.transformer_patch_size,
-            num_classes = self.num_classes,
-            dim = self.dim,
-            depth = config.transformer_depth,
-            heads = config.transformer_heads,
-            mlp_dim = config.transformer_mlp_dim,
-            dropout = config.transformer_dropout,
-            emb_dropout = config.transformer_emb_dropout,
-            channels=1
+            image_size=config.resize_size[0],
+            patch_size=config.transformer_patch_size,
+            num_classes=self.num_classes,
+            dim=self.dim,
+            depth=config.transformer_depth,
+            heads=config.transformer_heads,
+            mlp_dim=config.transformer_mlp_dim,
+            dropout=config.transformer_dropout,
+            emb_dropout=config.transformer_emb_dropout,
+            channels=1,
         )
-        
+
         self.model.mlp_head = nn.Identity()
         self.heads = nn.ModuleDict()
         for head in config.heads:
             self.add_head(head)
 
     def add_head(self, name):
-        self.heads.add_module(name, 
+        self.heads.add_module(
+            name,
             nn.Sequential(
-                nn.LayerNorm(self.dim),
-                nn.Linear(self.dim, self.num_classes)
-            )
+                nn.LayerNorm(self.dim), nn.Linear(self.dim, self.num_classes)
+            ),
         )
 
     def forward(self, x):
@@ -42,4 +42,4 @@ class Transformer(nn.Module):
 
     def forward_single_head(self, x):
         x = self.model(x)
-        return self.heads['n_counts'](x)
+        return self.heads["n_counts"](x)

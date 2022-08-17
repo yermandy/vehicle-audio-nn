@@ -6,6 +6,31 @@ from easydict import EasyDict
 from dataclasses import dataclass, field
 import omegaconf
 
+
+@dataclass
+class StructuredPredictor():
+    # root with training files
+    root: str = 'outputs/000_structured_rvce/036'
+    # split number
+    split: int = 0
+    # bmrm regularization constant
+    reg: float = 10
+    # bmrm relative tolerance
+    tol_rel: float = 0.01
+    # combine training and validation files
+    combine_trn_and_val: bool = False
+    # normalize features
+    normalize_X: bool = False
+    # seed for reproducibility
+    seed: int = 42
+    # number of events in small window
+    Y: int = 7
+    # learn only biases
+    biases_only: bool = False
+    # path for outputs
+    outputs_folder: str = 'outputs/036_results'
+
+
 @dataclass
 class FeaturesConfig():
     # sampling rate [samples]
@@ -167,6 +192,7 @@ class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation
     training_files: tuple = ('12_RX100',)
     testing_files: tuple = ('12_RX100',)
     validation_files: tuple = ('12_RX100',)
+    structured_predictor: StructuredPredictor = None
 
     use_testing_files: bool = True
     use_manual_counts: bool = False

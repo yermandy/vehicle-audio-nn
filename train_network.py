@@ -101,6 +101,8 @@ def seed_worker(worker_id):
 
 @hydra.main(config_path='config', config_name='default')
 def run(config):
+    os.environ['WANDB_MODE'] = 'disabled'
+
     # make config type and attribute safe
     config = Config(config)
 

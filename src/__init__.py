@@ -11,6 +11,7 @@ from .transformation import *
 from .dataset import *
 from .model import *
 
+from rich import print
 import os
 import sys
 import yaml

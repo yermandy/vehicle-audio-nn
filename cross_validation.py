@@ -1,4 +1,4 @@
-from train_classification import *
+from train_network import *
 
 
 @hydra.main(config_path='config', config_name='default')

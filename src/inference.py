@@ -79,33 +79,6 @@ def validate_video(
     return to_return if len(to_return) > 1 else to_return[0]
 
 
-def extract_features(video, model, from_time, till_time):
-    video.config.set_window_length(6)
-    video.config.set_nn_hop_length(3)
-    samples, labels = create_dataset_sequentially(
-        video, from_time=from_time, till_time=till_time
-    )
-
-    transformation = create_transformation(config)
-
-    n = len(samples)
-    features = []
-
-    device = next(model.parameters()).device
-
-    with torch.no_grad():
-        for i in range(n - 1):
-            sample = samples[i]
-            sample = transformation(sample).unsqueeze(0).to(device)
-            features_sample = model.features(sample).squeeze().detach().cpu().numpy()
-
-            features.append(features_sample)
-            # print(outputs.softmax(0).detach().numpy())
-
-    features = np.array(features)
-    return features
-
-
 def change_probs_for_doubled_inference(probs_1, probs_2):
     n_events = 17
 

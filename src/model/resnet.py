@@ -23,7 +23,7 @@ class ResNet(nn.Module):
         self.heads.add_module(name, nn.Linear(self.in_features, self.num_classes))
 
     def forward(self, x):
-        x = self.model(x)
+        x = self.features(x)
         heads = {name: head(x) for name, head in self.heads.items()}
         return heads
 

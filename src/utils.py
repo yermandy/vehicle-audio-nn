@@ -212,7 +212,7 @@ def get_signal_length(signal, sr_or_config):
         return len(signal) // sr_or_config
 
 
-def create_dataset_from_files(datapool: DataPool, part=Part.LEFT, offset: float = 0):
+def create_dataset_from_datapool(datapool: DataPool, part=Part.LEFT, offset: float = 0):
     all_samples = []
     all_labels = defaultdict(lambda: [])
 
@@ -223,7 +223,7 @@ def create_dataset_from_files(datapool: DataPool, part=Part.LEFT, offset: float 
         from_time, till_time = video.get_from_till_time(part)
         from_time = from_time + offset
 
-        samples, labels = create_dataset_sequentially(
+        samples, labels = create_dataset_from_video(
             video, from_time=from_time, till_time=till_time
         )
 
@@ -246,7 +246,7 @@ def create_samples(config: Config, signal, from_time, till_time):
     return samples
 
 
-def create_dataset_sequentially(video: Video, from_time=None, till_time=None):
+def create_dataset_from_video(video: Video, from_time=None, till_time=None):
     if from_time == None and till_time == None:
         from_time, till_time = video.get_from_till_time(Part.WHOLE)
 

@@ -9,6 +9,7 @@ import torch.nn as nn
 import numpy as np
 import omegaconf
 import csv
+import pandas as pd
 
 from easydict import EasyDict
 from tqdm.auto import tqdm
@@ -23,7 +24,7 @@ from .config import *
 
 
 def get_device(cuda):
-    return torch.device(f"cuda:{cuda}" if torch.cuda.is_available() else "cpu")
+    return torch.device(f"cuda:{cuda}" if torch.cuda.is_available() and cuda >=0 else "cpu")
 
 
 def get_cumsum(T, E):
@@ -291,11 +292,12 @@ def print_config(config):
 
 
 def save_dict_csv(name: str, dict: Dict[str, np.ndarray]):
-    with open(name, "w") as file:
-        writer = csv.writer(file)
-        writer.writerow(dict.keys())
-        rows = np.array(list(dict.values())).T
-        writer.writerows(rows)
+    pd.DataFrame.from_dict(dict).to_csv(name, index=False)
+    # with open(name, "w") as file:
+    #     writer = csv.writer(file)
+    #     writer.writerow(dict.keys())
+    #     rows = np.array(list(dict.values())).T
+    #     writer.writerows(rows)
 
 
 def save_dict_txt(name: str, dict: Dict[str, np.ndarray]):
@@ -341,7 +343,7 @@ def generate_cross_validation_table(uuids, model_name="rvce", prefix="tst"):
 def append_summary(dict, times, files):
     for k, v in dict.items():
         v = np.array(v).astype(float)
-        stats = f"{v.mean():.2f} ± {v.std():.2f}"
+        stats = f"{v.mean():.3f} ± {v.std():.3f}"
         dict[k].append(stats)
 
     times.append("")
@@ -349,3 +351,7 @@ def append_summary(dict, times, files):
 
     dict["time"] = times
     dict["file"] = files
+
+
+def aslist(x):
+    return x if isinstance(x, list) else [x]

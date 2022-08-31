@@ -461,3 +461,8 @@ def load_model_locally(uuid, model_name="rvce", device=None) -> Tuple[Any, Confi
     model.eval()
 
     return model, config
+
+
+def load_yaml(file_path):
+    with open(file_path, 'r') as stream:
+        return yaml.safe_load(stream)

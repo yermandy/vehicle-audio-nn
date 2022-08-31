@@ -4,8 +4,7 @@ from .transformation import create_transformation
 
 from torch.utils.data import DataLoader
 
-from tqdm.rich import tqdm
-
+from tqdm import tqdm
 
 def extract_features(video: Video, model: nn.Module, head_name="n_counts"):
 
@@ -23,7 +22,7 @@ def extract_features(video: Video, model: nn.Module, head_name="n_counts"):
 
     model.eval()
     with torch.no_grad():
-        for tensor, labels in tqdm(loader):
+        for tensor, labels in tqdm(loader, leave=True):
             tensor = tensor.to(device)
 
             X.extend(model.features(tensor).detach().cpu().numpy())

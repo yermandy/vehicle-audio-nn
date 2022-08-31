@@ -24,7 +24,9 @@ from .config import *
 
 
 def get_device(cuda):
-    return torch.device(f"cuda:{cuda}" if torch.cuda.is_available() and cuda >=0 else "cpu")
+    return torch.device(
+        f"cuda:{cuda}" if torch.cuda.is_available() and cuda >= 0 else "cpu"
+    )
 
 
 def get_cumsum(T, E):

@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 
 from tqdm import tqdm
 
+
 def extract_features(video: Video, model: nn.Module, head_name="n_counts"):
 
     dataset = VehicleDataset(video, part=Part.WHOLE, config=video.config)

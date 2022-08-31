@@ -29,7 +29,7 @@ class StructuredPredictor:
     biases_only: bool = False
     # path for outputs
     outputs_folder: str = "outputs/036_results"
-    
+
     training_files: str = None
     validation_files: str = None
     testing_files: str = None

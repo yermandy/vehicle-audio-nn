@@ -177,7 +177,7 @@ def preprocess_csv(csv):
     licence_plates = defaultdict(list)
 
     for row in csv:
-        plate_id = row[1]
+        plate_id = row[CsvColumnID.LICENCE_PLATE]
         start_time = row[CsvColumnID.START_TIME]
         end_time = row[CsvColumnID.END_TIME]
         if start_time != "":
@@ -271,13 +271,15 @@ def load_category_from_csv(csv):
 
 
 def load_best_detection_frame_time_from_csv(csv):
-    return np.array([time_to_sec(t) for t in load_column(csv, 14)])
+    return np.array([time_to_sec(t) for t in load_column(csv, CsvColumnID.BEST_DETECTION_FRAME_TIME)])
 
 
 def load_event_time_from_csv(csv):
     times = {}
     for row in csv:
-        detection_id, start_time, end_time = row[[0, 8, 9]]
+        detection_id, start_time, end_time = row[
+            [CsvColumnID.ID, CsvColumnID.START_TIME, CsvColumnID.END_TIME]
+        ]
         times[detection_id] = start_time, end_time
 
     start_times = []
@@ -464,5 +466,5 @@ def load_model_locally(uuid, model_name="rvce", device=None) -> Tuple[Any, Confi
 
 
 def load_yaml(file_path):
-    with open(file_path, 'r') as stream:
+    with open(file_path, "r") as stream:
         return yaml.safe_load(stream)

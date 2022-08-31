@@ -2,6 +2,8 @@ from enum import Enum, IntEnum
 
 
 class CsvColumnID(IntEnum):
+    ID = 0
+    LICENCE_PLATE = 1
     START_TIME = 8
     END_TIME = 9
     BEST_DETECTION_FRAME_TIME = 14

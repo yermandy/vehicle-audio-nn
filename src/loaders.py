@@ -270,9 +270,13 @@ def load_category_from_csv(csv):
     return load_column(csv, CsvColumnID.CATEGORY)
 
 
-
 def load_best_detection_frame_time_from_csv(csv):
-    return np.array([time_to_sec(t) for t in load_column(csv, CsvColumnID.BEST_DETECTION_FRAME_TIME)])
+    return np.array(
+        [
+            time_to_sec(t)
+            for t in load_column(csv, CsvColumnID.BEST_DETECTION_FRAME_TIME)
+        ]
+    )
 
 
 def load_event_time_from_csv(csv):

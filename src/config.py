@@ -1,14 +1,47 @@
+import pyrootutils.root
+
 from typing import Dict
-from .constants import *
+from src.constants import *
 from easydict import EasyDict
 from dataclasses import dataclass, field
 import omegaconf
 
+
 @dataclass
-class FeaturesConfig():
+class StructuredPredictor:
+    # root with training files
+    root: str = "outputs/000_structured_rvce/036"
+    # split number
+    split: int = 0
+    # head name
+    head: str = "n_counts"
+    # bmrm regularization constant
+    reg: float = 10
+    # bmrm relative tolerance
+    tol_rel: float = 0.01
+    # combine training and validation files
+    combine_trn_and_val: bool = False
+    # normalize features
+    normalize_X: bool = False
+    # seed for reproducibility
+    seed: int = 42
+    # number of events in small window
+    Y: int = 7
+    # learn only biases
+    biases_only: bool = False
+    # path for outputs
+    outputs_folder: str = "outputs/036_results"
+
+    training_files: str = None
+    validation_files: str = None
+    testing_files: str = None
+
+
+@dataclass
+class FeaturesConfig:
     # sampling rate [samples]
     sr: int = 22050
-    
+
     # signal to feature transformation
     # stft | mel | mfcc
     transformation: Transformation = Transformation.STFT
@@ -72,7 +105,7 @@ class FeaturesConfig():
 
 
 @dataclass
-class ModelConfig(object):
+class ModelConfig:
     # gpu number
     cuda: int = 0
     # learning rate
@@ -118,17 +151,17 @@ class ModelConfig(object):
 
     # architecture:
     # ResNet18 | WaveCNN
-    architecture: str = 'ResNet18'
-    
+    architecture: str = "ResNet18"
+
     # optimizer
     # Adam | AdamW
-    optimizer: str = 'AdamW'
+    optimizer: str = "AdamW"
 
     rawnet_layers: list = None
     rawnet_filters: list = None
 
-    loss: str = 'CrossEntropy'
-    
+    loss: str = "CrossEntropy"
+
     loss_cbce_beta: float = 0.999
 
     # Transormer parameters
@@ -141,12 +174,11 @@ class ModelConfig(object):
     transformer_emb_dropout: float = 0.1
 
 
-
 @dataclass
 class WandbConfig:
     wandb_project: str = None
     wandb_entity: str = None
-    wandb_tags: tuple  = None
+    wandb_tags: tuple = None
 
 
 @dataclass
@@ -157,14 +189,22 @@ class CrossValidation:
 
 
 @dataclass
-class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation, object):
+class Config(
+    EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation, object
+):
     uuid: str = None
     seed: int = 42
+    split: int = 42
     n_samples_in_nn_hop: int = None
     n_samples_in_window: int = None
-    training_files: tuple = ('12_RX100',)
-    testing_files: tuple = ('12_RX100',)
-    validation_files: tuple = ('12_RX100',)
+    training_files: tuple = ("12_RX100",)
+    testing_files: tuple = ("12_RX100",)
+    validation_files: tuple = ("12_RX100",)
+    structured_predictor: StructuredPredictor = None
+
+    structured_predictor_splits: list[int] = None
+    structured_predictor_regs: list[float] = None
+    structured_predictor_heads: list[str] = None
 
     use_testing_files: bool = True
     use_manual_counts: bool = False
@@ -194,3 +234,8 @@ class Config(EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation
 
     def __str__(self) -> str:
         return super().__str__()
+
+
+if __name__ == "__main__":
+    config = Config()
+    print(config)

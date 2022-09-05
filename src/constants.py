@@ -1,7 +1,9 @@
 from enum import Enum, IntEnum
 
 
-class CsvColumnID(IntEnum):
+class CsvColumnIDv0(IntEnum):
+    ID = 0
+    LICENCE_PLATE = 1
     START_TIME = 8
     END_TIME = 9
     BEST_DETECTION_FRAME_TIME = 14
@@ -10,12 +12,23 @@ class CsvColumnID(IntEnum):
     VIEWS = 23
 
 
+class CsvColumnIDv1(IntEnum):
+    ID = 0
+    LICENCE_PLATE = 2
+    START_TIME = 16
+    END_TIME = 17
+    BEST_DETECTION_FRAME_TIME = 19
+    CATEGORY = 8
+    COLOR = 14
+    VIEWS = 6
+
+
 class InferenceFunction(str, Enum):
-    SIMPLE = 'simple'
-    OPTIMAL_RVCE = 'optimal_rvce'
-    DOUBLED = 'doubled'
-    STRUCTURED = 'structured'
-    DENSE = 'dense'
+    SIMPLE = "simple"
+    OPTIMAL_RVCE = "optimal_rvce"
+    DOUBLED = "doubled"
+    STRUCTURED = "structured"
+    DENSE = "dense"
 
     def __str__(self) -> str:
         return str.__str__(self)
@@ -40,7 +53,7 @@ class Normalization(str, Enum):
     NONE = "none"
     ROW_WISE = "row-wise"
     COLUMN_WISE = "column-wise"
-    GLOBAL = 'global'
+    GLOBAL = "global"
 
     def __str__(self) -> str:
         return str.__str__(self)
@@ -77,9 +90,9 @@ class Transformation(str, Enum):
 
 
 class Part(str, Enum):
-    LEFT = 'left'
-    RIGHT = 'right'
-    WHOLE = 'whole'
+    LEFT = "left"
+    RIGHT = "right"
+    WHOLE = "whole"
 
     def __str__(self) -> str:
         return str.__str__(self)

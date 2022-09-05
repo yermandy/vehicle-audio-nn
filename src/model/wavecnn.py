@@ -5,10 +5,10 @@ class BasicBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride):
         super(BasicBlock, self).__init__()
         self.block = nn.Sequential(
-            nn.Conv1d(in_channels, out_channels, kernel_size, stride=stride), 
+            nn.Conv1d(in_channels, out_channels, kernel_size, stride=stride),
             nn.BatchNorm1d(out_channels),
             nn.LeakyReLU(0.1, True),
-            nn.MaxPool1d(2, stride=1, padding=1)
+            nn.MaxPool1d(2, stride=1, padding=1),
         )
 
     def forward(self, x):
@@ -34,16 +34,16 @@ class WaveCNN(nn.Module):
             BasicBlock(128, 128, 4, 1),
             BasicBlock(128, 128, 4, 1),
             BasicBlock(128, 128, 4, 1),
-            nn.AdaptiveAvgPool1d(1)
+            nn.AdaptiveAvgPool1d(1),
         )
         # self.linear = nn.Linear(self.in_features, self.num_classes)
         self.heads = nn.ModuleDict()
         for head in config.heads:
             self.add_head(head)
-        
+
     def add_head(self, name):
         self.heads.add_module(name, nn.Linear(self.in_features, self.num_classes))
-    
+
     def forward(self, x):
         x = self.net(x)
         x = x.reshape(x.shape[0], -1)

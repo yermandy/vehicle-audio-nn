@@ -1,12 +1,18 @@
+import pyrootutils.root
+
 from torchvision.models import resnet18, resnet34, resnet50
 import torch.nn as nn
+from src.config import Config
+
 
 class ResNet(nn.Module):
-    def __init__(self, model_class, config, in_channels=1, pretrained=False):
+    def __init__(self, model_class, config: Config, in_channels=1, pretrained=False):
         super(ResNet, self).__init__()
         self.num_classes = config.num_classes
         self.model = model_class(pretrained=pretrained)
-        self.model.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.model.conv1 = nn.Conv2d(
+            in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False
+        )
         self.in_features = self.model.fc.in_features
         self.model.fc = nn.Identity()
         self.heads = nn.ModuleDict()
@@ -17,7 +23,7 @@ class ResNet(nn.Module):
         self.heads.add_module(name, nn.Linear(self.in_features, self.num_classes))
 
     def forward(self, x):
-        x = self.model(x)
+        x = self.features(x)
         heads = {name: head(x) for name, head in self.heads.items()}
         return heads
 
@@ -26,8 +32,8 @@ class ResNet(nn.Module):
 
     def forward_single_head(self, x):
         x = self.model(x)
-        return self.heads['n_counts'](x)
-        
+        return self.heads["n_counts"](x)
+
 
 class ResNet18(ResNet):
     def __init__(self, config, in_channels=1, pretrained=False):
@@ -42,3 +48,12 @@ class ResNet34(ResNet):
 class ResNet50(ResNet):
     def __init__(self, config, in_channels=1, pretrained=False):
         super().__init__(resnet50, config, in_channels, pretrained)
+
+
+if __name__ == "__main__":
+
+    config = Config()
+    print(config)
+    model = ResNet18(config)
+
+    print(model)

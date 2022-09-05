@@ -91,13 +91,7 @@ class RawNet2(nn.Module):
     """
 
     def __init__(
-        self,
-        block,
-        layers,
-        filters,
-        num_classes=512,
-        in_channels=1,
-        **kwargs
+        self, block, layers, filters, num_classes=512, in_channels=1, **kwargs
     ):
         super(RawNet2, self).__init__()
         self.inplanes = filters[0]
@@ -112,9 +106,9 @@ class RawNet2(nn.Module):
         #####
         # residual blocks for frame-level representations
         #####
-        self.residual_layers = nn.Sequential(*[
-            self._make_layer(block, f, l) for f, l in zip(filters, layers)
-        ])
+        self.residual_layers = nn.Sequential(
+            *[self._make_layer(block, f, l) for f, l in zip(filters, layers)]
+        )
         # self.layer1 = self._make_layer(block, filters[0], layers[0])
         # self.layer2 = self._make_layer(block, filters[1], layers[1])
         # self.layer3 = self._make_layer(block, filters[2], layers[2])
@@ -192,7 +186,7 @@ class RawNet2(nn.Module):
         x = self.lrelu(x)
         w = self.attention(x)
         m = torch.sum(x * w, dim=-1)
-        s = torch.sqrt((torch.sum((x ** 2) * w, dim=-1) - m ** 2).clamp(min=1e-5))
+        s = torch.sqrt((torch.sum((x**2) * w, dim=-1) - m**2).clamp(min=1e-5))
         x = torch.cat([m, s], dim=1)
         x = x.view(x.size(0), -1)
 
@@ -219,13 +213,13 @@ class RawNet2Architecture(RawNet2):
     def __init__(self, config, **kwargs):
         self.num_classes = config.num_classes
 
-        if 'rawnet_filters' in config:
-            filters = config['rawnet_filters']
+        if "rawnet_filters" in config:
+            filters = config["rawnet_filters"]
         else:
             filters = [128, 128, 256, 256, 256, 256]
 
-        if 'rawnet_layers' in config:
-            layers = config['rawnet_layers']
+        if "rawnet_layers" in config:
+            layers = config["rawnet_layers"]
         else:
             layers = [1, 1, 3, 4, 6, 3]
 
@@ -257,13 +251,8 @@ if __name__ == "__main__":
 
     # model = RawNet2Architecture(50)
     model = RawNet2(
-        RawNetBasicBlock,
-        layers=layers,
-        filters=filters,
-        num_classes=num_classes
+        RawNetBasicBlock, layers=layers, filters=filters, num_classes=num_classes
     )
 
-
-
     # summary(model, (1, 11025 * 6), 32,  device='cpu')
-    summary(model, (1, 10000 * 5), 64,  device='cpu')
+    summary(model, (1, 10000 * 5), 64, device="cpu")

@@ -17,32 +17,60 @@ from typing import Tuple, Any
 from glob import glob
 
 
-def find_wav(file, raise_exception=False):
-    return find_path(f"data/audio_wav/**/{file}.wav", raise_exception)
-
-
 def find_pt(file, raise_exception=False):
-    return find_path(f"data/audio_pt/**/{file}.pt", raise_exception)
+    paths = glob("data/audio_wav/*.pt")
+    return search_in_files(file, paths, raise_exception)
 
 
 def find_csv(file, raise_exception=False):
-    return find_path(f"data/csv/**/{file}.csv", raise_exception)
+    paths = glob("data/csv/*.csv")
+    return search_in_files(file, paths, raise_exception)
 
 
 def find_labels(file, raise_exception=False):
-    return find_path(f"data/labels/**/{file}.txt", raise_exception)
+    paths = glob("data/labels/*.txt")
+    return search_in_files(file, paths, raise_exception)
 
 
 def find_manual_counts(file, raise_exception=False):
-    return find_path(f"data/manual_counts/**/{file}.txt", raise_exception)
+    paths = glob("data/manual_counts/*.txt")
+    return search_in_files(file, paths, raise_exception)
 
 
 def find_intervals(file, raise_exception=False):
-    return find_path(f"data/intervals/**/{file}.txt", raise_exception)
+    paths = glob("data/intervals/*.txt")
+    return search_in_files(file, paths, raise_exception)
+
+
+def find_wav(file, raise_exception=False):
+    paths = glob("data/audio_wav/*.wav")
+    return search_in_files(file, paths, raise_exception)
 
 
 def find_video(file, raise_exception=False):
-    return find_path(f"data/video/**/{file}.*", raise_exception)
+    paths = glob("data/video/*")
+    return search_in_files(file, paths, raise_exception)
+
+
+def search_in_files(file, paths, raise_exception=False):
+    results = []
+    for path in paths:
+        if file in path:
+            results.append(path)
+    if len(results) == 0:
+        if raise_exception:
+            raise Exception(f'file "{file}" does not exist')
+        else:
+            return None
+    elif len(results) == 1:
+        return results[0]
+    elif raise_exception:
+        print(results)
+        raise Exception(f'found multiple results for "{file}"')
+    else:
+        print(f'found multiple results for "{file}"')
+        print(results)
+        return results[0]
 
 
 def time_to_sec(time):
@@ -69,6 +97,7 @@ def find_path(query, raise_exception=False):
     elif len(results) == 1:
         return results[0]
     elif raise_exception:
+        print(results)
         raise Exception(f'found multiple results for "{query}"')
     else:
         print(f'found multiple results for "{query}"')
@@ -479,8 +508,9 @@ def get_loss(config, trn_dataset, device):
 
 
 def load_files_from_dataset(dataset_name):
-    file_path = find_path(f"config/dataset/**/{dataset_name}.yaml", True)
-    with open(file_path, "r") as stream:
+    paths = glob(f"config/dataset/*.yaml")
+    path = search_in_files(dataset_name, paths, True)
+    with open(path, "r") as stream:
         return np.array(sorted(yaml.safe_load(stream)))
 
 

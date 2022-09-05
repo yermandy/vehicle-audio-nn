@@ -194,6 +194,7 @@ class Config(
 ):
     uuid: str = None
     seed: int = 42
+    splits: list[int] = (0,)
     split: int = 42
     n_samples_in_nn_hop: int = None
     n_samples_in_window: int = None

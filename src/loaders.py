@@ -17,8 +17,13 @@ from typing import Tuple, Any
 from glob import glob
 
 
+def find_wav(file, raise_exception=False):
+    paths = glob("data/audio_wav/*.wav")
+    return search_in_files(file, paths, raise_exception)
+
+
 def find_pt(file, raise_exception=False):
-    paths = glob("data/audio_wav/*.pt")
+    paths = glob("data/audio_pt/*.pt")
     return search_in_files(file, paths, raise_exception)
 
 
@@ -42,11 +47,6 @@ def find_intervals(file, raise_exception=False):
     return search_in_files(file, paths, raise_exception)
 
 
-def find_wav(file, raise_exception=False):
-    paths = glob("data/audio_wav/*.wav")
-    return search_in_files(file, paths, raise_exception)
-
-
 def find_video(file, raise_exception=False):
     paths = glob("data/video/*")
     return search_in_files(file, paths, raise_exception)
@@ -55,7 +55,8 @@ def find_video(file, raise_exception=False):
 def search_in_files(file, paths, raise_exception=False):
     results = []
     for path in paths:
-        if file in path:
+        # we assume that file is {path_to_file}/{file}.{extension}
+        if f"/{file}." in path:
             results.append(path)
     if len(results) == 0:
         if raise_exception:

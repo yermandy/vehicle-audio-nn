@@ -1,7 +1,7 @@
 from enum import Enum, IntEnum
 
 
-class CsvColumnID(IntEnum):
+class CsvColumnIDv0(IntEnum):
     ID = 0
     LICENCE_PLATE = 1
     START_TIME = 8
@@ -10,6 +10,17 @@ class CsvColumnID(IntEnum):
     CATEGORY = 15
     COLOR = 17
     VIEWS = 23
+
+
+class CsvColumnIDv1(IntEnum):
+    ID = 0
+    LICENCE_PLATE = 2
+    START_TIME = 16
+    END_TIME = 17
+    BEST_DETECTION_FRAME_TIME = 19
+    CATEGORY = 8
+    COLOR = 14
+    VIEWS = 6
 
 
 class InferenceFunction(str, Enum):

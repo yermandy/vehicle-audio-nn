@@ -7,10 +7,14 @@ from .constants import *
 
 
 class Video:
-    def __init__(self, file: str, config: Config, silent: bool = True):
+    def __init__(
+        self, file: str, config: Config, silent: bool = True, csv_version: int = 0
+    ):
         if not silent:
             print(f"loading: {file}")
         self.silent = silent
+        if isinstance(file, list):
+            file, csv_version = file[0], file[1]
         self.file = file
         self.config = config
         self.domain = 0
@@ -22,11 +26,12 @@ class Video:
         )
         self.manual_counts = src.load_manual_counts(file)
         self.events = src.load_events(file)
-        self.csv = src.load_csv(file)
-        self.views = src.load_views_from_csv(self.csv)
-        self.category = src.load_category_from_csv(self.csv)
+
+        self.csv = src.load_csv(file, csv_version)
+        self.views = src.load_views_from_csv(self.csv, csv_version)
+        self.category = src.load_category_from_csv(self.csv, csv_version)
         self.events_start_time, self.events_end_time = src.load_event_time_from_csv(
-            self.csv
+            self.csv, csv_version
         )
         self.intervals = src.load_intervals(file)
         self.signal_length = len(self.signal) / self.sr

@@ -76,7 +76,7 @@ def find_path(query, raise_exception=False):
         return results[0]
 
 
-def load_csv(file, preprocess=True):
+def load_csv(file, csv_version=0, preprocess=True):
     try:
         file_path = find_csv(file, True)
         csv = np.genfromtxt(file_path, dtype=str, delimiter=";", skip_header=1)
@@ -84,7 +84,7 @@ def load_csv(file, preprocess=True):
         if csv.size == 0:
             return []
         if preprocess:
-            return preprocess_csv(csv)
+            return preprocess_csv(csv, csv_version)
         return csv
     except Exception as e:
         print(e)
@@ -119,7 +119,15 @@ def load_audio(
         else:
             raise Exception(f'file "{file}" does not exist')
     if sr != resample_sr:
-        signal = T.Resample(sr, resample_sr).forward(signal)
+        if len(signal) > 2000000000:
+            signal = torch.cat(
+                [
+                    T.Resample(sr, resample_sr).forward(signal[: len(signal) // 2]),
+                    T.Resample(sr, resample_sr).forward(signal[len(signal) // 2 :]),
+                ]
+            )
+        else:
+            signal = T.Resample(sr, resample_sr).forward(signal)
     # round to the last second
     seconds = len(signal) // resample_sr
     signal = signal[: seconds * resample_sr]
@@ -173,8 +181,19 @@ def find_clusters(X, delta=1 * 60):
     return clusters
 
 
-def preprocess_csv(csv):
+def load_CsvColumnID_version(csv_version):
+    if csv_version == 0:
+        return CsvColumnIDv0
+    elif csv_version == 1:
+        return CsvColumnIDv1
+    else:
+        Exception("unknown csv version")
+
+
+def preprocess_csv(csv, csv_version):
     licence_plates = defaultdict(list)
+
+    CsvColumnID = load_CsvColumnID_version(csv_version)
 
     for row in csv:
         plate_id = row[CsvColumnID.LICENCE_PLATE]
@@ -222,8 +241,8 @@ def preprocess_csv(csv):
             times = np.sort(times)
             times = [t for t in times if t != ""]
 
-            modified_row[0] = tracking_uuid
-            modified_row[1] = key
+            modified_row[CsvColumnID.ID] = tracking_uuid
+            modified_row[CsvColumnID.LICENCE_PLATE] = key
             tracking_uuid += 1
             modified_row[
                 CsvColumnID.BEST_DETECTION_FRAME_TIME
@@ -255,31 +274,39 @@ def load_intervals_and_n_events(file):
     return combined
 
 
-def load_column(csv, column):
+def load_column(csv, column, csv_version):
+    CsvColumnID = load_CsvColumnID_version(csv_version)
     out = {}
     for row in csv:
-        out[row[0]] = row[column]
+        id = row[CsvColumnID.ID]
+        out[id] = row[column]
     return np.array(list(out.values()))
 
 
-def load_views_from_csv(csv):
-    return load_column(csv, CsvColumnID.VIEWS)
+def load_views_from_csv(csv, csv_version):
+    CsvColumnID = load_CsvColumnID_version(csv_version)
+    return load_column(csv, CsvColumnID.VIEWS, csv_version)
 
 
-def load_category_from_csv(csv):
-    return load_column(csv, CsvColumnID.CATEGORY)
+def load_category_from_csv(csv, csv_version):
+    CsvColumnID = load_CsvColumnID_version(csv_version)
+    return load_column(csv, CsvColumnID.CATEGORY, csv_version)
 
 
-def load_best_detection_frame_time_from_csv(csv):
+def load_best_detection_frame_time_from_csv(csv, csv_version):
+    CsvColumnID = load_CsvColumnID_version(csv_version)
     return np.array(
         [
             time_to_sec(t)
-            for t in load_column(csv, CsvColumnID.BEST_DETECTION_FRAME_TIME)
+            for t in load_column(
+                csv, CsvColumnID.BEST_DETECTION_FRAME_TIME, csv_version
+            )
         ]
     )
 
 
-def load_event_time_from_csv(csv):
+def load_event_time_from_csv(csv, csv_version):
+    CsvColumnID = load_CsvColumnID_version(csv_version)
     times = {}
     for row in csv:
         detection_id, start_time, end_time = row[

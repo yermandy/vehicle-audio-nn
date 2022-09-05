@@ -2,11 +2,20 @@ from src import *
 from cross_validation import generate_cross_validation_table
 
 
-def inference(root_uuid, prefix, model_name, inference_function, coupled_labels, 
-              use_manual_counts, nn_hop_length, n_windows_for_dense_inference, n_events_per_dense_window):
+def inference(
+    root_uuid,
+    prefix,
+    model_name,
+    inference_function,
+    coupled_labels,
+    use_manual_counts,
+    nn_hop_length,
+    n_windows_for_dense_inference,
+    n_events_per_dense_window,
+):
     uuids = []
     for i in range(0, 5):
-        uuid = f'{root_uuid}/{i}'
+        uuid = f"{root_uuid}/{i}"
         print(uuid)
         uuids.append(uuid)
         config = load_config_locally(uuid)
@@ -19,13 +28,15 @@ def inference(root_uuid, prefix, model_name, inference_function, coupled_labels,
             config.nn_hop_length = nn_hop_length
             config.n_samples_in_nn_hop = int(nn_hop_length * config.sr)
         tst_datapool = DataPool(config.testing_files, config)
-        validate_and_save(uuid, tst_datapool, prefix, Part.WHOLE, model_name, config=config)
+        validate_and_save(
+            uuid, tst_datapool, prefix, Part.WHOLE, model_name, config=config
+        )
 
     generate_cross_validation_table(uuids, model_name=model_name, prefix=prefix)
 
 
-root_uuid = '031_RX100_resized_128_sr_22050'
-prefix = 'tst'
+root_uuid = "031_RX100_resized_128_sr_22050"
+prefix = "tst"
 inference_function = InferenceFunction.DOUBLED
 use_manual_counts = False
 
@@ -36,21 +47,21 @@ n_events_per_dense_window = None
 n_windows_for_dense_inference = None
 
 if inference_function.is_doubled():
-    prefix += '_doubled'
+    prefix += "_doubled"
 elif inference_function.is_dense():
-    prefix += '_dense'
+    prefix += "_dense"
     n_windows_for_dense_inference = 6
     n_events_per_dense_window = 2
 elif inference_function.is_structured():
-    prefix += '_structured'
-    coupled_labels = [['n_incoming', 'n_outgoing'], ['n_CAR', 'n_NOT_CAR']]
+    prefix += "_structured"
+    coupled_labels = [["n_incoming", "n_outgoing"], ["n_CAR", "n_NOT_CAR"]]
     # coupled_labels = [['n_CAR', 'n_NOT_CAR']]
     # coupled_labels = [['n_incoming', 'n_outgoing']]
 
 if use_manual_counts:
-    prefix += '_manual'
+    prefix += "_manual"
 
-model_name = 'rvce'
+model_name = "rvce"
 
 inference(
     root_uuid,
@@ -59,6 +70,7 @@ inference(
     inference_function,
     coupled_labels,
     use_manual_counts,
-    nn_hop_length, 
+    nn_hop_length,
     n_windows_for_dense_inference,
-    n_events_per_dense_window)
+    n_events_per_dense_window,
+)

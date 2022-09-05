@@ -8,6 +8,8 @@ from tqdm import tqdm
 
 
 def extract_features(video: Video, model: nn.Module, head_name="n_counts"):
+    video.config.set_window_length(6)
+    video.config.set_nn_hop_length(3)
 
     dataset = VehicleDataset(video, part=Part.WHOLE, config=video.config)
     loader = DataLoader(
@@ -17,7 +19,6 @@ def extract_features(video: Video, model: nn.Module, head_name="n_counts"):
     )
 
     X = []
-    Y = []
 
     device = next(model.parameters()).device
 
@@ -27,9 +28,15 @@ def extract_features(video: Video, model: nn.Module, head_name="n_counts"):
             tensor = tensor.to(device)
 
             X.extend(model.features(tensor).detach().cpu().numpy())
-            Y.extend(labels[head_name])
 
-    X = np.array(X)
-    Y = np.array(Y)
+    X = np.array(X)[:-1]
 
-    return X, Y
+    return X
+
+
+def extract_labels(video: Video, head_name="n_counts"):
+    video.config.set_window_length(3)
+    video.config.set_nn_hop_length(3)
+
+    dataset = VehicleDataset(video, part=Part.WHOLE, config=video.config)
+    return np.array(dataset.labels[head_name])

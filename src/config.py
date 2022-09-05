@@ -13,6 +13,8 @@ class StructuredPredictor:
     root: str = "outputs/000_structured_rvce/036"
     # split number
     split: int = 0
+    # head name
+    head: str = "n_counts"
     # bmrm regularization constant
     reg: float = 10
     # bmrm relative tolerance
@@ -192,12 +194,17 @@ class Config(
 ):
     uuid: str = None
     seed: int = 42
+    split: int = 42
     n_samples_in_nn_hop: int = None
     n_samples_in_window: int = None
     training_files: tuple = ("12_RX100",)
     testing_files: tuple = ("12_RX100",)
     validation_files: tuple = ("12_RX100",)
     structured_predictor: StructuredPredictor = None
+
+    structured_predictor_splits: list[int] = None
+    structured_predictor_regs: list[float] = None
+    structured_predictor_heads: list[str] = None
 
     use_testing_files: bool = True
     use_manual_counts: bool = False

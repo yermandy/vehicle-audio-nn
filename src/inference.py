@@ -14,6 +14,7 @@ def validate_video(
     from_time=None,
     till_time=None,
     classification=True,
+    tqdm=lambda x: x,
 ):
 
     signal = video.signal
@@ -40,7 +41,7 @@ def validate_video(
 
     model.eval()
     with torch.no_grad():
-        for k in range(n_hops):
+        for k in tqdm(range(n_hops)):
             start = k * config.n_samples_in_nn_hop
             end = start + config.n_samples_in_window
             x = signal[start:end]

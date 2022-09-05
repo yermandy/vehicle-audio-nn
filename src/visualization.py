@@ -124,9 +124,9 @@ def show(
 
     # show start and end time of events
     if (
-        events_start_time != None
+        events_start_time is not None
         and len(events_start_time) > 0
-        and events_end_time != None
+        and events_end_time is not None
         and len(events_end_time) > 0
     ):
         colors = "violet"

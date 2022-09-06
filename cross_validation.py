@@ -21,12 +21,12 @@ def cross_validate():
     global config
 
     uuids = []
-    for split in range(config.splits_from, config.n_splits):
+    for split in range(config.splits):
         print(split)
         split_uuid = f"{config.uuid}/{split}"
         uuids.append(split_uuid)
-        sys.argv.append(f"++split={split}")
-        sys.argv.append(f"++root_uuid={config.uuid}")
+        sys.argv.append(f"split={split}")
+        sys.argv.append(f"root_uuid={config.uuid}")
         sys.argv.append(f"uuid={split_uuid}")
         sys.argv.append(f"hydra.run.dir=outputs/{split_uuid}")
         sys.argv.append(f"training_files={config.cross_validation_folder}/{split}")

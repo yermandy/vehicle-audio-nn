@@ -26,7 +26,6 @@ class Video:
         )
         self.manual_counts = src.load_manual_counts(file)
         self.events = src.load_events(file)
-
         self.csv = src.load_csv(file, csv_version)
         self.views = src.load_views_from_csv(self.csv, csv_version)
         self.category = src.load_category_from_csv(self.csv, csv_version)

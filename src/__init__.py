@@ -3,7 +3,7 @@ from .video import Video
 from .utils import *
 from .loaders import *
 from .dtw import *
-from .visualization import show, show_video
+from .visualization import *
 from .constants import *
 from .config import *
 from .inference import *

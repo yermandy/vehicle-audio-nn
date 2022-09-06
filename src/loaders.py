@@ -16,39 +16,48 @@ from .config import *
 from typing import Tuple, Any
 from glob import glob
 
+from functools import cache
 
+
+@cache
 def find_wav(file, raise_exception=False):
-    paths = glob("data/audio_wav/*.wav")
+    paths = glob("data/audio_wav/**/*.wav", recursive=True)
     return search_in_files(file, paths, raise_exception)
 
 
+@cache
 def find_pt(file, raise_exception=False):
-    paths = glob("data/audio_pt/*.pt")
+    paths = glob("data/audio_pt/**/*.pt", recursive=True)
     return search_in_files(file, paths, raise_exception)
 
 
+@cache
 def find_csv(file, raise_exception=False):
-    paths = glob("data/csv/*.csv")
+    paths = glob("data/csv/**/*.csv", recursive=True)
     return search_in_files(file, paths, raise_exception)
 
 
+@cache
 def find_labels(file, raise_exception=False):
-    paths = glob("data/labels/*.txt")
+    paths = glob("data/labels/**/*.txt", recursive=True)
     return search_in_files(file, paths, raise_exception)
 
 
+@cache
 def find_manual_counts(file, raise_exception=False):
-    paths = glob("data/manual_counts/*.txt")
+    paths = glob("data/manual_counts/**/*.txt", recursive=True)
     return search_in_files(file, paths, raise_exception)
 
 
+@cache
 def find_intervals(file, raise_exception=False):
-    paths = glob("data/intervals/*.txt")
+    paths = glob("data/intervals/**/*.txt", recursive=True)
     return search_in_files(file, paths, raise_exception)
 
 
+@cache
 def find_video(file, raise_exception=False):
-    paths = glob("data/video/*")
+    paths = glob("data/video/**/*", recursive=True)
     return search_in_files(file, paths, raise_exception)
 
 

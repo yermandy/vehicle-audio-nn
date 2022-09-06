@@ -98,8 +98,7 @@ def get_XY(files, config, model):
 def run(config: Config):
     config = Config(config)
 
-    uuid = f"{config.uuid}/{config.split}"
-
+    uuid = config.uuid
     os.makedirs(f"outputs/{uuid}/results_structured_predictor", exist_ok=True)
 
     device = get_device(config.cuda)
@@ -184,9 +183,9 @@ if __name__ == "__main__":
         print(f"split: {split}")
         split_uuid = f"{config.uuid}/{split}"
         uuids.append(split_uuid)
-        sys.argv.append(f"++split={split}")
-        sys.argv.append(f"++root_uuid={config.uuid}")
-        # sys.argv.append(f"uuid={split_uuid}")
+        sys.argv.append(f"split={split}")
+        sys.argv.append(f"root_uuid={config.uuid}")
+        sys.argv.append(f"uuid={split_uuid}")
         sys.argv.append(f"hydra.run.dir=outputs/{split_uuid}")
         run()
 

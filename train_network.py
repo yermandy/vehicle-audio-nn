@@ -119,16 +119,21 @@ def run(config):
     # make config type and attribute safe
     config = Config(config)
 
+    # get uuid
+    uuid = config.uuid
+
     # print config
     print_config(config)
 
     # initialize wandb run
     wandb_run = wandb.init(
-        project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags
+        project=config.wandb_project,
+        entity=config.wandb_entity,
+        tags=config.wandb_tags,
+        dir=f"outputs/{uuid}/wandb",
     )
 
-    # get uuid and change wandb run name
-    uuid = config.uuid
+    # change wandb run name
     wandb.run.name = str(uuid)
     os.makedirs(f"weights")
 

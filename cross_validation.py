@@ -21,7 +21,7 @@ def cross_validate():
     global config
 
     uuids = []
-    for split in range(config.splits):
+    for split in aslist(config.splits):
         print(split)
         split_uuid = f"{config.uuid}/{split}"
         uuids.append(split_uuid)

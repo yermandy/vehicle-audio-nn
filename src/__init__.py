@@ -25,6 +25,7 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
+from tqdm.rich import tqdm_rich
 from glob import glob
 from omegaconf import DictConfig, OmegaConf
 

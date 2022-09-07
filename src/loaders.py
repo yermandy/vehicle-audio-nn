@@ -19,46 +19,63 @@ from glob import glob
 from functools import cache
 
 
+def file_decorator(func):
+    def wrapper(*args, **kwargs):
+        file = args[0]
+        file = file if isinstance(file, str) else file[0]
+        return func(file, *args[1:], **kwargs)
+
+    return wrapper
+
+
 @cache
 def cached_glob(query):
     return glob(query, recursive=True)
 
 
+@file_decorator
 def find_wav(file, raise_exception=False):
     paths = cached_glob("data/audio_wav/**/*.wav")
     return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_pt(file, raise_exception=False):
     paths = cached_glob("data/audio_pt/**/*.pt")
     return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_csv(file, raise_exception=False):
     paths = cached_glob("data/csv/**/*.csv")
     return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_labels(file, raise_exception=False):
     paths = cached_glob("data/labels/**/*.txt")
     return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_manual_counts(file, raise_exception=False):
     paths = cached_glob("data/manual_counts/**/*.txt")
     return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_intervals(file, raise_exception=False):
     paths = cached_glob("data/intervals/**/*.txt")
     return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_video(file, raise_exception=False):
     paths = cached_glob("data/video/**/*")
     return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_file_in_paths(file, paths, raise_exception=False):
     results = []
     for path in paths:
@@ -111,6 +128,7 @@ def find_path(query, raise_exception=False):
         return results[0]
 
 
+@file_decorator
 def load_csv(file, csv_version=0, preprocess=True):
     try:
         file_path = find_csv(file, True)
@@ -141,9 +159,11 @@ def load_audio_tensor(path, return_sr=False):
     return signal
 
 
+@file_decorator
 def load_audio(
     file, resample_sr=44100, return_sr=False, normalize=False
 ) -> torch.Tensor:
+    file = file if isinstance(file, str) else file[0]
     pt_file_path = find_pt(file)
     if pt_file_path:
         signal, sr = load_audio_tensor(pt_file_path, True)
@@ -173,6 +193,7 @@ def load_audio(
     return signal
 
 
+@file_decorator
 def load_manual_counts(file) -> int:
     file_path = find_manual_counts(file)
     if file_path != None:
@@ -181,6 +202,7 @@ def load_manual_counts(file) -> int:
         return None
 
 
+@file_decorator
 def load_events(file):
     try:
         return np.loadtxt(find_labels(file, True))
@@ -189,6 +211,7 @@ def load_events(file):
         return []
 
 
+@file_decorator
 def load_intervals(file):
     file_path = find_intervals(file)
     if file_path:
@@ -294,6 +317,7 @@ def preprocess_csv(csv, csv_version):
     return rows
 
 
+@file_decorator
 def load_intervals_and_n_events(file):
     events = load_events(file)
     intervals = load_intervals(file)

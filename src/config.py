@@ -173,6 +173,8 @@ class ModelConfig:
     transformer_dropout: float = 0.1
     transformer_emb_dropout: float = 0.1
 
+    fp16: bool = True
+
 
 @dataclass
 class WandbConfig:
@@ -193,6 +195,7 @@ class Config(
     EasyDict, FeaturesConfig, ModelConfig, WandbConfig, CrossValidation, object
 ):
     uuid: str = None
+    root_uuid: str = None
     seed: int = 42
     splits: list[int] = (0,)
     split: int = 42

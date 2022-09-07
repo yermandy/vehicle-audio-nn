@@ -13,7 +13,7 @@ class Video:
         if not silent:
             print(f"loading: {file}")
         self.silent = silent
-        if isinstance(file, list):
+        if not isinstance(file, str):
             file, csv_version = file[0], file[1]
         self.file = file
         self.config = config

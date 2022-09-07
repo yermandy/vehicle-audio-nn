@@ -20,48 +20,46 @@ from functools import cache
 
 
 @cache
+def cached_glob(query):
+    return glob(query, recursive=True)
+
+
 def find_wav(file, raise_exception=False):
-    paths = glob("data/audio_wav/**/*.wav", recursive=True)
-    return search_in_files(file, paths, raise_exception)
+    paths = cached_glob("data/audio_wav/**/*.wav")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
-@cache
 def find_pt(file, raise_exception=False):
-    paths = glob("data/audio_pt/**/*.pt", recursive=True)
-    return search_in_files(file, paths, raise_exception)
+    paths = cached_glob("data/audio_pt/**/*.pt")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
-@cache
 def find_csv(file, raise_exception=False):
-    paths = glob("data/csv/**/*.csv", recursive=True)
-    return search_in_files(file, paths, raise_exception)
+    paths = cached_glob("data/csv/**/*.csv")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
-@cache
 def find_labels(file, raise_exception=False):
-    paths = glob("data/labels/**/*.txt", recursive=True)
-    return search_in_files(file, paths, raise_exception)
+    paths = cached_glob("data/labels/**/*.txt")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
-@cache
 def find_manual_counts(file, raise_exception=False):
-    paths = glob("data/manual_counts/**/*.txt", recursive=True)
-    return search_in_files(file, paths, raise_exception)
+    paths = cached_glob("data/manual_counts/**/*.txt")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
-@cache
 def find_intervals(file, raise_exception=False):
-    paths = glob("data/intervals/**/*.txt", recursive=True)
-    return search_in_files(file, paths, raise_exception)
+    paths = cached_glob("data/intervals/**/*.txt")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
-@cache
 def find_video(file, raise_exception=False):
-    paths = glob("data/video/**/*", recursive=True)
-    return search_in_files(file, paths, raise_exception)
+    paths = cached_glob("data/video/**/*")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
-def search_in_files(file, paths, raise_exception=False):
+def find_file_in_paths(file, paths, raise_exception=False):
     results = []
     for path in paths:
         # we assume that file is {path_to_file}/{file}.{extension}
@@ -75,11 +73,9 @@ def search_in_files(file, paths, raise_exception=False):
     elif len(results) == 1:
         return results[0]
     elif raise_exception:
-        print(results)
-        raise Exception(f'found multiple results for "{file}"')
+        raise Exception(f'found multiple results for "{file}":\n{results}')
     else:
-        print(f'found multiple results for "{file}"')
-        print(results)
+        # print(f'found multiple results for "{file}"\n{results}')
         return results[0]
 
 
@@ -518,10 +514,16 @@ def get_loss(config, trn_dataset, device):
 
 
 def load_files_from_dataset(dataset_name):
+    return [f[0] for f in load_dataset(dataset_name)]
+
+
+def load_dataset(dataset_name):
     paths = glob(f"config/dataset/*.yaml")
-    path = search_in_files(dataset_name, paths, True)
+    path = find_file_in_paths(dataset_name, paths, True)
     with open(path, "r") as stream:
-        return np.array(sorted(yaml.safe_load(stream)))
+        files = yaml.safe_load(stream)
+        files = [f if isinstance(f, list) else [f, 0] for f in files]
+        return sorted(files)
 
 
 def load_model_locally(uuid, model_name="rvce", device=None) -> Tuple[Any, Config]:

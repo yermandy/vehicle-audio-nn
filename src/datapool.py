@@ -12,7 +12,7 @@ class DataPool(dict):
             # TODO change this constant to something better
             if src.get_signal_length(video.signal, config) < 10:
                 continue
-            self.__setitem__(file, video)
+            self.__setitem__(file[0] if isinstance(file, list) else file, video)
 
     def __getitem__(self, key) -> Video:
         return super().get(key)

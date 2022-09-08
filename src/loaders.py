@@ -15,6 +15,7 @@ from .config import *
 
 from typing import Tuple, Any
 from glob import glob
+from rich import print
 
 from functools import cache
 
@@ -92,7 +93,7 @@ def find_file_in_paths(file, paths, raise_exception=False):
     elif raise_exception:
         raise Exception(f'found multiple results for "{file}":\n{results}')
     else:
-        # print(f'found multiple results for "{file}"\n{results}')
+        print(f'found multiple results for "{file}"\n{results}')
         return results[0]
 
 
@@ -131,7 +132,7 @@ def find_path(query, raise_exception=False):
 @file_decorator
 def load_csv(file, csv_version=0, preprocess=True):
     try:
-        file_path = find_csv(file, True)
+        file_path = find_csv(file)
         csv = np.genfromtxt(file_path, dtype=str, delimiter=";", skip_header=1)
         csv = np.atleast_2d(csv)
         if csv.size == 0:

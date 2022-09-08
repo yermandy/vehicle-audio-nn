@@ -16,6 +16,7 @@ class Video:
         if not isinstance(file, str):
             file, csv_version = file[0], file[1]
         self.file = file
+        self.csv_version = csv_version
         self.config = config
         self.domain = 0
         self.signal, self.sr = src.load_audio(

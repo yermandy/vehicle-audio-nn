@@ -84,13 +84,13 @@ def load_trained_weights(path):
     return w, b
 
 
-def get_XY(files, config, model):
+def get_XY(files, config, model, head_name):
     X = []
     Y = []
     for file in files:
         video = Video(file, config)
         X.append(extract_features(video, model))
-        Y.append(extract_labels(video))
+        Y.append(extract_labels(video, head_name))
     return X, Y
 
 
@@ -98,9 +98,11 @@ def get_XY(files, config, model):
 def run(config: Config):
     config = Config(config)
 
-    uuid = f"{config.uuid}/{config.split}"
-
+    uuid = config.uuid
     os.makedirs(f"outputs/{uuid}/results_structured_predictor", exist_ok=True)
+
+    head_name = config.structured_predictor.head
+    reg = config.structured_predictor.reg
 
     device = get_device(config.cuda)
 
@@ -108,22 +110,24 @@ def run(config: Config):
 
     print("extracting X_trn Y_trn")
     trn_files = load_yaml(f"{config.structured_predictor.training_files}/{split}.yaml")
-    X_trn, Y_trn = get_XY(trn_files, config, model)
+    X_trn, Y_trn = get_XY(trn_files, config, model, head_name)
 
     print("extracting X_val Y_val")
     val_files = load_yaml(
         f"{config.structured_predictor.validation_files}/{split}.yaml"
     )
-    X_val, Y_val = get_XY(val_files, config, model)
+    X_val, Y_val = get_XY(val_files, config, model, head_name)
 
     print("extracting X_tst Y_tst")
     tst_files = load_yaml(f"{config.structured_predictor.testing_files}/{split}.yaml")
-    X_tst, Y_tst = get_XY(tst_files, config, model)
+    X_tst, Y_tst = get_XY(tst_files, config, model, head_name)
 
     # set output folder
-    config.structured_predictor.outputs_folder = f"outputs/{uuid}/structured_predictor/{config.structured_predictor.head}/{config.structured_predictor.reg}"
+    config.structured_predictor.outputs_folder = (
+        f"outputs/{uuid}/structured_predictor/{head_name}/{reg}"
+    )
 
-    w, b = load_head_params(model, config.structured_predictor.head)
+    w, b = load_head_params(model, head_name)
 
     structured_predictor.learn(
         config.structured_predictor, X_trn, Y_trn, X_val, Y_val, X_tst, Y_tst, w, b
@@ -138,7 +142,7 @@ def run(config: Config):
         b,
         trn_files,
         uuid,
-        f"trn_{config.structured_predictor.head}_{config.structured_predictor.reg}",
+        f"trn_{head_name}_{reg}",
     )
 
     validate_and_save(
@@ -148,7 +152,7 @@ def run(config: Config):
         b,
         val_files,
         uuid,
-        f"val_{config.structured_predictor.head}_{config.structured_predictor.reg}",
+        f"val_{head_name}_{reg}",
     )
 
     validate_and_save(
@@ -158,7 +162,7 @@ def run(config: Config):
         b,
         tst_files,
         uuid,
-        f"tst_{config.structured_predictor.head}_{config.structured_predictor.reg}",
+        f"tst_{head_name}_{reg}",
     )
 
 
@@ -184,9 +188,9 @@ if __name__ == "__main__":
         print(f"split: {split}")
         split_uuid = f"{config.uuid}/{split}"
         uuids.append(split_uuid)
-        sys.argv.append(f"++split={split}")
-        sys.argv.append(f"++root_uuid={config.uuid}")
-        # sys.argv.append(f"uuid={split_uuid}")
+        sys.argv.append(f"split={split}")
+        sys.argv.append(f"root_uuid={config.uuid}")
+        sys.argv.append(f"uuid={split_uuid}")
         sys.argv.append(f"hydra.run.dir=outputs/{split_uuid}")
         run()
 

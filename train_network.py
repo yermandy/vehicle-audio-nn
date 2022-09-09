@@ -11,6 +11,7 @@ def forward(
     config: Config,
     optim: Optimizer = None,
     is_train: bool = False,
+    scaler: torch.cuda.amp.GradScaler = None,
 ):
     device = next(model.parameters()).device
 
@@ -25,11 +26,16 @@ def forward(
     else:
         model.eval()
 
+    dtype = torch.float16 if config.cuda >= 0 and config.fp16 else torch.float32
+    device_type = "cuda" if config.cuda >= 0 else "cpu"
+
     with torch.set_grad_enabled(is_train):
         for tensor, labels in loader:
             domain = labels["domain"]
             tensor = tensor.to(device)
-            heads = model(tensor)
+
+            with torch.autocast(device_type=device_type, dtype=dtype):
+                heads = model(tensor)
 
             loss_value = 0
 
@@ -38,8 +44,9 @@ def forward(
                 head_labels = labels[head].to(device)
                 head_weight = config.heads[head]
 
-                loss_value += head_weight * loss(head_logits, head_labels)
-                loss_sum += loss_value.item()
+                with torch.autocast(device_type=device_type, dtype=dtype):
+                    loss_value += head_weight * loss(head_logits, head_labels)
+                    loss_sum += loss_value
 
                 head_preds = head_logits.argmax(1)
                 head_abs_errors = (head_labels - head_preds).abs().tolist()
@@ -53,8 +60,11 @@ def forward(
 
             if optim is not None and is_train:
                 optim.zero_grad()
-                loss_value.backward()
-                optim.step()
+                # loss_value.backward()
+                # optim.step()
+                scaler.scale(loss_value).backward()
+                scaler.step(optim)
+                scaler.update()
 
     # use true counts to evaluate RVCE
     if config.use_manual_counts:
@@ -84,7 +94,7 @@ def forward(
         ]
     )
 
-    return loss_sum, mae, rvce
+    return loss_sum.item(), mae, rvce
 
 
 def replace(i, path, model_name):
@@ -114,23 +124,33 @@ def seed_worker(worker_id):
 
 @hydra.main(config_path="config", config_name="default")
 def run(config):
-    os.environ["WANDB_MODE"] = "disabled"
+    os.environ["WANDB_MODE"] = config.wandb_mode
 
     # make config type and attribute safe
     config = Config(config)
+
+    # get uuid
+    uuid = config.uuid
 
     # print config
     print_config(config)
 
     # initialize wandb run
     wandb_run = wandb.init(
-        project=config.wandb_project, entity=config.wandb_entity, tags=config.wandb_tags
+        project=config.wandb_project,
+        entity=config.wandb_entity,
+        tags=config.wandb_tags,
     )
 
-    # get uuid and change wandb run name
-    uuid = config.uuid
+    # change wandb run name
     wandb.run.name = str(uuid)
-    os.makedirs(f"weights")
+
+    if os.path.exists("weights"):
+        print(f"'{uuid}/weights' already exists\nEnter 'y' to continue")
+        if input() != "y":
+            raise Exception(f"'{uuid}/weights' already exists")
+
+    os.makedirs(f"weights", exist_ok=True)
 
     # set original root
     root = hydra.utils.get_original_cwd()
@@ -184,6 +204,9 @@ def run(config):
     # initialize optimizer
     optim = get_optimizer(model, config)
 
+    # initialize scaler
+    scaler = torch.cuda.amp.GradScaler()
+
     config.n_trn_samples = len(trn_dataset)
     config.n_val_samples = len(val_dataset)
     wandb.config.update(config)
@@ -200,12 +223,12 @@ def run(config):
 
     shutil.make_archive(f"outputs/{uuid}/src", "zip", "src")
 
-    training_loop = tqdm(range(config.n_epochs))
+    training_loop = tqdm_rich(range(config.n_epochs))
     for iteration in training_loop:
 
         ## training
         trn_loss, trn_mae, trn_rvce = forward(
-            trn_loader, model, loss, config, optim, True
+            trn_loader, model, loss, config, optim, True, scaler=scaler
         )
 
         ## validation

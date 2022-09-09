@@ -6,11 +6,38 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 
 import warnings
+import os
 
 from .transformation import create_transformation
 from .utils import crop_signal, get_n_hops, get_signal_length, create_samples
 
 warnings.filterwarnings("ignore")
+
+
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay
+
+
+def get_confusion_matrix(labels, predictions):
+    labels = np.array(labels).flatten()
+    predictions = np.array(predictions).flatten()
+    conf_matrix = confusion_matrix(labels, predictions)
+    return conf_matrix
+
+
+def plot_statistics(labels, predictions):
+    print(
+        f"pred: {predictions.sum()} \t true: {labels.sum()} \t rvce: {abs(predictions.sum() - labels.sum()) / labels.sum():.3f}"
+    )
+
+    conf_matrix = get_confusion_matrix(labels, predictions)
+
+    conf_matrix_norm = (conf_matrix.T / conf_matrix.sum(1)).T
+    conf_matrix_norm[np.isnan(conf_matrix_norm)] = 0
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    ConfusionMatrixDisplay(conf_matrix).plot(ax=axes[0])
+    ConfusionMatrixDisplay(conf_matrix_norm).plot(ax=axes[1])
 
 
 def get_melkwargs(params):
@@ -279,13 +306,9 @@ def show(
     ax2.get_yaxis().set_visible(False)
 
     if save is not None and save is not False:
+        os.makedirs(os.path.dirname(save), exist_ok=True)
         plt.tight_layout()
         plt.savefig(save, dpi=100)
-
-    # yint = []
-    # locs, labels = ax3.yticks()
-    # for each in locs:
-    #     yint.append(int(each))
-    # ax3.yticks(yint)
-
-    plt.show()
+        plt.close()
+    else:
+        plt.show()

@@ -222,8 +222,6 @@ if __name__ == "__main__":
 
     with open(sys.argv[1], "r") as stream:
         dataset = yaml.safe_load(stream)
-
-    if isinstance(dataset[0], str):
-        dataset = [[d, 0] for d in dataset]
+        dataset = [f if isinstance(f, list) else [f, 0] for f in dataset]
 
     preprocess(dataset)

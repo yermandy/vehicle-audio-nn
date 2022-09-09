@@ -15,34 +15,86 @@ from .config import *
 
 from typing import Tuple, Any
 from glob import glob
+from rich import print
+
+from functools import cache
 
 
+def file_decorator(func):
+    def wrapper(*args, **kwargs):
+        file = args[0]
+        file = file if isinstance(file, str) else file[0]
+        return func(file, *args[1:], **kwargs)
+
+    return wrapper
+
+
+@cache
+def cached_glob(query):
+    return glob(query, recursive=True)
+
+
+@file_decorator
 def find_wav(file, raise_exception=False):
-    return find_path(f"data/audio_wav/**/{file}.wav", raise_exception)
+    paths = cached_glob("data/audio_wav/**/*.wav")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_pt(file, raise_exception=False):
-    return find_path(f"data/audio_pt/**/{file}.pt", raise_exception)
+    paths = cached_glob("data/audio_pt/**/*.pt")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_csv(file, raise_exception=False):
-    return find_path(f"data/csv/**/{file}.csv", raise_exception)
+    paths = cached_glob("data/csv/**/*.csv")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_labels(file, raise_exception=False):
-    return find_path(f"data/labels/**/{file}.txt", raise_exception)
+    paths = cached_glob("data/labels/**/*.txt")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_manual_counts(file, raise_exception=False):
-    return find_path(f"data/manual_counts/**/{file}.txt", raise_exception)
+    paths = cached_glob("data/manual_counts/**/*.txt")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_intervals(file, raise_exception=False):
-    return find_path(f"data/intervals/**/{file}.txt", raise_exception)
+    paths = cached_glob("data/intervals/**/*.txt")
+    return find_file_in_paths(file, paths, raise_exception)
 
 
+@file_decorator
 def find_video(file, raise_exception=False):
-    return find_path(f"data/video/**/{file}.*", raise_exception)
+    paths = cached_glob("data/video/**/*")
+    return find_file_in_paths(file, paths, raise_exception)
+
+
+@file_decorator
+def find_file_in_paths(file, paths, raise_exception=False):
+    results = []
+    for path in paths:
+        # we assume that file is {path_to_file}/{file}.{extension}
+        if f"/{file}." in path:
+            results.append(path)
+    if len(results) == 0:
+        if raise_exception:
+            raise Exception(f'file "{file}" does not exist')
+        else:
+            return None
+    elif len(results) == 1:
+        return results[0]
+    elif raise_exception:
+        raise Exception(f'found multiple results for "{file}":\n{results}')
+    else:
+        print(f'found multiple results for "{file}"\n{results}')
+        return results[0]
 
 
 def time_to_sec(time):
@@ -69,6 +121,7 @@ def find_path(query, raise_exception=False):
     elif len(results) == 1:
         return results[0]
     elif raise_exception:
+        print(results)
         raise Exception(f'found multiple results for "{query}"')
     else:
         print(f'found multiple results for "{query}"')
@@ -76,9 +129,10 @@ def find_path(query, raise_exception=False):
         return results[0]
 
 
+@file_decorator
 def load_csv(file, csv_version=0, preprocess=True):
     try:
-        file_path = find_csv(file, True)
+        file_path = find_csv(file)
         csv = np.genfromtxt(file_path, dtype=str, delimiter=";", skip_header=1)
         csv = np.atleast_2d(csv)
         if csv.size == 0:
@@ -106,9 +160,11 @@ def load_audio_tensor(path, return_sr=False):
     return signal
 
 
+@file_decorator
 def load_audio(
     file, resample_sr=44100, return_sr=False, normalize=False
 ) -> torch.Tensor:
+    file = file if isinstance(file, str) else file[0]
     pt_file_path = find_pt(file)
     if pt_file_path:
         signal, sr = load_audio_tensor(pt_file_path, True)
@@ -138,6 +194,7 @@ def load_audio(
     return signal
 
 
+@file_decorator
 def load_manual_counts(file) -> int:
     file_path = find_manual_counts(file)
     if file_path != None:
@@ -146,6 +203,7 @@ def load_manual_counts(file) -> int:
         return None
 
 
+@file_decorator
 def load_events(file):
     try:
         return np.loadtxt(find_labels(file, True))
@@ -154,6 +212,7 @@ def load_events(file):
         return []
 
 
+@file_decorator
 def load_intervals(file):
     file_path = find_intervals(file)
     if file_path:
@@ -259,6 +318,7 @@ def preprocess_csv(csv, csv_version):
     return rows
 
 
+@file_decorator
 def load_intervals_and_n_events(file):
     events = load_events(file)
     intervals = load_intervals(file)
@@ -479,9 +539,16 @@ def get_loss(config, trn_dataset, device):
 
 
 def load_files_from_dataset(dataset_name):
-    file_path = find_path(f"config/dataset/**/{dataset_name}.yaml", True)
-    with open(file_path, "r") as stream:
-        return np.array(sorted(yaml.safe_load(stream)))
+    return [f[0] for f in load_dataset(dataset_name)]
+
+
+def load_dataset(dataset_name):
+    paths = glob(f"config/dataset/*.yaml")
+    path = find_file_in_paths(dataset_name, paths, True)
+    with open(path, "r") as stream:
+        files = yaml.safe_load(stream)
+        files = [f if isinstance(f, list) else [f, 0] for f in files]
+        return sorted(files)
 
 
 def load_model_locally(uuid, model_name="rvce", device=None) -> Tuple[Any, Config]:

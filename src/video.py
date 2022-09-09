@@ -13,9 +13,10 @@ class Video:
         if not silent:
             print(f"loading: {file}")
         self.silent = silent
-        if isinstance(file, list):
+        if not isinstance(file, str):
             file, csv_version = file[0], file[1]
         self.file = file
+        self.csv_version = csv_version
         self.config = config
         self.domain = 0
         self.signal, self.sr = src.load_audio(
@@ -26,7 +27,6 @@ class Video:
         )
         self.manual_counts = src.load_manual_counts(file)
         self.events = src.load_events(file)
-
         self.csv = src.load_csv(file, csv_version)
         self.views = src.load_views_from_csv(self.csv, csv_version)
         self.category = src.load_category_from_csv(self.csv, csv_version)

@@ -293,8 +293,13 @@ def print_config(config):
     print(tabulate(table))
 
 
-def save_dict_csv(name: str, dict: Dict[str, np.ndarray]):
-    pd.DataFrame.from_dict(dict).to_csv(name, index=False)
+def create_subfolders(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+
+def save_dict_csv(path: str, dict: Dict[str, np.ndarray]):
+    create_subfolders(path)
+    pd.DataFrame.from_dict(dict).to_csv(path, index=False)
     # with open(name, "w") as file:
     #     writer = csv.writer(file)
     #     writer.writerow(dict.keys())
@@ -302,8 +307,9 @@ def save_dict_csv(name: str, dict: Dict[str, np.ndarray]):
     #     writer.writerows(rows)
 
 
-def save_dict_txt(name: str, dict: Dict[str, np.ndarray]):
-    with open(name, "w") as file:
+def save_dict_txt(path: str, dict: Dict[str, np.ndarray]):
+    create_subfolders(path)
+    with open(path, "w") as file:
         table = tabulate(dict, headers="keys", tablefmt="fancy_grid", showindex=True)
         file.write(table)
 

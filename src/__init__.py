@@ -3,7 +3,7 @@ from .video import Video
 from .utils import *
 from .loaders import *
 from .dtw import *
-from .visualization import show, show_video
+from .visualization import *
 from .constants import *
 from .config import *
 from .inference import *
@@ -25,6 +25,7 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
+from tqdm.rich import tqdm_rich
 from glob import glob
 from omegaconf import DictConfig, OmegaConf
 

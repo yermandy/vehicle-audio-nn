@@ -39,6 +39,9 @@ def validate_video(
 
     n_hops = get_n_hops(config, from_time, till_time)
 
+    dtype = torch.float16 if config.cuda >= 0 and config.fp16 else torch.float32
+    device_type = "cuda" if config.cuda >= 0 else "cpu"
+
     model.eval()
     with torch.no_grad():
         for k in tqdm(range(n_hops)):
@@ -51,19 +54,20 @@ def validate_video(
             if (k + 1) % config.batch_size == 0 or k + 1 == n_hops:
                 batch = torch.stack(batch, dim=0)
                 batch = batch.to(device)
-                heads = model(batch)
+                with torch.autocast(device_type=device_type, dtype=dtype):
+                    heads = model(batch)
 
-                for head, scores in heads.items():
-                    if return_probs:
-                        p = scores.softmax(1).tolist()
-                        probs[head].extend(p)
+                    for head, scores in heads.items():
+                        if return_probs:
+                            p = scores.softmax(1).tolist()
+                            probs[head].extend(p)
 
-                    if return_preds:
-                        if classification:
-                            y = scores.argmax(1).flatten().tolist()
-                        else:
-                            y = scores.flatten().tolist()
-                        preds[head].extend(y)
+                        if return_preds:
+                            if classification:
+                                y = scores.argmax(1).flatten().tolist()
+                            else:
+                                y = scores.flatten().tolist()
+                            preds[head].extend(y)
 
                 batch = []
 

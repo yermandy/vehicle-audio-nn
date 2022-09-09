@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
-def extract_features(video: Video, model: nn.Module, head_name="n_counts"):
+def extract_features(video: Video, model: nn.Module):
     video.config.set_window_length(6)
     video.config.set_nn_hop_length(3)
 

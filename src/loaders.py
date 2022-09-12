@@ -231,7 +231,7 @@ def find_clusters(X, delta=1 * 60):
         if mask[0]:
             cluster_id = 0
         else:
-            cluster_id = mask.searchsorted(True)
+            cluster_id = np.flatnonzero(mask)[0]
         for i, m in enumerate(mask):
             if m:
                 clusters[cluster_id].add(i)

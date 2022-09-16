@@ -57,7 +57,7 @@ def train_models_parallel(config) -> None:
         for split in aslist(config.structured_predictor_splits):
             for reg in aslist(config.structured_predictor_regs):
                 program = (
-                    f"python3 train_structured_predictor.py {args} "
+                    f"python train_structured_predictor.py {args} "
                     f"structured_predictor_splits={split} "
                     f"structured_predictor.reg={reg} "
                     f"structured_predictor.head={head} "
@@ -78,7 +78,7 @@ def train_final_models_parallel(head_split_reg) -> None:
 
     for head, split, reg in head_split_reg:
         program = (
-            f"python3 train_structured_predictor.py {args} "
+            f"python train_structured_predictor.py {args} "
             f"structured_predictor_splits={split} "
             f"structured_predictor.reg={reg} "
             f"structured_predictor.head={head} "
@@ -86,8 +86,6 @@ def train_final_models_parallel(head_split_reg) -> None:
         )
         instance = subprocess.Popen(program, shell=True)
         programs.append(instance)
-
-    system_calls = " & ".join(system_calls)
 
     # run programs in parallel
     for p in programs:
@@ -110,7 +108,7 @@ def find_best_regularization_constant(config) -> List:
 
             head_split_reg[head].append([split, best_reg])
             print(
-                f"for head: {head} and split: {split}, best rvce: {best_rvce} with reg: {best_reg}"
+                f"for head: {head} and split: {split}, best val rvce: {best_rvce} with reg: {best_reg}"
             )
     return head_split_reg
 
@@ -141,8 +139,6 @@ if __name__ == "__main__":
     train_models_parallel(config)
 
     head_split_reg = find_best_regularization_constant(config)
-
-    print(head_split_reg)
 
     generate_results(head_split_reg)
 

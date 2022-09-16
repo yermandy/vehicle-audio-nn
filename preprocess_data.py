@@ -7,7 +7,7 @@ os.makedirs("data/labels", exist_ok=True)
 os.makedirs("data/intervals", exist_ok=True)
 
 
-def extract_audio(file):
+def extract_audio(file, output_folder=""):
     path_pt = find_pt(file)
     path_wav = find_wav(file)
 
@@ -19,8 +19,8 @@ def extract_audio(file):
         print(f"file {path_wav} exists")
         return
 
-    path_pt = f"data/audio_pt/{file}.pt"
-    path_wav = f"data/audio_wav/{file}.wav"
+    path_pt = f"data/audio_pt/{output_folder}/{file}.pt"
+    path_wav = f"data/audio_wav/{output_folder}/{file}.wav"
     # path_mp3 = f"data/audio_wav/{file}.mp3"
 
     os.makedirs(os.path.dirname(path_wav), exist_ok=True)
@@ -90,13 +90,14 @@ def optimize(
     return delta_best / energy_per_second
 
 
-def extract_labels(file, csv_version):
+def extract_labels(file, csv_version, output_folder=""):
     path = find_labels(file)
     if path:
         print(f"file {path} exists")
         return
     else:
-        path = f"data/labels/{file}.txt"
+        path = f"data/labels/{output_folder}/{file}.txt"
+        os.makedirs(os.path.dirname(path), exist_ok=True)
 
     csv = load_csv(file, csv_version)
     if csv == []:
@@ -160,13 +161,14 @@ def extract_labels(file, csv_version):
     np.savetxt(path, estimated_labels, fmt="%s")
 
 
-def extract_intevals(file, csv_version, empty_interval_in_s=10):
+def extract_intevals(file, csv_version, output_folder="", empty_interval_in_s=10):
     path = find_intervals(file)
     if path:
         print(f"file {path} exists")
         return
     else:
-        path = f"data/intervals/{file}.txt"
+        path = f"data/intervals/{output_folder}/{file}.txt"
+        os.makedirs(os.path.dirname(path), exist_ok=True)
 
     csv = load_csv(file, csv_version)
     if csv == []:
@@ -203,20 +205,20 @@ def extract_intevals(file, csv_version, empty_interval_in_s=10):
     print(path, len(intervals))
 
 
-def preprocess(dataset):
+def preprocess(dataset, output_folder):
     for file, csv_version in dataset:
         print("-" * 50)
         print("File: ", file)
         print("\nExtracting audio")
-        extract_audio(file)
+        extract_audio(file, output_folder)
         print("\nExtracting labels")
-        extract_labels(file, csv_version)
+        extract_labels(file, csv_version, output_folder)
         print("\nExtracting intervals")
-        extract_intevals(file, csv_version)
+        extract_intevals(file, csv_version, output_folder)
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) == 2, "first argument is the path to .yaml list with files"
+    assert len(sys.argv) >= 2, "first argument is the path to .yaml list with files"
 
     # Provide path to .yaml file with list of files
 
@@ -224,4 +226,6 @@ if __name__ == "__main__":
         dataset = yaml.safe_load(stream)
         dataset = [f if isinstance(f, list) else [f, 0] for f in dataset]
 
-    preprocess(dataset)
+    output_folder = sys.argv[2] if len(sys.argv) == 3 else ""
+
+    preprocess(dataset, output_folder)

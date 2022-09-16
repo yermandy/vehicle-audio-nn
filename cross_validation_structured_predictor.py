@@ -51,45 +51,45 @@ def setup_globals(_config):
 def train_models_parallel(config) -> None:
     args = " ".join(sys.argv[1:])
 
-    system_calls = []
+    programs = []
 
     for head in aslist(config.structured_predictor_heads):
         for split in aslist(config.structured_predictor_splits):
             for reg in aslist(config.structured_predictor_regs):
-                call = (
-                    f"python3 train_structured_predictor.py {args} "
+                program = (
+                    f"python train_structured_predictor.py {args} "
                     f"structured_predictor_splits={split} "
                     f"structured_predictor.reg={reg} "
                     f"structured_predictor.head={head} "
                     f"structured_predictor.combine_trn_and_val=False "
                 )
-                system_calls.append(call)
+                instance = subprocess.Popen(program, shell=True)
+                programs.append(instance)
 
-    system_calls = " & ".join(system_calls)
-
-    # run processes in parallel
-    subprocess.call(system_calls, shell=True)
+    # run programs in parallel
+    for p in programs:
+        p.wait()
 
 
 def train_final_models_parallel(head_split_reg) -> None:
     args = " ".join(sys.argv[1:])
 
-    system_calls = []
+    programs = []
 
     for head, split, reg in head_split_reg:
-        call = (
-            f"python3 train_structured_predictor.py {args} "
+        program = (
+            f"python train_structured_predictor.py {args} "
             f"structured_predictor_splits={split} "
             f"structured_predictor.reg={reg} "
             f"structured_predictor.head={head} "
             f"structured_predictor.combine_trn_and_val=True "
         )
-        system_calls.append(call)
+        instance = subprocess.Popen(program, shell=True)
+        programs.append(instance)
 
-    system_calls = " & ".join(system_calls)
-
-    # run processes in parallel
-    subprocess.call(system_calls, shell=True)
+    # run programs in parallel
+    for p in programs:
+        p.wait()
 
 
 def find_best_regularization_constant(config) -> List:
@@ -108,7 +108,7 @@ def find_best_regularization_constant(config) -> List:
 
             head_split_reg[head].append([split, best_reg])
             print(
-                f"for head: {head} and split: {split}, best rvce: {best_rvce} with reg: {best_reg}"
+                f"for head: {head} and split: {split}, best val rvce: {best_rvce} with reg: {best_reg}"
             )
     return head_split_reg
 
@@ -128,9 +128,9 @@ def generate_results(head_split_reg) -> None:
             files_val.append(file_val)
             files_tst.append(file_tst)
 
-        # generate_summary_table(files_trn, f"trn_{head}")
-        # generate_summary_table(files_val, f"val_{head}")
-        generate_summary_table(files_tst, f"tst_{head}")
+        generate_summary_table(files_trn, f"trn/{head}")
+        generate_summary_table(files_val, f"val/{head}")
+        generate_summary_table(files_tst, f"tst/{head}")
 
 
 if __name__ == "__main__":
@@ -139,8 +139,6 @@ if __name__ == "__main__":
     train_models_parallel(config)
 
     head_split_reg = find_best_regularization_constant(config)
-
-    print(head_split_reg)
 
     generate_results(head_split_reg)
 

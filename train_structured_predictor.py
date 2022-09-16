@@ -84,13 +84,16 @@ def load_trained_weights(path):
     return w, b
 
 
-def get_XY(files, config, model, head_name):
+def get_XY(files: list[str], config: Config, model: nn.Module):
     X = []
     Y = []
     for file in files:
         video = Video(file, config)
-        X.append(extract_features(video, model))
-        Y.append(extract_labels(video, head_name))
+        x = extract_features(video, model)
+        if config.structured_predictor.normalize_X:
+            x = x / np.linalg.norm(x, axis=1, keepdims=True)
+        X.append(x)
+        Y.append(extract_labels(video, config.structured_predictor.head))
     return X, Y
 
 
@@ -110,17 +113,17 @@ def run(config: Config):
 
     print("extracting X_trn Y_trn")
     trn_files = load_yaml(f"{config.structured_predictor.training_files}/{split}.yaml")
-    X_trn, Y_trn = get_XY(trn_files, config, model, head_name)
+    X_trn, Y_trn = get_XY(trn_files, config, model)
 
     print("extracting X_val Y_val")
     val_files = load_yaml(
         f"{config.structured_predictor.validation_files}/{split}.yaml"
     )
-    X_val, Y_val = get_XY(val_files, config, model, head_name)
+    X_val, Y_val = get_XY(val_files, config, model)
 
     print("extracting X_tst Y_tst")
     tst_files = load_yaml(f"{config.structured_predictor.testing_files}/{split}.yaml")
-    X_tst, Y_tst = get_XY(tst_files, config, model, head_name)
+    X_tst, Y_tst = get_XY(tst_files, config, model)
 
     # set output folder
     config.structured_predictor.outputs_folder = (
@@ -167,7 +170,6 @@ def run(config: Config):
 
 
 def setup_hydra():
-    sys.argv.append(r"hydra.run.dir=outputs/${uuid}")
     sys.argv.append(f"hydra.output_subdir=structured_predictor_config")
     sys.argv.append(f"hydra/job_logging=disabled")
     sys.argv.append(f"hydra/hydra_logging=none")
@@ -190,8 +192,8 @@ if __name__ == "__main__":
         uuids.append(split_uuid)
         sys.argv.append(f"split={split}")
         sys.argv.append(f"root_uuid={config.uuid}")
-        sys.argv.append(f"uuid={split_uuid}")
         sys.argv.append(f"hydra.run.dir=outputs/{split_uuid}")
+        sys.argv.append(f"uuid={split_uuid}")
         run()
 
     # generate_summary_table(uuids, "trn")

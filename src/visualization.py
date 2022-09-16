@@ -18,6 +18,13 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import ConfusionMatrixDisplay
 
 
+def time_formatter(s, *args):
+    s = int(s)
+    m = s // 60
+    h = m // 60
+    return f"{h:02d}:{m % 60:02d}:{s % 60:02d}"
+
+
 def get_confusion_matrix(labels, predictions):
     labels = np.array(labels).flatten()
     predictions = np.array(predictions).flatten()

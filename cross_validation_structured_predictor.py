@@ -13,7 +13,7 @@ def append_summary(dict):
             dict[k].append(stats)
 
 
-def generate_summary_table(files, prefix="tst"):
+def generate_summary_table(files, prefix="tst", is_final=False):
     root_uuid = files[0].split("/")[1]
     table = []
     header = []
@@ -34,11 +34,13 @@ def generate_summary_table(files, prefix="tst"):
 
     append_summary(dict)
 
+    suffix = "*" if is_final else ""
+
     save_dict_txt(
-        f"outputs/{root_uuid}/results/{prefix}_structured_predictor.txt", dict
+        f"outputs/{root_uuid}/results/{prefix}_structured_predictor{suffix}.txt", dict
     )
     save_dict_csv(
-        f"outputs/{root_uuid}/results/{prefix}_structured_predictor.csv", dict
+        f"outputs/{root_uuid}/results/{prefix}_structured_predictor{suffix}.csv", dict
     )
 
 
@@ -76,16 +78,17 @@ def train_final_models_parallel(head_split_reg) -> None:
 
     programs = []
 
-    for head, split, reg in head_split_reg:
-        program = (
-            f"python train_structured_predictor.py {args} "
-            f"structured_predictor_splits={split} "
-            f"structured_predictor.reg={reg} "
-            f"structured_predictor.head={head} "
-            f"structured_predictor.combine_trn_and_val=True "
-        )
-        instance = subprocess.Popen(program, shell=True)
-        programs.append(instance)
+    for head, (splits_regs) in head_split_reg.items():
+        for split, reg in splits_regs:
+            program = (
+                f"python train_structured_predictor.py {args} "
+                f"structured_predictor_splits={split} "
+                f"structured_predictor.reg={reg} "
+                f"structured_predictor.head={head} "
+                f"structured_predictor.combine_trn_and_val=True "
+            )
+            instance = subprocess.Popen(program, shell=True)
+            programs.append(instance)
 
     # run programs in parallel
     for p in programs:
@@ -113,24 +116,26 @@ def find_best_regularization_constant(config) -> List:
     return head_split_reg
 
 
-def generate_results(head_split_reg) -> None:
+def generate_results(head_split_reg, is_final=False) -> None:
+    subfolder = "/*" if is_final else ""
+
     for head, (splits_regs) in head_split_reg.items():
         files_trn = []
         files_val = []
         files_tst = []
 
         for split, reg in splits_regs:
-            file_trn = f"outputs/{config.uuid}/{split}/results_structured_predictor/trn_{head}_{reg}_structured_predictor.csv"
-            file_val = f"outputs/{config.uuid}/{split}/results_structured_predictor/val_{head}_{reg}_structured_predictor.csv"
-            file_tst = f"outputs/{config.uuid}/{split}/results_structured_predictor/tst_{head}_{reg}_structured_predictor.csv"
+            path = (
+                f"outputs/{config.uuid}/{split}/results_structured_predictor{subfolder}"
+            )
 
-            files_trn.append(file_trn)
-            files_val.append(file_val)
-            files_tst.append(file_tst)
+            files_trn.append(f"{path}/trn_{head}_{reg}_structured_predictor.csv")
+            files_val.append(f"{path}/val_{head}_{reg}_structured_predictor.csv")
+            files_tst.append(f"{path}/tst_{head}_{reg}_structured_predictor.csv")
 
-        generate_summary_table(files_trn, f"trn/{head}")
-        generate_summary_table(files_val, f"val/{head}")
-        generate_summary_table(files_tst, f"tst/{head}")
+        generate_summary_table(files_trn, f"trn/{head}", is_final)
+        generate_summary_table(files_val, f"val/{head}", is_final)
+        generate_summary_table(files_tst, f"tst/{head}", is_final)
 
 
 if __name__ == "__main__":
@@ -140,7 +145,8 @@ if __name__ == "__main__":
 
     head_split_reg = find_best_regularization_constant(config)
 
-    generate_results(head_split_reg)
+    generate_results(head_split_reg, is_final=False)
 
-    # TODO save
-    # train_final_models_parallel(head_split_reg)
+    train_final_models_parallel(head_split_reg)
+
+    generate_results(head_split_reg, is_final=True)

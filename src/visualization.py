@@ -42,7 +42,7 @@ def plot_statistics(labels, predictions):
     conf_matrix_norm = (conf_matrix.T / conf_matrix.sum(1)).T
     conf_matrix_norm[np.isnan(conf_matrix_norm)] = 0
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     ConfusionMatrixDisplay(conf_matrix).plot(ax=axes[0])
     ConfusionMatrixDisplay(conf_matrix_norm).plot(ax=axes[1])
 
@@ -319,3 +319,15 @@ def show(
         plt.close()
     else:
         plt.show()
+
+
+def set_plt_svg():
+    import matplotlib_inline.backend_inline
+
+    matplotlib_inline.backend_inline.set_matplotlib_formats("svg")
+
+
+def set_plt_png():
+    import matplotlib_inline.backend_inline
+
+    matplotlib_inline.backend_inline.set_matplotlib_formats("png")

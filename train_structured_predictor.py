@@ -39,11 +39,11 @@ def validate_and_save(X, Y, w, b, files, uuid, prefix):
 
     append_summary(dict)
     save_dict_txt(
-        f"outputs/{uuid}/results_structured_predictor/{prefix}_structured_predictor.txt",
+        f"{RESULTS_FOLDER}/{prefix}_structured_predictor.txt",
         dict,
     )
     save_dict_csv(
-        f"outputs/{uuid}/results_structured_predictor/{prefix}_structured_predictor.csv",
+        f"{RESULTS_FOLDER}/{prefix}_structured_predictor.csv",
         dict,
     )
 
@@ -55,7 +55,7 @@ def generate_summary_table(uuids, prefix="tst"):
 
     for uuid in uuids:
         results = np.genfromtxt(
-            f"outputs/{uuid}/results_structured_predictor/{prefix}_structured_predictor.csv",
+            f"{RESULTS_FOLDER}/{prefix}_structured_predictor.csv",
             delimiter=",",
             skip_footer=1,
             dtype=str,
@@ -74,8 +74,13 @@ def generate_summary_table(uuids, prefix="tst"):
 
     append_summary(dict)
 
-    save_dict_txt(f"outputs/{root_uuid}/{prefix}_structured_predictor.txt", dict)
-    save_dict_csv(f"outputs/{root_uuid}/{prefix}_structured_predictor.csv", dict)
+    suffix = "*" if "*" in RESULTS_FOLDER else ""
+    save_dict_txt(
+        f"outputs/{root_uuid}/{prefix}_structured_predictor{suffix}.txt", dict
+    )
+    save_dict_csv(
+        f"outputs/{root_uuid}/{prefix}_structured_predictor{suffix}.csv", dict
+    )
 
 
 def load_trained_weights(path):
@@ -102,7 +107,12 @@ def run(config: Config):
     config = Config(config)
 
     uuid = config.uuid
-    os.makedirs(f"outputs/{uuid}/results_structured_predictor", exist_ok=True)
+
+    global RESULTS_FOLDER
+    RESULTS_FOLDER = f"outputs/{uuid}/results_structured_predictor"
+    RESULTS_FOLDER += "/*" if config.structured_predictor.combine_trn_and_val else ""
+
+    os.makedirs(f"{RESULTS_FOLDER}", exist_ok=True)
 
     head_name = config.structured_predictor.head
     reg = config.structured_predictor.reg
@@ -125,10 +135,10 @@ def run(config: Config):
     tst_files = load_yaml(f"{config.structured_predictor.testing_files}/{split}.yaml")
     X_tst, Y_tst = get_XY(tst_files, config, model)
 
-    # set output folder
-    config.structured_predictor.outputs_folder = (
-        f"outputs/{uuid}/structured_predictor/{head_name}/{reg}"
-    )
+    # set output folder for weights
+    WEIGHTS_FOLDER = f"outputs/{uuid}/structured_predictor/{head_name}/{reg}"
+    WEIGHTS_FOLDER += "/*" if config.structured_predictor.combine_trn_and_val else ""
+    config.structured_predictor.outputs_folder = WEIGHTS_FOLDER
 
     w, b = load_head_params(model, head_name)
 

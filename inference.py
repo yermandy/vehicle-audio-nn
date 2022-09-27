@@ -12,9 +12,10 @@ def inference(
     nn_hop_length,
     n_windows_for_dense_inference,
     n_events_per_dense_window,
+    splits=[0, 1, 2, 3, 4],
 ):
     uuids = []
-    for i in range(0, 5):
+    for i in splits:
         uuid = f"{root_uuid}/{i}"
         print(uuid)
         uuids.append(uuid)
@@ -35,14 +36,16 @@ def inference(
     generate_cross_validation_table(uuids, model_name=model_name, prefix=prefix)
 
 
-root_uuid = "031_RX100_resized_128_sr_22050"
+root_uuid = "042_large_dataset_1000"
 prefix = "tst"
 inference_function = InferenceFunction.DOUBLED
 use_manual_counts = False
+splits = [0]
 
 
 coupled_labels = None
 nn_hop_length = None
+# Dense inference parameters
 n_events_per_dense_window = None
 n_windows_for_dense_inference = None
 
@@ -73,4 +76,5 @@ inference(
     nn_hop_length,
     n_windows_for_dense_inference,
     n_events_per_dense_window,
+    splits,
 )

@@ -12,11 +12,11 @@ def extract_audio(file, output_folder=""):
     path_wav = find_wav(file)
 
     if path_pt != None:
-        print(f"file {path_pt} exists")
+        print(f"[green]file {path_pt} exists")
         return
 
     if path_wav != None:
-        print(f"file {path_wav} exists")
+        print(f"[green]file {path_wav} exists")
         return
 
     path_pt = f"data/audio_pt/{output_folder}/{file}.pt"
@@ -93,7 +93,7 @@ def optimize(
 def extract_labels(file, csv_version, output_folder=""):
     path = find_labels(file)
     if path:
-        print(f"file {path} exists")
+        print(f"[green]file {path} exists")
         return
     else:
         path = f"data/labels/{output_folder}/{file}.txt"
@@ -101,7 +101,7 @@ def extract_labels(file, csv_version, output_folder=""):
 
     csv = load_csv(file, csv_version)
     if csv == []:
-        print(f"csv file {file} not found")
+        print(f"[red]csv file {file} not found")
         return
 
     signal, sr = load_audio(file, return_sr=True)
@@ -158,13 +158,14 @@ def extract_labels(file, csv_version, output_folder=""):
     estimated_labels = np.round(estimated_labels, 2)
     estimated_labels.tolist()
 
+    print(f"[green]saving labels to {path}")
     np.savetxt(path, estimated_labels, fmt="%s")
 
 
 def extract_intevals(file, csv_version, output_folder="", empty_interval_in_s=10):
     path = find_intervals(file)
     if path:
-        print(f"file {path} exists")
+        print(f"[green]file {path} exists")
         return
     else:
         path = f"data/intervals/{output_folder}/{file}.txt"
@@ -172,7 +173,7 @@ def extract_intevals(file, csv_version, output_folder="", empty_interval_in_s=10
 
     csv = load_csv(file, csv_version)
     if csv == []:
-        print(f"csv file {file} not found")
+        print(f"[red]csv file {file} not found")
         return
 
     CsvColumnID = load_CsvColumnID_version(csv_version)
@@ -201,8 +202,8 @@ def extract_intevals(file, csv_version, output_folder="", empty_interval_in_s=10
 
     intervals.append([f"{cut_at:.2f}", f"{end:.2f}"])
 
+    print(f"[green]saving intervals to {path}")
     np.savetxt(path, intervals, fmt="%s")
-    print(path, len(intervals))
 
 
 def preprocess(dataset, output_folder):

@@ -25,8 +25,12 @@ Create and populate `data/video` and `data/csv` folders
 ```
 mkdir -p data/video
 mkdir -p data/csv
-ln -s ~/data/MultiDo/CVUTFD/copy/* data/video/
-ln -s ~/data/MultiDo/CVUTFD/result/* data/csv/
+# cvut dataset
+ln -s ~/data/MultiDo/CVUTFD/copy/*.{MP4,MOV,mov,mp4} data/video/
+ln -s ~/data/MultiDo/CVUTFD/result/*.csv data/csv/
+# eyedea dataset
+ln -s ~/data/MultiDo/videa_prujezdy/*.{MP4,MOV,mov,mp4} data/video/
+ln -s ~/data/MultiDo/videa_prujezdy/*.csv data/csv/
 ```
 
 #### Preprocess files

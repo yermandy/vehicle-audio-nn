@@ -102,32 +102,36 @@ def change_probs_for_doubled_inference(probs_1, probs_2):
 def get_probs_for_dense_inference(
     video: Video, model, from_time, till_time, n_windows_for_dense_inference: int
 ):
-    Pxs = []
-
     offset = video.config.window_length / n_windows_for_dense_inference
 
-    height = 0
-    width = 0
+    probs_for_each_head = {}
 
-    for i in range(n_windows_for_dense_inference):
-        probs = validate_video(
-            video,
-            model,
-            return_preds=False,
-            from_time=from_time + offset,
-            till_time=till_time,
-        )
-        probs = probs["n_counts"]
-        height += probs.shape[0]
-        width = probs.shape[1]
-        Pxs.append(probs)
+    for head in video.config.heads:
+        Pxs = []
+        height = 0
+        width = 0
 
-    Pc = np.empty((height, width))
+        for i in range(n_windows_for_dense_inference):
+            probs = validate_video(
+                video,
+                model,
+                return_preds=False,
+                from_time=from_time + offset,
+                till_time=till_time,
+            )
+            probs = probs[head]
+            height += probs.shape[0]
+            width = probs.shape[1]
+            Pxs.append(probs)
 
-    for i, Px in enumerate(Pxs):
-        Pc[i::n_windows_for_dense_inference] = Px
+        Pc = np.empty((height, width))
 
-    return {"n_counts": Pc}
+        for i, Px in enumerate(Pxs):
+            Pc[i::n_windows_for_dense_inference] = Px
+
+        probs_for_each_head[head] = Pc
+
+    return probs_for_each_head
 
 
 def collect_probs_from_models(video: Video, models, from_time, till_time):
@@ -352,6 +356,7 @@ def inference_doubled(probs: Dict[str, np.ndarray]):
     print("doubled")
     n_predicted = {}
     for head, head_probs in probs.items():
+        print(f"\nhead: {head}\n")
         n_events_max = 17
         head_probs = head_probs[:, :n_events_max].T
         head_probs = head_probs / head_probs.sum(0)
@@ -367,6 +372,7 @@ def inference_dense(probs: Dict[str, np.ndarray], config: Config):
     print("dense")
     n_predicted = {}
     for head, head_probs in probs.items():
+        print(f"head: {head}\n")
         n_events = int(
             config.n_windows_for_dense_inference * config.n_events_per_dense_window + 1
         )

@@ -38,6 +38,14 @@ class StructuredPredictor:
 
 
 @dataclass
+class SVMPredictor:
+    head: str = "n_counts"
+    training_files: str = None
+    validation_files: str = None
+    testing_files: str = None
+
+
+@dataclass
 class FeaturesConfig:
     # sampling rate [samples]
     sr: int = 22050
@@ -205,10 +213,14 @@ class Config(
     testing_files: tuple = ("12_RX100",)
     validation_files: tuple = ("12_RX100",)
     structured_predictor: StructuredPredictor = None
+    svm_predictor: SVMPredictor = None
 
     structured_predictor_splits: list[int] = None
     structured_predictor_regs: list[float] = None
     structured_predictor_heads: list[str] = None
+
+    svm_splits: list[int] = None
+    svm_heads: list[str] = None
 
     use_testing_files: bool = True
     use_manual_counts: bool = False

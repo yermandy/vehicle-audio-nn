@@ -164,6 +164,7 @@ def load_audio_tensor(path, return_sr=False):
     return signal
 
 
+@cache
 @file_decorator
 def load_audio(
     file, resample_sr=44100, return_sr=False, normalize=False

@@ -1,3 +1,7 @@
+import os
+
+os.environ["NO_CACHE"] = "1"
+
 from src import *
 
 
@@ -206,7 +210,7 @@ def extract_intevals(file, csv_version, output_folder="", empty_interval_in_s=10
     np.savetxt(path, intervals, fmt="%s")
 
 
-def preprocess(dataset, output_folder):
+def preprocess(dataset, output_folder=""):
     for file, csv_version in dataset:
         print("-" * 50)
         print("File: ", file)

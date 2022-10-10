@@ -37,10 +37,12 @@ def generate_summary_table(files, prefix="tst", is_final=False):
     suffix = "*" if is_final else ""
 
     save_dict_txt(
-        f"outputs/{root_uuid}/results/{prefix}_structured_predictor{suffix}.txt", dict
+        f"outputs/{root_uuid}/results_structured/{prefix}_structured_predictor{suffix}.txt",
+        dict,
     )
     save_dict_csv(
-        f"outputs/{root_uuid}/results/{prefix}_structured_predictor{suffix}.csv", dict
+        f"outputs/{root_uuid}/results_structured/{prefix}_structured_predictor{suffix}.csv",
+        dict,
     )
 
 

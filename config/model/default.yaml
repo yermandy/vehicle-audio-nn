@@ -7,7 +7,7 @@ n_epochs: 200
 # batch size
 batch_size: 64
 # number of workers
-num_workers: 8
+num_workers: 4
 # training to validation ratio
 split_ratio: 0.75
 # use new offset after each epoch
@@ -32,3 +32,5 @@ inference_function: simple
 # architecture
 # ResNet18 | WaveCNN
 architecture: ResNet18
+
+fp16: true

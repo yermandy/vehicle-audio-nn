@@ -4,14 +4,22 @@
 uuid: 000_${now:%d.%m.%y}_${now:%H-%M-%S}
 
 seed: 42
-splits: [0, 1, 2, 3, 4]
-structured_predictor_splits: [0, 1, 2, 3, 4]
-structured_predictor_regs: [1, 0.1, 0.01]
-structured_predictor_heads: ['n_counts']
+
+# ! specify the following parameters in experiment
+# List[Int] of splits for training the neural network
+splits: ...
+# List[Int] of splits for training the structured predictor
+structured_predictor_splits: ...
+# List[Float] of regularization values for structured predictor
+structured_predictor_regs: ...
+# List[String] of head names
+structured_predictor_heads: ...
 
 # ! will be filled in code
 split: ...
 root_uuid: ...
+
+wandb_mode: online
 
 defaults:
   - _self_
@@ -22,4 +30,5 @@ defaults:
   - features@_here_: default
   - model@_here_: default
   - structured_predictor: null
+  - svm_predictor: null
   - experiment: null

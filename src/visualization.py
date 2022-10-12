@@ -32,7 +32,7 @@ def get_confusion_matrix(labels, predictions):
     return conf_matrix
 
 
-def plot_statistics(labels, predictions):
+def plot_confusion_matrix(labels, predictions):
     print(
         f"pred: {predictions.sum()} \t true: {labels.sum()} \t rvce: {abs(predictions.sum() - labels.sum()) / labels.sum():.3f}"
     )
@@ -73,6 +73,19 @@ def show_video(file, scale=0.3):
         </video>
     """
     )
+
+
+def plot_class_distribution(labels, normalized=False):
+    unique_labels, counts = np.unique(labels, return_counts=True)
+    if normalized:
+        counts = counts / counts.sum()
+        plt.ylabel("Distribution of samples")
+    else:
+        plt.ylabel("Number of samples")
+
+    plt.xlabel("Class")
+    plt.bar(unique_labels, counts, align="center")
+    plt.tight_layout()
 
 
 def show(

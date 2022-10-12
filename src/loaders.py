@@ -17,7 +17,11 @@ from typing import Tuple, Any
 from glob import glob
 from rich import print
 
-from functools import cache
+if "NO_CACHE" in os.environ and os.environ["NO_CACHE"] == "1":
+    # disable cache decorator
+    cache = lambda f: f
+else:
+    from functools import cache
 
 
 def file_decorator(func):
@@ -160,6 +164,7 @@ def load_audio_tensor(path, return_sr=False):
     return signal
 
 
+@cache
 @file_decorator
 def load_audio(
     file, resample_sr=44100, return_sr=False, normalize=False

@@ -103,10 +103,11 @@ def get_XY(files: list[str], config: Config, model: nn.Module):
 
 
 @hydra.main(config_path="config", config_name="default", version_base="1.2")
-def run(config: Config):
+def run(config: Config = None):
     config = Config(config)
 
     uuid = config.uuid
+    split = config.split
 
     global RESULTS_FOLDER
     RESULTS_FOLDER = f"outputs/{uuid}/results_structured_predictor"
@@ -142,11 +143,15 @@ def run(config: Config):
 
     w, b = load_head_params(model, head_name)
 
+    print("starting training")
+
     structured_predictor.learn(
         config.structured_predictor, X_trn, Y_trn, X_val, Y_val, X_tst, Y_tst, w, b
     )
 
     w, b = load_trained_weights(config.structured_predictor.outputs_folder)
+
+    print("starting validation")
 
     validate_and_save(
         X_trn,
@@ -186,7 +191,7 @@ def setup_hydra():
 
 
 @hydra.main(config_path="config", config_name="default", version_base="1.2")
-def setup_globals(_config):
+def setup_globals(_config=None):
     global config
     config = Config(_config)
 

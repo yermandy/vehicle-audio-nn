@@ -2,7 +2,7 @@ from src import *
 from sklearn import svm
 
 
-def append_summary(dict):
+def append_summary_svm(dict):
     for k, v in dict.items():
         if k == "file":
             dict[k].append("")
@@ -12,7 +12,7 @@ def append_summary(dict):
             dict[k].append(stats)
 
 
-def validate_and_save(X, Y, classifier: svm.SVC, files, prefix):
+def validate_and_save_svm(X, Y, classifier: svm.SVC, files, prefix):
     dict = defaultdict(list)
 
     for x, y_true, file in zip(X, Y, files):
@@ -29,7 +29,7 @@ def validate_and_save(X, Y, classifier: svm.SVC, files, prefix):
         dict[f"error"].append(error)
         dict[f"file"].append(file)
 
-    append_summary(dict)
+    append_summary_svm(dict)
     save_dict_txt(
         f"{RESULTS_FOLDER}/{prefix}_svm.txt",
         dict,
@@ -59,7 +59,7 @@ def generate_summary_table(uuids, prefix="tst"):
         column = table[i].tolist()
         dict[column_name] = column
 
-    append_summary(dict)
+    append_summary_svm(dict)
 
     save_dict_txt(f"outputs/{root_uuid}/{prefix}_svm.txt", dict)
     save_dict_csv(f"outputs/{root_uuid}/{prefix}_svm.csv", dict)
@@ -181,7 +181,7 @@ def run(config: Config = None):
     mean_tst_rvce = calculate_mean_rvce(classifier, X_tst, Y_tst)
     print(f"mean tst rvce: {mean_tst_rvce:.4f}")
 
-    validate_and_save(
+    validate_and_save_svm(
         X_tst, Y_tst, classifier, tst_files, f"tst_{config.svm_predictor.head}"
     )
 

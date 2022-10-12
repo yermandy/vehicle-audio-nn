@@ -8,7 +8,7 @@ def load_head_params(model, head_name):
     return w, b
 
 
-def append_summary(dict):
+def append_summary_structured_predictor(dict):
     for k, v in dict.items():
         if k == "file":
             dict[k].append("")
@@ -18,7 +18,7 @@ def append_summary(dict):
             dict[k].append(stats)
 
 
-def validate_and_save(X, Y, w, b, files, uuid, prefix):
+def validate_and_save_structured_predictor(X, Y, w, b, files, uuid, prefix):
     dict = defaultdict(list)
 
     for x, y_true, file in zip(X, Y, files):
@@ -37,7 +37,7 @@ def validate_and_save(X, Y, w, b, files, uuid, prefix):
         dict[f"error"].append(error)
         dict[f"file"].append(file)
 
-    append_summary(dict)
+    append_summary_structured_predictor(dict)
     save_dict_txt(
         f"{RESULTS_FOLDER}/{prefix}_structured_predictor.txt",
         dict,
@@ -72,7 +72,7 @@ def generate_summary_table(uuids, prefix="tst"):
         column = table[i].tolist()
         dict[column_name] = column
 
-    append_summary(dict)
+    append_summary_structured_predictor(dict)
 
     suffix = "*" if "*" in RESULTS_FOLDER else ""
     save_dict_txt(
@@ -155,7 +155,7 @@ def run(config: Config = None):
 
     print("starting validation")
 
-    validate_and_save(
+    validate_and_save_structured_predictor(
         X_trn,
         Y_trn,
         w,
@@ -165,7 +165,7 @@ def run(config: Config = None):
         f"trn_{head_name}_{reg}",
     )
 
-    validate_and_save(
+    validate_and_save_structured_predictor(
         X_val,
         Y_val,
         w,
@@ -175,7 +175,7 @@ def run(config: Config = None):
         f"val_{head_name}_{reg}",
     )
 
-    validate_and_save(
+    validate_and_save_structured_predictor(
         X_tst,
         Y_tst,
         w,

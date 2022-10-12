@@ -36,8 +36,9 @@ def inference(
     generate_cross_validation_table(uuids, model_name=model_name, prefix=prefix)
 
 
-root_uuid = "042_large_dataset_1000"
+root_uuid = "047_october"
 prefix = "tst"
+model_name = "rvce"
 inference_function = InferenceFunction.DOUBLED
 use_manual_counts = False
 splits = [0]
@@ -63,8 +64,6 @@ elif inference_function.is_structured():
 
 if use_manual_counts:
     prefix += "_manual"
-
-model_name = "rvce"
 
 inference(
     root_uuid,

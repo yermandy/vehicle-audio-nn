@@ -13,6 +13,7 @@ from .transformation import *
 from .dataset import *
 from .model import *
 from .features import *
+from .metric import *
 from . import structured_predictor
 
 

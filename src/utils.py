@@ -295,6 +295,7 @@ def print_config(config):
 
 def create_subfolders(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path
 
 
 def save_dict_csv(path: str, dict: Dict[str, np.ndarray]):
@@ -363,3 +364,11 @@ def append_summary(dict, times, files):
 
 def aslist(x):
     return x if isinstance(x, list) else [x]
+
+
+def m(s):
+    return s * 60
+
+
+def h(s):
+    return s * 3600

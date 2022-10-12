@@ -8,8 +8,8 @@ class VehicleDataset(Dataset):
     def __init__(
         self,
         data: DataPool,  # or Video
-        part: bool = Part.WHOLE,
-        config: EasyDict = EasyDict(),
+        part: Part = Part.WHOLE,
+        config: Config = EasyDict(),
         offset: int = 0,
         is_trn: bool = False,
     ):

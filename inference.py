@@ -2,7 +2,7 @@ from src import *
 from cross_validation import generate_cross_validation_table
 
 
-def inference(
+def run_inference(
     root_uuid,
     prefix,
     model_name,
@@ -12,7 +12,7 @@ def inference(
     nn_hop_length,
     n_windows_for_dense_inference,
     n_events_per_dense_window,
-    splits=[0, 1, 2, 3, 4],
+    splits,
 ):
     uuids = []
     for i in splits:
@@ -65,7 +65,7 @@ elif inference_function.is_structured():
 if use_manual_counts:
     prefix += "_manual"
 
-inference(
+run_inference(
     root_uuid,
     prefix,
     model_name,

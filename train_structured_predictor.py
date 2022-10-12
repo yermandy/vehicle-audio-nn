@@ -94,11 +94,13 @@ def get_XY(files: list[str], config: Config, model: nn.Module):
     Y = []
     for file in files:
         video = Video(file, config)
-        x = extract_features(video, model)
+        x = extract_features_structured_predictor(video, model)
         if config.structured_predictor.normalize_X:
             x = x / np.linalg.norm(x, axis=1, keepdims=True)
         X.append(x)
-        Y.append(extract_labels(video, config.structured_predictor.head))
+        Y.append(
+            extract_labels_structured_predictor(video, config.structured_predictor.head)
+        )
     return X, Y
 
 

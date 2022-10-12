@@ -215,7 +215,7 @@ def run(uuid, file, head, faults_threshold, training_hours, X_trn_more, Y_trn_mo
 
     from_time, till_time = video.get_from_till_time(Part.WHOLE)
 
-    predictions = validate_video(
+    predictions, probabilities = validate_video(
         video,
         model,
         from_time=from_time,

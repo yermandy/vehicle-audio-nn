@@ -3,16 +3,6 @@ from src import *
 import subprocess
 
 
-def append_summary(dict):
-    for k, v in dict.items():
-        if k == "file":
-            dict[k].append("")
-        else:
-            v = np.array(v).astype(float)
-            stats = f"{v.mean():.3f} ± {v.std():.3f}"
-            dict[k].append(stats)
-
-
 def generate_summary_table(files, prefix="tst", is_final=False):
     root_uuid = files[0].split("/")[1]
     table = []
@@ -29,10 +19,15 @@ def generate_summary_table(files, prefix="tst", is_final=False):
     dict = {}
     for i in range(len(header)):
         column_name = header[i]
-        column = table[i].tolist()
-        dict[column_name] = column
+        column_data = table[i].tolist()
+        dict[column_name] = column_data
 
-    append_summary(dict)
+        if column_name == "file":
+            dict[column_name].append("")
+        else:
+            column_data = np.array(column_data).astype(float)
+            stats = f"{column_data.mean():.3f} ± {column_data.std():.3f}"
+            dict[column_name].append(stats)
 
     suffix = "*" if is_final else ""
 
@@ -47,7 +42,7 @@ def generate_summary_table(files, prefix="tst", is_final=False):
 
 
 @hydra.main(config_path="config", config_name="default", version_base="1.2")
-def setup_globals(_config):
+def setup_globals(_config=None):
     global config
     config = Config(_config)
 

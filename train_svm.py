@@ -116,7 +116,7 @@ def calculate_mean_rvce(classifier, X, Y):
 
 
 @hydra.main(config_path="config", config_name="default", version_base="1.2")
-def run(config: Config):
+def run(config: Config = None):
     config = Config(config)
 
     uuid = config.uuid
@@ -193,7 +193,7 @@ def setup_hydra():
 
 
 @hydra.main(config_path="config", config_name="default", version_base="1.2")
-def setup_globals(_config):
+def setup_globals(_config=None):
     global config
     config = Config(_config)
 

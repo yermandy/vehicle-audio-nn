@@ -6,6 +6,7 @@ from preprocess_data import preprocess
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "-v",
         "--video",
         type=str,
         required=True,
@@ -52,8 +53,8 @@ if __name__ == "__main__":
     results_counts = {k: [np.sum(v)] for k, v in predictions.items()}
 
     # save
-    save_dict_txt("outputs_demo/results_counts.txt", results_counts)
-    save_dict_csv("outputs_demo/results_counts.csv", results_counts)
+    save_dict_txt(f"outputs_demo/{args.video}/results_counts.txt", results_counts)
+    save_dict_csv(f"outputs_demo/{args.video}/results_counts.csv", results_counts)
 
     # create dict with predictions
     results_predictions = defaultdict(list)
@@ -67,5 +68,5 @@ if __name__ == "__main__":
         results_predictions["time_till"].append((i + 1) * config.window_length)
 
     # save
-    save_dict_txt("outputs_demo/results_windows.txt", results_predictions)
-    save_dict_csv("outputs_demo/results_windows.csv", results_predictions)
+    save_dict_txt(f"outputs_demo/{args.video}/results_windows.txt", results_predictions)
+    save_dict_csv(f"outputs_demo/{args.video}/results_windows.csv", results_predictions)

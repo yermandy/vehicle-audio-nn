@@ -9,6 +9,7 @@ wandb
 weights
 plots
 outputs
+outputs_demo
 multirun
 config
 

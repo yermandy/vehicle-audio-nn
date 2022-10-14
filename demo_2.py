@@ -78,6 +78,15 @@ if __name__ == "__main__":
             )
         )
 
+    # plot confusion matrices
+    for head in predictions.keys():
+        plot_confusion_matrix(labels[head], predictions[head])
+        plt.savefig(
+            create_subfolders(
+                f"outputs_demo/{video_name}/confusion/{head}.{args.image_format}"
+            )
+        )
+
     # save
     save_dict_txt(f"outputs_demo/{video_name}/results_rvce.txt", results_rvces)
     save_dict_csv(f"outputs_demo/{video_name}/results_rvce.csv", results_rvces)

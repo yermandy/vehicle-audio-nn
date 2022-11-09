@@ -16,6 +16,7 @@ def parse_args():
     parser.add_argument(
         "--csv", type=int, choices=[0, 1], default=1, help="csv version"
     )
+    parser.add_argument("--device", type=str, default="cuda", help="device")
     parser.add_argument(
         "-i",
         "--image_format",
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     results_rvces = defaultdict(list)
 
     # load model and configs
-    model, config = load_model_locally(f"{args.model}")
+    model, config = load_model_locally(f"{args.model}", device=args.device)
 
     video_name = args.video
 

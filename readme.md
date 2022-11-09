@@ -77,3 +77,55 @@ python cross_validation.py experiment=047_october
 
 where `047_october` is the name of the experiment defined in `config/experiment/047_october.yaml` file
 
+
+#### Demos
+
+##### Demo 1
+
+Input:
+1. videos
+2. model
+
+Output:
+1. predictions for each time window
+2. counts for each head
+
+Usage:
+
+``` bash
+python demo_1.py -v 71_Samsung
+```
+
+##### Demo 2
+
+Input:
+1. videos
+2. model
+3. csv files with annotations
+
+Output:
+1. rvce for each head
+2. fault detection visualization
+
+Usage:
+
+``` bash
+python demo_2.py -v 71_Samsung
+```
+
+##### Demo 3
+
+Input:
+1. videos
+2. model
+3. csv files with annotations
+4. fine-tuning length (training part)
+
+Output:
+1. rvce for each head on test part
+
+Usage:
+
+``` bash
+python demo_3.py -v 71_Samsung
+```

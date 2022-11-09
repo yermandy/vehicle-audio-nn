@@ -50,13 +50,13 @@ mkdir -p data/csv
 # cvut dataset
 mkdir -p data/video/cvut
 mkdir -p data/csv/cvut
-ln -s ~/data/MultiDo/CVUTFD/copy/*.{MP4,MOV,mov,mp4} data/video/cvut/
+ln -s ~/data/MultiDo/CVUTFD/copy/*.{MP4,MOV,mov,mp4,mts,MTS} data/video/cvut/
 ln -s ~/data/MultiDo/CVUTFD/result/*.csv data/csv/cvut/
 
 # eyedea dataset
 mkdir -p data/video/eyedea
 mkdir -p data/csv/eyedea
-ln -s ~/data/MultiDo/videa_prujezdy/*.{MP4,MOV,mov,mp4} data/video/eyedea/
+ln -s ~/data/MultiDo/videa_prujezdy/*.{MP4,MOV,mov,mp4,mts,MTS} data/video/eyedea/
 ln -s ~/data/MultiDo/videa_prujezdy/*.csv data/csv/eyedea/
 ```
 

@@ -14,7 +14,8 @@ conda env create --file environment.yml
 
 #### Manual way
 
-Install with pip
+:warning: **Note**: This is not the recommended way. Use the `environment.yml` file instead to create the environment.
+
 ``` bash
 conda create -n eye-audio python=3.10 
 conda activate eye-audio
@@ -105,7 +106,7 @@ where `047_october` is the name of the experiment defined in `config/experiment/
 
 ### Weights
 
-Download pretrained model [here](https://drive.google.com/file/d/1v6vbDJDzXYF-nHO7PFSXa3hgL8ttfppY)
+Download pretrained model [here](https://drive.google.com/file/d/1v6vbDJDzXYF-nHO7PFSXa3hgL8ttfppY) and unzip in `outputs` folder
 
 ### Demos
 

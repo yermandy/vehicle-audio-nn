@@ -8,6 +8,10 @@ from sklearn import svm
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
+import os
+
+os.environ["NO_CACHE"] = "1"
+
 
 def parse_args():
     parser = argparse.ArgumentParser()

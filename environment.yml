@@ -1,4 +1,4 @@
-name: eye-audio-2
+name: eye-audio
 channels:
   - pytorch
   - nvidia

@@ -1,0 +1,5 @@
+# @package _global_
+
+wandb_project: vehicle-audio-nn
+wandb_entity: yermandy
+wandb_tags: []

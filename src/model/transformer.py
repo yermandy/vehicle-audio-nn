@@ -1,6 +1,10 @@
 from src.config import Config
-from vit_pytorch import ViT
 import torch.nn as nn
+
+try:
+    from vit_pytorch import ViT
+except ImportError:
+    print("'vit_pytorch' is not installed. Install with 'pip install vit-pytorch'")
 
 
 class Transformer(nn.Module):

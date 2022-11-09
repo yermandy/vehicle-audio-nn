@@ -16,7 +16,11 @@ from .structured_predictor_utils import *
 from .utils_svm import *
 from .metric import *
 from .fault_detection import *
-from . import structured_predictor
+
+try:
+    from . import structured_predictor
+except ModuleNotFoundError:
+    print("Structured predictor is not available")
 
 
 import os

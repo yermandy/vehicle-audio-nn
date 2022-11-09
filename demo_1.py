@@ -12,7 +12,9 @@ def parse_args():
         required=True,
         help="name of the video file in data/video folder",
     )
-    parser.add_argument("--model", type=str, default="047_october/0", help="model name")
+    parser.add_argument(
+        "--model", "-m", type=str, default="047_october/0", help="model name"
+    )
     parser.add_argument(
         "--csv", type=int, choices=[0, 1], default=1, help="csv version"
     )

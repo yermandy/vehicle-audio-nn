@@ -115,3 +115,62 @@ def visualize_faults(y_pred, y_true, from_time, till_time, config):
 
     plt.tight_layout()
     set_plt_svg()
+
+
+def find_faults(faults_threshold, y_pred, y_true):
+    faults = calculate_cum_errs_video_fault(y_pred, y_true)
+
+    faults_mask = [False] * len(faults)
+
+    for i, f in enumerate(faults):
+        if f == faults_threshold:
+            for j, f_back in enumerate(faults[:i][::-1]):
+                faults_mask[i - j] = True
+                if f_back == 0:
+                    break
+        elif f > faults_threshold:
+            faults_mask[i] = True
+
+    return faults_mask
+
+
+def remove_faults(config, traing_hours, faults_threshold, y_pred, y_true, X, Y):
+    # find training part
+    T = int(h(traing_hours) // config.window_length)
+
+    # copy all data
+    X_trn = X[:T].copy()
+    Y_trn = Y[:T].copy()
+    X_tst = X[T:].copy()
+    Y_tst = Y[T:].copy()
+    Y_tst_pred = y_pred[T:].copy()
+
+    # find fault intervals
+    faults_mask = find_faults(faults_threshold, y_pred, y_true)
+    faults_mask = np.asarray(faults_mask)
+    not_fault_trn = ~faults_mask[:T]
+
+    # remove fault intervals from training data
+    X_trn = X_trn[not_fault_trn]
+    Y_trn = Y_trn[not_fault_trn]
+
+    return X_trn, Y_trn, X_tst, Y_tst, Y_tst_pred
+
+
+def preprocess_data(X_trn_more, Y_trn_more):
+
+    X_trn_NN = X_trn_more.copy()
+    Y_trn_NN = Y_trn_more.copy()
+
+    mask = (Y_trn_NN != 0) & (Y_trn_NN != 1)
+    X_trn_NN = X_trn_NN[mask]
+    Y_trn_NN = Y_trn_NN[mask]
+
+    # indices = np.arange(len(X_trn_NN))
+    # np.random.shuffle(indices)
+    # indices = indices[:len(X_trn)]
+
+    # X_trn_NN = X_trn_NN[indices]
+    # Y_trn_NN = Y_trn_NN[indices]
+
+    return X_trn_NN, Y_trn_NN

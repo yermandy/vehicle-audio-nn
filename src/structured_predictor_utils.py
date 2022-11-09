@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
-def extract_features(video: Video, model: nn.Module):
+def extract_features_structured_predictor(video: Video, model: nn.Module):
     video.config.set_window_length(6)
     video.config.set_nn_hop_length(3)
 
@@ -34,7 +34,7 @@ def extract_features(video: Video, model: nn.Module):
     return X
 
 
-def extract_labels(video: Video, head_name="n_counts"):
+def extract_labels_structured_predictor(video: Video, head_name="n_counts"):
     video.config.set_window_length(3)
     video.config.set_nn_hop_length(3)
 

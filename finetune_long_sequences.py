@@ -24,81 +24,6 @@ def calculate_cum_errs_video_fault(y_pred, y_true):
     return np.array(cum_errs)
 
 
-"""
-def get_XY(files: list[str], config: Config, model: nn.Module, head="n_counts"):
-    X = []
-    Y = []
-
-    for file in files:
-        video = Video(file, config)
-
-        dataset = VehicleDataset(video, part=Part.WHOLE, config=video.config)
-        loader = DataLoader(
-            dataset,
-            batch_size=video.config.batch_size,
-            num_workers=video.config.num_workers,
-        )
-
-        x = []
-        y = []
-
-        device = next(model.parameters()).device
-        dtype = torch.float16 if config.cuda >= 0 and config.fp16 else torch.float32
-        device_type = "cuda" if config.cuda >= 0 else "cpu"
-
-        model.eval()
-        with torch.no_grad():
-            for tensor, labels in tqdm(loader, leave=True):
-
-                with torch.autocast(device_type=device_type, dtype=dtype):
-                    tensor = tensor.to(device)
-
-                x.extend(model.features(tensor).detach().cpu().numpy())
-                y.extend(labels[head])
-
-        x = np.array(x)
-        y = np.array(y)
-
-        X.append(x)
-        Y.append(y)
-
-    return X, Y
-"""
-
-
-def get_XY(files: list[str], config: Config, model: nn.Module, head="n_counts"):
-    X = []
-    Y = []
-
-    datapool = DataPool(files, config)
-
-    dataset = VehicleDataset(datapool, part=Part.WHOLE, config=config)
-    loader = DataLoader(
-        dataset,
-        batch_size=config.batch_size,
-        num_workers=config.num_workers,
-    )
-
-    device = next(model.parameters()).device
-    dtype = torch.float16 if config.cuda >= 0 and config.fp16 else torch.float32
-    device_type = "cuda" if config.cuda >= 0 else "cpu"
-
-    model.eval()
-    with torch.no_grad():
-        for tensor, labels in tqdm(loader, leave=True):
-
-            with torch.autocast(device_type=device_type, dtype=dtype):
-                tensor = tensor.to(device)
-
-            X.extend(model.features(tensor).detach().cpu().numpy())
-            Y.extend(labels[head])
-
-    X = np.array(X)
-    Y = np.array(Y)
-
-    return X, Y
-
-
 def find_best_C(X, Y):
     X_trn, X_val, Y_trn, Y_val = train_test_split(X, Y, test_size=0.5, random_state=42)
 
@@ -134,23 +59,6 @@ def find_best_C(X, Y):
     return best_C
 
 
-def find_faults(faults_threshold, y_pred, y_true):
-    faults = calculate_cum_errs_video_fault(y_pred, y_true)
-
-    faults_mask = [False] * len(faults)
-
-    for i, f in enumerate(faults):
-        if f == faults_threshold:
-            for j, f_back in enumerate(faults[:i][::-1]):
-                faults_mask[i - j] = True
-                if f_back == 0:
-                    break
-        elif f > faults_threshold:
-            faults_mask[i] = True
-
-    return faults_mask
-
-
 def get_more_training_data(dataset, config, model, head):
     trn_files = load_yaml(dataset)
     np.random.seed(42)
@@ -161,49 +69,16 @@ def get_more_training_data(dataset, config, model, head):
     return X, Y
 
 
-def remove_faults(config, traing_hours, faults_threshold, y_pred, y_true, X, Y):
-    # find training part
-    T = int(h(traing_hours) // config.window_length)
-
-    # copy all data
-    X_trn = X[:T].copy()
-    Y_trn = Y[:T].copy()
-    X_tst = X[T:].copy()
-    Y_tst = Y[T:].copy()
-    Y_tst_pred = y_pred[T:].copy()
-
-    # find fault intervals
-    faults_mask = find_faults(faults_threshold, y_pred, y_true)
-    faults_mask = np.asarray(faults_mask)
-    not_fault_trn = ~faults_mask[:T]
-
-    # remove fault intervals from training data
-    X_trn = X_trn[not_fault_trn]
-    Y_trn = Y_trn[not_fault_trn]
-
-    return X_trn, Y_trn, X_tst, Y_tst, Y_tst_pred
-
-
-def preprocess_data(X_trn_more, Y_trn_more):
-
-    X_trn_NN = X_trn_more.copy()
-    Y_trn_NN = Y_trn_more.copy()
-
-    mask = (Y_trn_NN != 0) & (Y_trn_NN != 1)
-    X_trn_NN = X_trn_NN[mask]
-    Y_trn_NN = Y_trn_NN[mask]
-
-    # indices = np.arange(len(X_trn_NN))
-    # np.random.shuffle(indices)
-    # indices = indices[:len(X_trn)]
-
-    # X_trn_NN = X_trn_NN[indices]
-    # Y_trn_NN = Y_trn_NN[indices]
-
-    return X_trn_NN, Y_trn_NN
-
-
-def run(uuid, file, head, faults_threshold, training_hours, X_trn_more, Y_trn_more):
+def run(
+    uuid,
+    file,
+    head,
+    faults_threshold,
+    training_hours,
+    X_trn_more,
+    Y_trn_more,
+    path=None,
+):
     print(f"uuid: {uuid}")
     print(f"file: {file}")
     print(f"head: {head}")
@@ -215,7 +90,7 @@ def run(uuid, file, head, faults_threshold, training_hours, X_trn_more, Y_trn_mo
 
     from_time, till_time = video.get_from_till_time(Part.WHOLE)
 
-    predictions = validate_video(
+    predictions, probabilities = validate_video(
         video,
         model,
         from_time=from_time,
@@ -227,7 +102,7 @@ def run(uuid, file, head, faults_threshold, training_hours, X_trn_more, Y_trn_mo
     y_true = labels[head]
     y_pred = predictions[head]
 
-    X, Y = get_XY([file], config, model)
+    X, Y = get_XY([file], config, model, head)
 
     X_trn, Y_trn, X_tst, Y_tst, Y_tst_pred = remove_faults(
         config, training_hours, faults_threshold, y_pred, y_true, X, Y
@@ -265,7 +140,8 @@ def run(uuid, file, head, faults_threshold, training_hours, X_trn_more, Y_trn_mo
 
     file_name = file if isinstance(file, str) else file[0]
 
-    path = f"outputs/{uuid}/svm/{file_name}/model.pkl"
+    if path == None:
+        path = f"outputs/{uuid}/svm/{file_name}/{head}/model.pkl"
     create_subfolders(path)
 
     # save
@@ -278,7 +154,8 @@ if __name__ == "__main__":
     # parameters
     UUIDS = ["042_large_dataset_1000/0", "047_october/0"]
     UUID = UUIDS[1]
-    HEAD = "n_counts"
+    HEADS = ["n_counts", "n_incoming", "n_outgoing", "n_CAR", "n_NOT_CAR"]
+    HEAD = HEADS[0]
     FILES = [
         ["08-OUT-ALL", 1],
         ["09-IN-ALL", 1],
@@ -300,6 +177,21 @@ if __name__ == "__main__":
 
     # %%
 
-    for FILE in FILES:
-        run(UUID, FILE, HEAD, FAULTS_THRESHOLD, TRAINING_HOURS, X_trn_more, Y_trn_more)
+    model, config = load_model_locally(UUID, model_name="rvce", device="cuda:0")
+
+    for head in HEADS:
+        X_trn_more, Y_trn_more = get_more_training_data(
+            TRAINING_DATASET, config, model, head
+        )
+
+        for file in FILES:
+            run(
+                UUID,
+                file,
+                head,
+                FAULTS_THRESHOLD,
+                TRAINING_HOURS,
+                X_trn_more,
+                Y_trn_more,
+            )
 # %%

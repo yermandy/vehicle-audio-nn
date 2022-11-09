@@ -12,8 +12,10 @@ from .inference import *
 from .transformation import *
 from .dataset import *
 from .model import *
-from .features import *
+from .structured_predictor_utils import *
+from .utils_svm import *
 from .metric import *
+from .fault_detection import *
 from . import structured_predictor
 
 

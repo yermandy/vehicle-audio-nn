@@ -1,0 +1,54 @@
+# @package _global_
+
+uuid: 047_october
+n_epochs: 500
+cross_validation_folder: 015_large_october
+
+resize: true
+resize_size: [128, 128]
+
+audio_augmentations: true
+random_colored_noise: true
+random_low_pass_filter: true
+random_high_pass_filter: true
+
+image_augmentations: true
+random_resized_crop: true
+random_erasing: true
+random_gaussian_blur: true
+
+use_testing_files: false
+
+batch_size: 256
+
+heads:
+  n_counts: 1
+  n_incoming: 1.0
+  n_outgoing: 1.0
+  n_CAR: 1.0
+  n_NOT_CAR: 1.0
+
+splits: [0]
+# structured predictor
+structured_predictor_splits: [0]
+structured_predictor_regs: [0.001]
+structured_predictor_heads: [n_counts, n_incoming, n_outgoing, n_CAR, n_NOT_CAR]
+# svm predictor
+svm_splits: [0]
+svm_heads: [n_counts, n_incoming, n_outgoing, n_CAR, n_NOT_CAR]
+
+defaults:
+  - override /structured_predictor: default
+  - override /svm_predictor: default
+
+# structured_predictor:
+  # wandb_mode: online
+  # training_files: config/structured_predictor/training_files/
+  # validation_files: config/structured_predictor/validation_files/
+  # testing_files: config/structured_predictor/testing_files/
+
+# svm_predictor:
+#   training_files: config/structured_predictor/training_files/015_iphone_october
+#   validation_files: config/structured_predictor/validation_files/015_iphone_october
+#   testing_files: config/structured_predictor/testing_files/015_iphone_october
+  

@@ -19,7 +19,7 @@ from .fault_detection import *
 
 try:
     from . import structured_predictor
-except ModuleNotFoundError:
+except Exception:
     print("Structured predictor is not available")
 
 

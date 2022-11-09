@@ -1,0 +1,28 @@
+# root with training files
+root: ...
+# head name
+head: ...
+# bmrm regularization constant
+reg: ...
+# bmrm relative tolerance
+tol_rel: 0.01
+# combine training and validation files
+combine_trn_and_val: False
+# normalize features
+normalize_X: False
+# seed for reproducibility
+seed: 42
+# number of events in small window
+Y: 7
+# learn only biases
+biases_only: False
+# path for outputs
+outputs_folder: ...
+# wandb mode
+wandb_mode: disabled
+# learn structured predictor from pretrained weights
+pretrained_weights: True
+
+training_files: ...
+validation_files: ...
+testing_files: ...

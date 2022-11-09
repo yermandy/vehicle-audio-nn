@@ -2,6 +2,10 @@ import argparse
 from src import *
 from preprocess_data import preprocess
 
+import os
+
+os.environ["NO_CACHE"] = "1"
+
 
 def parse_args():
     parser = argparse.ArgumentParser()

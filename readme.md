@@ -169,7 +169,7 @@ Output:
 Usage:
 
 ``` bash
-python demo_3.py -v 71_Samsung -m 047_october/0
+python demo_3.py -v 71_Samsung -m 047_october/0 --device cpu --training_hours 0.15
 ```
 
-Notice, `71_Samsung` video file should be somewhere in subdirectories of `data/video/**` and annotations in `data/csv/**`. The full model path is "outputs/047_october/0/rvce.pth". 
+Notice, `71_Samsung` video file should be somewhere in subdirectories of `data/video/**` and annotations in `data/csv/**`. The full model path is "outputs/047_october/0/rvce.pth". The first 0.15 hours of the video is used for training and rest evaluation and the it uses CPU only.

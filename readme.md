@@ -130,7 +130,7 @@ Usage:
 python demo_1.py -v 71_Samsung -m 047_october/0
 ```
 
-
+Notice, `71_Samsung` video file should be somewhere in subdirectories of `data/video/**`. The full model path is "outputs/047_october/0/rvce.pth". 
 
 #### Demo 2
 
@@ -151,7 +151,7 @@ Usage:
 python demo_2.py -v 71_Samsung -m 047_october/0
 ```
 
-Notice, `71_Samsung` video file should be somewhere in subdirectories of `data/video/**` and annotations in `data/csv/**`
+Notice, `71_Samsung` video file should be somewhere in subdirectories of `data/video/**` and annotations in `data/csv/**`. The full model path is "outputs/047_october/0/rvce.pth". 
 
 #### Demo 3
 
@@ -171,3 +171,5 @@ Usage:
 ``` bash
 python demo_3.py -v 71_Samsung -m 047_october/0
 ```
+
+Notice, `71_Samsung` video file should be somewhere in subdirectories of `data/video/**` and annotations in `data/csv/**`. The full model path is "outputs/047_october/0/rvce.pth". 

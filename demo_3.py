@@ -12,6 +12,9 @@ from sklearn import svm
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system')
+
 
 def parse_args():
     parser = argparse.ArgumentParser()

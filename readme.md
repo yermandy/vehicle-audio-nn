@@ -112,6 +112,10 @@ Download pretrained model [here](https://drive.google.com/file/d/1v6vbDJDzXYF-nH
 
 #### Demo 1
 
+Prediction.
+
+It takes an audio, extracted from a video, applies multi-head audio predictor and outputs predictions for individual time windows and summary. 
+
 Input:
 1. videos
 2. model
@@ -129,6 +133,8 @@ python demo_1.py -v 71_Samsung -m 047_october/0
 
 
 #### Demo 2
+
+Prediction and evaluation. The same as demo_1, but it uses ground-truth labels to evaluate prediction accuracy.
 
 Input:
 1. videos
@@ -148,6 +154,8 @@ python demo_2.py -v 71_Samsung -m 047_october/0
 Notice, `71_Samsung` video file should be somewhere in subdirectories of `data/video/**` and annotations in `data/csv/**`
 
 #### Demo 3
+
+It splits input (long) video into two parts. The begining part is used for fine-tuning the prediction model. The trailing part of the video is used for prediction and evaluation.
 
 Input:
 1. videos

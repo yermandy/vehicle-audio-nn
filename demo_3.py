@@ -17,6 +17,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--video",
+        "-v",
         type=str,
         required=True,
         help="name of the video file in data/video folder",

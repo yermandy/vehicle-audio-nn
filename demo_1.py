@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument(
         "--model", "-m", type=str, default="047_october/0", help="model name"
     )
+    parser.add_argument("--device", type=str, default="cuda", help="device")
     parser.add_argument(
         "--csv", type=int, choices=[0, 1], default=1, help="csv version"
     )
@@ -31,7 +32,7 @@ if __name__ == "__main__":
     args = parse_args()
 
     # load model and configs
-    model, config = load_model_locally(f"{args.model}")
+    model, config = load_model_locally(f"{args.model}", device=args.device)
 
     # get video file name
     video_file_name = get_file_name(args.video)

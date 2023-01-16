@@ -117,7 +117,7 @@ if __name__ == "__main__":
         Y_trn_more = Y_trn_more_heads[head]
         Y = Y_heads[head]
 
-        X_trn, Y_trn, X_tst, y_true, y_pred_nn = remove_faults(
+        X_trn, Y_trn, X_tst, y_true, y_pred_nn = split_and_remove_faults(
             config,
             args.training_hours,
             args.faults_threshold,

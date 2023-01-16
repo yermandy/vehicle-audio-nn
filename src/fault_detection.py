@@ -134,7 +134,9 @@ def find_faults(faults_threshold, y_pred, y_true):
     return faults_mask
 
 
-def remove_faults(config, traing_hours, faults_threshold, y_pred, y_true, X, Y):
+def split_and_remove_faults(
+    config, traing_hours, faults_threshold, y_pred, y_true, X, Y, remove_faults=True
+):
     # find training part
     T = int(h(traing_hours) // config.window_length)
 
@@ -145,14 +147,15 @@ def remove_faults(config, traing_hours, faults_threshold, y_pred, y_true, X, Y):
     Y_tst = Y[T:].copy()
     Y_tst_pred = y_pred[T:].copy()
 
-    # find fault intervals
-    faults_mask = find_faults(faults_threshold, y_pred, y_true)
-    faults_mask = np.asarray(faults_mask)
-    not_fault_trn = ~faults_mask[:T]
+    if remove_faults:
+        # find fault intervals
+        faults_mask = find_faults(faults_threshold, y_pred, y_true)
+        faults_mask = np.asarray(faults_mask)
+        not_fault_trn = ~faults_mask[:T]
 
-    # remove fault intervals from training data
-    X_trn = X_trn[not_fault_trn]
-    Y_trn = Y_trn[not_fault_trn]
+        # remove fault intervals from training data
+        X_trn = X_trn[not_fault_trn]
+        Y_trn = Y_trn[not_fault_trn]
 
     return X_trn, Y_trn, X_tst, Y_tst, Y_tst_pred
 

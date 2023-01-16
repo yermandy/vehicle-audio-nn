@@ -10,6 +10,9 @@ import numpy as np
 import omegaconf
 import csv
 import pandas as pd
+import contextlib
+import time
+
 
 from easydict import EasyDict
 from tqdm.auto import tqdm
@@ -366,9 +369,30 @@ def aslist(x):
     return x if isinstance(x, list) else [x]
 
 
-def m(s):
+def m(s: float) -> float:
     return s * 60
 
 
-def h(s):
+def h(s: float) -> float:
     return s * 3600
+
+
+class Profile(contextlib.ContextDecorator):
+    # Usage: @Profile() decorator or 'with Profile():' context manager
+
+    def __init__(self, t=0.0):
+        self.t = t
+        self.cuda = torch.cuda.is_available()
+
+    def __enter__(self):
+        self.start = self.time()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self._dt = self.time() - self.start
+        self.t += self._dt
+
+    def time(self):
+        if self.cuda:
+            torch.cuda.synchronize()
+        return time.time()

@@ -15,6 +15,7 @@ def validate_video(
     till_time=None,
     classification=True,
     tqdm=lambda x: x,
+    verbose=False,
 ):
 
     signal = video.signal
@@ -42,20 +43,24 @@ def validate_video(
     dtype = torch.float16 if config.cuda >= 0 and config.fp16 else torch.float32
     device_type = "cuda" if config.cuda >= 0 else "cpu"
 
+    profile_1, profile_2 = Profile(), Profile()
+
     model.eval()
     with torch.no_grad():
         for k in tqdm(range(n_hops)):
             start = k * config.n_samples_in_nn_hop
             end = start + config.n_samples_in_window
             x = signal[start:end]
-            x = transform(x)
+            with profile_1:
+                x = transform(x)
             batch.append(x)
 
             if (k + 1) % config.batch_size == 0 or k + 1 == n_hops:
                 batch = torch.stack(batch, dim=0)
                 batch = batch.to(device)
                 with torch.autocast(device_type=device_type, dtype=dtype):
-                    heads = model(batch)
+                    with profile_2:
+                        heads = model(batch)
 
                     for head, scores in heads.items():
                         if return_probs:
@@ -72,6 +77,20 @@ def validate_video(
                 batch = []
 
     to_return = []
+
+    if verbose:
+        processed_seconds = till_time - from_time
+        processed_minutes = m(processed_seconds)
+
+        print(f"transformation time: {profile_1.t:.3f}")
+        print(f"inference time: {profile_2.t:.3f}")
+        print(f"audio length: {processed_seconds:.2f}")
+        print(
+            f"transformation time per one minute of audio: {profile_1.t / processed_minutes:.6f}"
+        )
+        print(
+            f"inference time per one minute of audio: {profile_2.t / processed_minutes:.6f}"
+        )
 
     if return_preds:
         preds = {k: np.array(v) for k, v in preds.items()}

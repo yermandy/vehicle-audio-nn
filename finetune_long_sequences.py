@@ -10,20 +10,6 @@ from sklearn.pipeline import make_pipeline
 # %%
 
 
-def calculate_cum_errs_video_fault(y_pred, y_true):
-    cum_errs = []
-    cum_err = 0
-    for yp, yt in zip(y_pred, y_true):
-        if yp == yt and yp != 0:
-            cum_err = 0
-        elif yp != yt and yt != 0:
-            cum_err = 0
-        else:
-            cum_err += yp - yt
-        cum_errs.append(cum_err)
-    return np.array(cum_errs)
-
-
 def find_best_C(X, Y):
     X_trn, X_val, Y_trn, Y_val = train_test_split(X, Y, test_size=0.5, random_state=42)
 
@@ -104,14 +90,43 @@ def run(
 
     X, Y = get_XY([file], config, model, head)
 
-    X_trn, Y_trn, X_tst, Y_tst, Y_tst_pred = remove_faults(
+    (
+        X_trn_no_faults,
+        Y_trn_no_faults,
+        X_tst,
+        Y_tst,
+        Y_tst_pred,
+    ) = split_and_remove_faults(
         config, training_hours, faults_threshold, y_pred, y_true, X, Y
+    )
+
+    (
+        X_trn_with_faults,
+        Y_trn_with_faults,
+        X_tst,
+        Y_tst,
+        Y_tst_pred,
+    ) = split_and_remove_faults(
+        config,
+        training_hours,
+        faults_threshold,
+        y_pred,
+        y_true,
+        X,
+        Y,
+        remove_faults=False,
     )
 
     X_trn_NN, Y_trn_NN = preprocess_data(X_trn_more, Y_trn_more)
 
-    X_trn_SVM = np.concatenate([X_trn, X_trn_NN])
-    Y_trn_SVM = np.concatenate([Y_trn, Y_trn_NN])
+    X_trn_SVM_no_faults = np.concatenate([X_trn_no_faults, X_trn_NN])
+    Y_trn_SVM_no_faults = np.concatenate([Y_trn_no_faults, Y_trn_NN])
+
+    X_trn_SVM_with_faults = np.concatenate([X_trn_with_faults, X_trn_NN])
+    Y_trn_SVM_with_faults = np.concatenate([Y_trn_with_faults, Y_trn_NN])
+
+    print(f"{X_trn_no_faults.shape=}")
+    print(f"{X_trn_with_faults.shape=}")
 
     # C = find_best_C(X_trn_NN, Y_trn_NN)
     C = 50
@@ -120,23 +135,46 @@ def run(
     plot_class_distribution(Y_trn_NN)
     plt.show()
 
-    plot_class_distribution(Y_trn_SVM)
+    plot_class_distribution(Y_trn_SVM_no_faults)
     plt.show()
 
-    classifier = make_pipeline(
+    # initialize and train SVM on data without faults
+    classifier_no_faults = make_pipeline(
         StandardScaler(), svm.SVC(C=C, class_weight="balanced", cache_size=5000)
     )
+    classifier_no_faults.fit(X_trn_SVM_no_faults, Y_trn_SVM_no_faults)
 
-    classifier.fit(X_trn_SVM, Y_trn_SVM)
+    # initialize and train SVM on data with faults
+    classifier_with_faults = make_pipeline(
+        StandardScaler(), svm.SVC(C=C, class_weight="balanced", cache_size=5000)
+    )
+    classifier_with_faults.fit(X_trn_SVM_with_faults, Y_trn_SVM_with_faults)
 
     assert Y_tst_pred.shape == Y_tst.shape
 
-    tst_rvce_finetuned = calculate_rvce_of_svm_classifier(classifier, X_tst, Y_tst)
+    tst_rvce_finetuned_no_faults = calculate_rvce_of_svm_classifier(
+        classifier_no_faults, X_tst, Y_tst
+    )
+    tst_rvce_finetuned_with_faults = calculate_rvce_of_svm_classifier(
+        classifier_with_faults, X_tst, Y_tst
+    )
     tst_rvce_nn = calculate_rvce(Y_tst, Y_tst_pred)
 
     print()
-    print(f"RVCE NN:  {tst_rvce_nn:.3f}")
-    print(f"RVCE SVM: {tst_rvce_finetuned:.3f}")
+    # save results to file
+    with open(f"tmp.txt", "a+") as f:
+        f.write(f"Head: {head}\n")
+        f.write(f"File: {file}\n")
+        f.write(f"Y_tst: {np.unique(Y_tst, return_counts=True)}\n")
+        f.write(f"Y_tst_pred: {np.unique(Y_tst_pred, return_counts=True)}\n")
+        f.write(f"RVCE NN: {tst_rvce_nn:.3f}\n")
+        f.write(f"RVCE SVM no faults: {tst_rvce_finetuned_no_faults:.3f}\n")
+        f.write(f"RVCE SVM with faults: {tst_rvce_finetuned_with_faults:.3f}\n")
+        f.write("\n")
+
+    print(f"RVCE NN: {tst_rvce_nn:.3f}")
+    print(f"RVCE SVM no faults: {tst_rvce_finetuned_no_faults:.3f}")
+    print(f"RVCE SVM with faults: {tst_rvce_finetuned_with_faults:.3f}")
 
     file_name = file if isinstance(file, str) else file[0]
 
@@ -146,7 +184,7 @@ def run(
 
     # save
     with open(path, "wb") as f:
-        pickle.dump(classifier, f)
+        pickle.dump(classifier_no_faults, f)
 
 
 # %%
@@ -169,10 +207,23 @@ if __name__ == "__main__":
 
     # %%
 
+    # Example on one file and one head
     model, config = load_model_locally(UUID, model_name="rvce", device="cuda:0")
 
     X_trn_more, Y_trn_more = get_more_training_data(
         TRAINING_DATASET, config, model, HEAD
+    )
+
+    # %%
+    # Example on one file and one head
+    run(
+        UUID,
+        FILES[0],
+        HEAD,
+        FAULTS_THRESHOLD,
+        TRAINING_HOURS,
+        X_trn_more,
+        Y_trn_more,
     )
 
     # %%
@@ -194,4 +245,5 @@ if __name__ == "__main__":
                 X_trn_more,
                 Y_trn_more,
             )
+
 # %%

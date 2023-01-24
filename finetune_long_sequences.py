@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn import svm
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
-
+from time import time
 
 # %%
 
@@ -127,6 +127,8 @@ def run(
 
     print(f"{X_trn_no_faults.shape=}")
     print(f"{X_trn_with_faults.shape=}")
+    print(f"{X_trn_SVM_no_faults.shape=}")
+    print(f"{X_tst.shape=}")
 
     # C = find_best_C(X_trn_NN, Y_trn_NN)
     C = 50
@@ -142,22 +144,31 @@ def run(
     classifier_no_faults = make_pipeline(
         StandardScaler(), svm.SVC(C=C, class_weight="balanced", cache_size=5000)
     )
+    t1 = time()
     classifier_no_faults.fit(X_trn_SVM_no_faults, Y_trn_SVM_no_faults)
+    print("SVM no faults learning time", time() - t1)
 
     # initialize and train SVM on data with faults
     classifier_with_faults = make_pipeline(
         StandardScaler(), svm.SVC(C=C, class_weight="balanced", cache_size=5000)
     )
+    t1 = time()
     classifier_with_faults.fit(X_trn_SVM_with_faults, Y_trn_SVM_with_faults)
+    print("SVM with faults learning time", time() - t1)
 
     assert Y_tst_pred.shape == Y_tst.shape
 
+    t1 = time()
     tst_rvce_finetuned_no_faults = calculate_rvce_of_svm_classifier(
         classifier_no_faults, X_tst, Y_tst
     )
+    print("SVM no faults inference time", time() - t1)
+
+    t1 = time()
     tst_rvce_finetuned_with_faults = calculate_rvce_of_svm_classifier(
         classifier_with_faults, X_tst, Y_tst
     )
+    print("SVM with faults inference time", time() - t1)
     tst_rvce_nn = calculate_rvce(Y_tst, Y_tst_pred)
 
     print()

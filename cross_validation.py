@@ -2,7 +2,7 @@ from train_network import *
 
 
 @hydra.main(config_path="config", config_name="default")
-def setup_globals(_config):
+def setup_globals(_config=None):
     global config
     config = Config(_config)
 

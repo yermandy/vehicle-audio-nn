@@ -123,7 +123,7 @@ def seed_worker(worker_id):
 
 
 @hydra.main(config_path="config", config_name="default")
-def run(config):
+def run(config=None):
     os.environ["WANDB_MODE"] = config.wandb_mode
 
     # make config type and attribute safe
